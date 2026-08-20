@@ -1,0 +1,143 @@
+<div class="login">
+  <section class="login__hero">
+    <div class="login__glow login__glow--violet" aria-hidden="true"></div>
+    <div class="login__glow login__glow--blue" aria-hidden="true"></div>
+    <div class="login__grain" aria-hidden="true"></div>
+
+    <header class="login__hero-top">
+      <div class="login__brand">
+        <svg width="26" height="26" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="vxtLoginGradient" x1="4" y1="8" x2="36" y2="10" gradientUnits="userSpaceOnUse">
+              <stop offset="0%" stop-color="#2568c9" />
+              <stop offset="100%" stop-color="#7c5cff" />
+            </linearGradient>
+          </defs>
+          <path
+            d="M6 9c0-1.7 1.3-3 3-3s3 1.3 3 3c0 .9-.4 1.7-1 2.3l7 12.1 12-6.7c-.6-.5-1-1.3-1-2.1 0-1.7 1.3-3 3-3s3 1.3 3 3-1.3 3-3 3c-.3 0-.6 0-.9-.1L18.6 30.4c-.5.9-1.5 1.5-2.6 1.5-1.7 0-3-1.3-3-3 0-.5.1-1 .4-1.4L6.7 12.6C6.3 12 6 11 6 9Z"
+            fill="url(#vxtLoginGradient)"
+          />
+          <circle cx="9" cy="9" r="3" fill="#2568c9" />
+          <circle cx="30" cy="14" r="2.6" fill="#7c5cff" />
+          <circle cx="16" cy="27.5" r="2.6" fill="#7c5cff" opacity="0.9" />
+        </svg>
+        <span class="login__wordmark">VEXTIS</span>
+      </div>
+      <div class="login__hero-meta">
+        <span class="login__badge">Fortified Enterprise Fleet</span>
+        <span class="login__clock">{{ clockLabel }}</span>
+      </div>
+    </header>
+
+    <div class="login__hero-body">
+      <div class="login__copy">
+        <span class="login__eyebrow">
+          <span class="login__eyebrow-dot" aria-hidden="true"></span>
+          CRM/ERP agentivo · Google Cloud
+        </span>
+        <h1 class="login__headline">
+          Menos tareas<br />
+          manuales.<br />
+          <span class="login__headline-accent">Más</span> decisiones.
+        </h1>
+        <p class="login__lead">
+          Una flota de agentes coordina ventas, inventario y facturación — ejecuta el
+          trabajo en segundo plano y solo te involucra cuando una política exige una
+          decisión humana.
+        </p>
+
+        <dl class="login__stats">
+          <div>
+            <dt>Fundado</dt>
+            <dd>2026</dd>
+          </div>
+          <div>
+            <dt>Departamentos</dt>
+            <dd>CRM · Inventario · Facturación</dd>
+          </div>
+          <div>
+            <dt>Tiempo ahorrado</dt>
+            <dd>34.5h / semana</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div class="login__sphere" aria-hidden="true">
+        <svg [attr.width]="sphereSize" [attr.height]="sphereSize" [attr.viewBox]="sphereViewBox">
+          <defs>
+            <radialGradient id="vxtSphereCore" cx="35%" cy="32%" r="70%">
+              <stop offset="0%" stop-color="#a58bff" />
+              <stop offset="45%" stop-color="#6a4fe0" />
+              <stop offset="100%" stop-color="#12123a" />
+            </radialGradient>
+          </defs>
+          <circle cx="0" cy="0" [attr.r]="sphereRadius" fill="url(#vxtSphereCore)" opacity="0.35" />
+          @for (p of spherePoints; track $index) {
+            <circle [attr.cx]="p.cx" [attr.cy]="p.cy" [attr.r]="p.r" [attr.fill]="p.fill" [attr.opacity]="p.opacity" />
+          }
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="login__panel">
+    <div class="login__panel-brand">
+      <svg width="24" height="24" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+        <defs>
+          <linearGradient id="vxtLoginGradientMobile" x1="4" y1="8" x2="36" y2="10" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#2568c9" />
+            <stop offset="100%" stop-color="#7c5cff" />
+          </linearGradient>
+        </defs>
+        <path
+          d="M6 9c0-1.7 1.3-3 3-3s3 1.3 3 3c0 .9-.4 1.7-1 2.3l7 12.1 12-6.7c-.6-.5-1-1.3-1-2.1 0-1.7 1.3-3 3-3s3 1.3 3 3-1.3 3-3 3c-.3 0-.6 0-.9-.1L18.6 30.4c-.5.9-1.5 1.5-2.6 1.5-1.7 0-3-1.3-3-3 0-.5.1-1 .4-1.4L6.7 12.6C6.3 12 6 11 6 9Z"
+          fill="url(#vxtLoginGradientMobile)"
+        />
+      </svg>
+      <span class="login__wordmark login__wordmark--dark">VEXTIS</span>
+    </div>
+
+    <h2 class="login__panel-title">Bienvenido de vuelta</h2>
+    <p class="login__panel-subtitle">Ingresá a Mission Control con tu cuenta de Vextis.</p>
+
+    <form class="login__form" (submit)="onSubmit($event)">
+      <label class="login__field">
+        <span>Correo</span>
+        <input
+          type="email"
+          name="email"
+          autocomplete="username"
+          [value]="email()"
+          (input)="email.set($any($event.target).value)"
+        />
+      </label>
+      <label class="login__field">
+        <span>Contraseña</span>
+        <input
+          type="password"
+          name="password"
+          autocomplete="current-password"
+          [value]="password()"
+          (input)="password.set($any($event.target).value)"
+        />
+      </label>
+
+      <button type="submit" class="login__submit">
+        Ingresar
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+    </form>
+
+    <div class="login__audit-note">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path d="M12 2 4 5v6c0 5 3.4 8.9 8 10 4.6-1.1 8-5 8-10V5l-8-3Z" stroke="#7c5cff" stroke-width="1.6" />
+        <path d="m9 12 2 2 4-4" stroke="#7c5cff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+      Cada acción de la flota queda auditada — identidad, herramienta, resultado y duración.
+    </div>
+
+    <p class="login__panel-footer">Demo del hackathon All Things Agentic · Google Cloud</p>
+  </section>
+</div>

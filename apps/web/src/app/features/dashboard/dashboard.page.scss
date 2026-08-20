@@ -4,7 +4,7 @@
 }
 
 .hero__eyebrow {
-  color: #6941c6;
+  color: var(--vxt-brand-violet);
   font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -13,7 +13,7 @@
 }
 
 h1 {
-  color: #101828;
+  color: var(--vxt-text-primary);
   font-size: clamp(2.25rem, 5vw, 4.75rem);
   letter-spacing: -0.055em;
   line-height: 0.98;
@@ -21,7 +21,7 @@ h1 {
 }
 
 .hero__lead {
-  color: #475467;
+  color: var(--vxt-text-secondary);
   font-size: clamp(1rem, 2vw, 1.25rem);
   line-height: 1.65;
   max-width: 45rem;
@@ -34,14 +34,16 @@ h1 {
 }
 
 mat-card {
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--vxt-surface);
+  border: 1px solid var(--vxt-border);
   min-height: 10rem;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 mat-icon[mat-card-avatar] {
   align-items: center;
-  background: #f4ebff;
-  color: #6941c6;
+  background: var(--vxt-brand-violet-tint);
+  color: var(--vxt-brand-violet);
   display: flex;
   justify-content: center;
 }

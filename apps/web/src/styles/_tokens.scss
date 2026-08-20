@@ -1,0 +1,78 @@
+// Vextis — design tokens (identidad visual global)
+//
+// Origen: mockup de referencia (`/tmp/vextis-ui`) validado con el Claude Skill
+// "dataviz" (paleta corrida por scripts/validate_palette.js en modo claro y oscuro).
+//
+// Reglas duras, no las rompas sin pasar de nuevo el validador:
+// 1. `--vxt-cat-*` (categórica) y `--vxt-status-*` son EXCLUSIVAS para series de
+//    gráficas y estados de ejecución (RUNNING/WAITING_APPROVAL/FAILED, etc).
+//    Nunca se usan para chrome de UI (fondos, texto, marca).
+// 2. `--vxt-brand-*` (azul→violeta) es EXCLUSIVA para identidad de marca: logo,
+//    login, acentos de navegación, CTAs. Nunca reemplaza el rojo/verde/amarillo
+//    de las gráficas.
+// 3. Todo lo demás (`--vxt-surface`, `--vxt-page`, `--vxt-text-*`, etc.) es chrome
+//    neutro y sí cambia entre modo claro/oscuro.
+
+:root {
+  // Marca Vextis — logo, login, acentos. No usar en dataviz.
+  --vxt-brand-blue: #2568c9;
+  --vxt-brand-violet: #7c5cff;
+  --vxt-brand-gradient: linear-gradient(135deg, #2568c9 0%, #6a4fe0 60%, #7c5cff 100%);
+  --vxt-brand-violet-tint: rgba(124, 92, 255, 0.14);
+
+  // Chrome — modo claro
+  --vxt-surface: #fcfcfb;
+  --vxt-page: #f9f9f7;
+  --vxt-text-primary: #0b0b0b;
+  --vxt-text-secondary: #52514e;
+  --vxt-muted: #898781;
+  --vxt-gridline: #e1e0d9;
+  --vxt-baseline: #c3c2b7;
+  --vxt-success-text: #006300;
+  --vxt-border: rgba(11, 11, 11, 0.08);
+
+  // Dataviz — categórica (modo claro), paleta validada (references/palette.md)
+  --vxt-cat-1: #2a78d6; // azul
+  --vxt-cat-2: #eb6834; // naranja
+  --vxt-cat-3: #1baf7a; // aqua
+  --vxt-cat-4: #eda100; // amarillo
+  --vxt-cat-5: #e87ba4; // magenta
+  --vxt-cat-6: #008300; // verde
+  --vxt-cat-7: #4a3aa7; // violeta
+  --vxt-cat-8: #e34948; // rojo
+
+  // Dataviz — estado (constante entre modos; significado semántico fijo)
+  --vxt-status-good: #0ca30c;
+  --vxt-status-warning: #fab219;
+  --vxt-status-serious: #ec835a;
+  --vxt-status-critical: #d03b3b;
+
+  color-scheme: light;
+}
+
+html.dark {
+  --vxt-brand-violet-tint: rgba(124, 92, 255, 0.22);
+
+  // Chrome — modo oscuro
+  --vxt-surface: #1a1a19;
+  --vxt-page: #0d0d0d;
+  --vxt-text-primary: #ffffff;
+  --vxt-text-secondary: #c3c2b7;
+  --vxt-muted: #898781;
+  --vxt-gridline: #2c2c2a;
+  --vxt-baseline: #383835;
+  --vxt-success-text: #0ca30c;
+  --vxt-border: rgba(255, 255, 255, 0.08);
+
+  // Dataviz — categórica (modo oscuro)
+  --vxt-cat-1: #3987e5;
+  --vxt-cat-2: #d95926;
+  --vxt-cat-3: #199e70;
+  --vxt-cat-4: #c98500;
+  --vxt-cat-5: #d55181;
+  --vxt-cat-6: #008300;
+  --vxt-cat-7: #9085e9;
+  --vxt-cat-8: #e66767;
+
+  color-scheme: dark;
+}

@@ -1,25 +1,33 @@
 @use '@angular/material' as mat;
+@use './styles/tokens';
 
 html {
+  // theme-type: color-scheme hace que Angular Material emita cada token del
+  // sistema (--mat-sys-*) como light-dark(claro, oscuro) y los resuelva según
+  // la propiedad CSS `color-scheme` del elemento. `tokens.scss` fija
+  // `color-scheme: light` en :root y `color-scheme: dark` en `html.dark`, así
+  // que un solo toggle de clase cambia Material Y los tokens propios de Vextis
+  // a la vez.
   @include mat.theme((
     color: (
+      theme-type: color-scheme,
       primary: mat.$violet-palette,
       tertiary: mat.$azure-palette,
     ),
     typography: Roboto,
     density: 0,
   ));
-  background: #f8fafc;
-  color-scheme: light;
+  background: var(--vxt-page);
   font-family: Roboto, "Helvetica Neue", sans-serif;
 }
 
 body {
   background:
-    radial-gradient(circle at 85% 10%, rgba(127, 86, 217, 0.14), transparent 30rem),
-    #f8fafc;
+    radial-gradient(circle at 85% 10%, var(--vxt-brand-violet-tint), transparent 30rem),
+    var(--vxt-page);
   margin: 0;
   min-height: 100dvh;
+  transition: background-color 0.2s ease;
 }
 
 * {
