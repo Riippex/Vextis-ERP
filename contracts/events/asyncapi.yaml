@@ -1,0 +1,26 @@
+asyncapi: 3.0.0
+info:
+  title: Vextis Domain Events
+  version: 0.1.0
+  description: Eventos publicados mediante transactional outbox y transportados por Pub/Sub.
+channels:
+  orderEvents:
+    address: order-events
+    messages:
+      purchaseOrderReceived:
+        $ref: "#/components/messages/PurchaseOrderReceived"
+operations:
+  receivePurchaseOrder:
+    action: receive
+    channel:
+      $ref: "#/channels/orderEvents"
+    messages:
+      - $ref: "#/channels/orderEvents/messages/purchaseOrderReceived"
+components:
+  messages:
+    PurchaseOrderReceived:
+      name: purchase_order.received
+      title: Purchase order received
+      payload:
+        $ref: "./schemas/purchase-order-received.v1.json"
+

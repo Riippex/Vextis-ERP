@@ -1,2 +1,65 @@
-# Vextis-ERP
-Vextis ERP is a modular, agentic CRM and ERP platform that unifies enterprise operations with autonomous AI. Powered by Gemini 3, Imagen, Veo, and deployed on Google Cloud, Vextis deploys a secure fleet of agents that automate background business workflows, power an interactive collaborative chat assistant, and deliver real-time data insights
+# Vextis ERP
+
+Vextis es una plataforma CRM/ERP agentiva para coordinar procesos empresariales entre **CRM y Ventas**, **Inventario y Operaciones** y **Finanzas y Facturación**.
+
+El producto combina las capacidades de los tres tracks de All Things Agentic Hackathon en una sola experiencia:
+
+- **Collaborative Partner:** entiende objetivos, recupera contexto y solicita aclaraciones.
+- **Taskmaster:** ejecuta workflows empresariales asíncronos de principio a fin.
+- **Fortified Enterprise Fleet:** registra, autoriza, observa y audita los agentes.
+
+La categoría oficial de inscripción es **Fortified Enterprise Fleet**.
+
+## Arquitectura oficial
+
+```text
+Angular Web
+    |
+    v
+Enterprise Core — Java 21 / Spring Boot — Cloud Run
+    |                         |
+    |                         +-> Transactional Outbox -> Pub/Sub
+    v                                                  |
+Cloud SQL PostgreSQL + pgvector                        v
+                                             Agent Runtime — Python / Google ADK
+                                                |        |        |
+                                                |        |        +-> Memory Bank
+                                                |        +----------> Gemini / Vertex AI
+                                                +-------------------> Model Armor
+```
+
+- **Java** es la única autoridad para mutaciones de CRM, inventario y facturación.
+- **Python** coordina agentes, RAG, memoria y workflows, pero no escribe directamente en las tablas empresariales.
+- **OpenAPI, AsyncAPI y JSON Schema** son los contratos entre Angular, Java y Python.
+- **PostgreSQL** conserva datos transaccionales, estados durables, auditoría, outbox, idempotencia y vectores del RAG.
+- **Cloud Storage** conserva documentos y artefactos originales.
+
+## Monorepo
+
+```text
+apps/web/                         Angular
+services/enterprise-core/         Java + Spring Boot
+services/agent-runtime/           Python + Google ADK
+contracts/                        OpenAPI, AsyncAPI y JSON Schema
+infra/                            Terraform, despliegue y datos semilla
+docs/                             Arquitectura, decisiones y coordinación
+```
+
+## Fuentes de verdad
+
+La documentación pública se consulta en este orden:
+
+1. [`docs/TECH_STACK.md`](./docs/TECH_STACK.md): tecnologías y responsabilidades de cada runtime.
+2. [`docs/REPO_STRUCTURE.md`](./docs/REPO_STRUCTURE.md): estructura y reglas de dependencia.
+3. [`docs/CONTRACTS.md`](./docs/CONTRACTS.md): modelo, APIs, eventos y reglas de integración.
+
+Si dos documentos se contradicen, la decisión más reciente registrada en `docs/adr/` debe resolver el conflicto antes de escribir código. No se implementan supuestos silenciosos.
+
+## Estado
+
+El repositorio está en fase de arquitectura y scaffolding. El objetivo inmediato es un flujo vertical desplegado que atraviese Angular, Enterprise Core, Pub/Sub y Agent Runtime antes de ampliar funcionalidades.
+
+## Referencia oficial
+
+- Hackathon: https://allthingsagentichackathon.devpost.com/
+- Video: https://www.youtube.com/watch?v=5Xw3LtPeByE

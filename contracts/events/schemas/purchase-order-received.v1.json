@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vextis.dev/schemas/events/purchase-order-received.v1.json",
+  "title": "PurchaseOrderReceivedV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "event_type",
+    "event_version",
+    "occurred_at",
+    "producer",
+    "tenant_id",
+    "correlation_id",
+    "actor",
+    "payload"
+  ],
+  "properties": {
+    "event_id": { "type": "string", "minLength": 1 },
+    "event_type": { "const": "purchase_order.received" },
+    "event_version": { "const": 1 },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "producer": { "const": "enterprise-core" },
+    "tenant_id": { "type": "string", "minLength": 1 },
+    "correlation_id": { "type": "string", "minLength": 1 },
+    "causation_id": { "type": ["string", "null"] },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "enum": ["USER", "AGENT", "SYSTEM"] },
+        "id": { "type": "string", "minLength": 1 }
+      }
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["purchase_order_id", "document_uri"],
+      "properties": {
+        "purchase_order_id": { "type": "string", "format": "uuid" },
+        "document_uri": { "type": "string", "pattern": "^gs://" }
+      }
+    }
+  }
+}
+

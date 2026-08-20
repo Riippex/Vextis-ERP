@@ -1,0 +1,126 @@
+openapi: 3.1.0
+info:
+  title: Vextis Agent Tools API
+  version: 0.1.0
+  description: API interna autenticada para invocar casos de uso del Enterprise Core.
+servers:
+  - url: /internal/agent-tools/v1
+paths:
+  /inventory/reservations:
+    post:
+      operationId: reserveStock
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReserveStockRequest"
+      responses:
+        "201":
+          description: Stock reserved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+        "403":
+          description: Agent is not authorized for this tool or scope
+        "409":
+          description: Insufficient stock or conflicting business state
+  /quotes/{quoteId}/assets:
+    post:
+      operationId: registerQuoteAsset
+      parameters:
+        - name: quoteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterQuoteAssetRequest"
+      responses:
+        "201":
+          description: Generated asset registered against the quote
+        "403":
+          description: Agent is not authorized to register quote assets
+components:
+  parameters:
+    AgentId:
+      name: X-Agent-Id
+      in: header
+      required: true
+      schema:
+        type: string
+    CorrelationId:
+      name: X-Correlation-Id
+      in: header
+      required: true
+      schema:
+        type: string
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+  schemas:
+    ReserveStockRequest:
+      type: object
+      additionalProperties: false
+      required: [orderId, sku, quantity]
+      properties:
+        orderId:
+          type: string
+          format: uuid
+        sku:
+          type: string
+          minLength: 1
+        quantity:
+          type: integer
+          minimum: 1
+    Reservation:
+      type: object
+      required: [id, orderId, sku, quantity, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        quantity:
+          type: integer
+        status:
+          type: string
+          enum: [RESERVED, RELEASED, FULFILLED]
+    RegisterQuoteAssetRequest:
+      type: object
+      additionalProperties: false
+      required: [storageUri, mediaType, modelId, aiGenerated]
+      properties:
+        storageUri:
+          type: string
+          pattern: "^gs://"
+        mediaType:
+          type: string
+          enum: [IMAGE, VIDEO]
+        modelId:
+          type: string
+          minLength: 1
+        aiGenerated:
+          type: boolean
+          const: true

@@ -1,0 +1,125 @@
+openapi: 3.1.0
+info:
+  title: Vextis Public API
+  version: 0.1.0
+  description: API consumida por Angular. Borrador mínimo para el primer flujo vertical.
+servers:
+  - url: /api/v1
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+  /executions/{executionId}:
+    get:
+      operationId: getExecution
+      parameters:
+        - $ref: "#/components/parameters/ExecutionId"
+      responses:
+        "200":
+          description: Current workflow execution
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Execution"
+        "404":
+          description: Execution not found
+  /live-sessions:
+    post:
+      operationId: createLiveSession
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLiveSessionRequest"
+      responses:
+        "201":
+          description: Short-lived authorized session for the Agent Runtime audio channel
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveSession"
+        "403":
+          description: User is not authorized to start a Live session
+  /live-sessions/{sessionId}:
+    delete:
+      operationId: closeLiveSession
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Session closed
+components:
+  parameters:
+    ExecutionId:
+      name: executionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          const: UP
+    Execution:
+      type: object
+      required: [id, state, correlationId, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          $ref: "#/components/schemas/ExecutionState"
+        correlationId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ExecutionState:
+      type: string
+      enum: [RECEIVED, PLANNING, RUNNING, WAITING_APPROVAL, COMPLETED, FAILED]
+    CreateLiveSessionRequest:
+      type: object
+      additionalProperties: false
+      required: [conversationId]
+      properties:
+        conversationId:
+          type: string
+          format: uuid
+    LiveSession:
+      type: object
+      additionalProperties: false
+      required: [id, websocketUrl, sessionToken, expiresAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        websocketUrl:
+          type: string
+          format: uri
+        sessionToken:
+          type: string
+          description: One-time token scoped to this session; never a Vertex AI credential.
+        expiresAt:
+          type: string
+          format: date-time

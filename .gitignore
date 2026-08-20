@@ -1,0 +1,139 @@
+# -----------------------------------------------------------------------------
+# Private project material
+# -----------------------------------------------------------------------------
+# Internal notes, drafts, research, credentials guidance, private planning, etc.
+# Public/judge-facing documentation belongs in /docs instead.
+/documents/
+
+# Local AI-assistant state and private instructions
+/.claude/*
+!/.claude/skills/
+!/.claude/skills/**
+/.gemini/
+/.codex/
+/.agents/*
+!/.agents/skills/
+!/.agents/skills/**
+CLAUDE.local.md
+GEMINI.local.md
+AGENTS.local.md
+
+# -----------------------------------------------------------------------------
+# Secrets and environment-specific configuration
+# -----------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.local
+secrets/
+**/secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*service-account*.json
+application_default_credentials.json
+application-local.yml
+application-local.yaml
+application-local.properties
+
+# -----------------------------------------------------------------------------
+# Angular / Node.js
+# -----------------------------------------------------------------------------
+node_modules/
+.angular/
+.nx/
+.turbo/
+.pnpm-store/
+dist/
+coverage/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# -----------------------------------------------------------------------------
+# Java / Maven / Gradle
+# -----------------------------------------------------------------------------
+target/
+build/
+.gradle/
+out/
+*.class
+*.jar
+*.war
+*.ear
+*.iml
+.factorypath
+
+# Maven wrapper JAR is intentionally versioned when the wrapper is added.
+!.mvn/wrapper/maven-wrapper.jar
+
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+pip-wheel-metadata/
+
+# -----------------------------------------------------------------------------
+# Terraform / Google Cloud local state
+# -----------------------------------------------------------------------------
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+/.gcloud/
+/.firebase/
+firebase-debug.log*
+
+# Keep Terraform dependency locks reproducible.
+!.terraform.lock.hcl
+
+# -----------------------------------------------------------------------------
+# IDEs and editors
+# -----------------------------------------------------------------------------
+.idea/
+.vscode/
+.settings/
+.classpath
+.project
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.swp
+*.swo
+*~
+
+# -----------------------------------------------------------------------------
+# Operating systems, logs and temporary files
+# -----------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.log
+*.tmp
+*.temp
+.cache/
+tmp/
+temp/
