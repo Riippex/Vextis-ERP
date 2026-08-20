@@ -1,0 +1,44 @@
+:host {
+  display: block;
+  min-height: 100dvh;
+}
+
+.shell__toolbar {
+  background: rgba(16, 24, 40, 0.92);
+  color: #f8fafc;
+  display: flex;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.brand {
+  align-items: center;
+  display: flex;
+  font-weight: 700;
+  gap: 0.65rem;
+  letter-spacing: -0.03em;
+}
+
+.brand__mark {
+  align-items: center;
+  background: #7f56d9;
+  border-radius: 0.55rem;
+  display: inline-flex;
+  height: 2rem;
+  justify-content: center;
+  width: 2rem;
+}
+
+.shell__environment {
+  color: #d0d5dd;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.shell__content {
+  margin: 0 auto;
+  max-width: 90rem;
+  padding: clamp(1.25rem, 3vw, 3rem);
+}

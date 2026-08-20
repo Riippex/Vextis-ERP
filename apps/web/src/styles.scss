@@ -1,0 +1,27 @@
+@use '@angular/material' as mat;
+
+html {
+  @include mat.theme((
+    color: (
+      primary: mat.$violet-palette,
+      tertiary: mat.$azure-palette,
+    ),
+    typography: Roboto,
+    density: 0,
+  ));
+  background: #f8fafc;
+  color-scheme: light;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+}
+
+body {
+  background:
+    radial-gradient(circle at 85% 10%, rgba(127, 86, 217, 0.14), transparent 30rem),
+    #f8fafc;
+  margin: 0;
+  min-height: 100dvh;
+}
+
+* {
+  box-sizing: border-box;
+}

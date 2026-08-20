@@ -1,0 +1,22 @@
+<section class="hero">
+  <mat-chip>Enterprise agent fleet</mat-chip>
+  <p class="hero__eyebrow">Mission Control</p>
+  <h1>Operaciones empresariales coordinadas con agentes confiables.</h1>
+  <p class="hero__lead">
+    Una sola experiencia para planear, aprobar y auditar procesos entre ventas, inventario y finanzas.
+  </p>
+</section>
+
+<section class="areas" aria-label="Áreas de negocio">
+  @for (area of areas; track area.name) {
+    <mat-card appearance="outlined">
+      <mat-card-header>
+        <mat-icon mat-card-avatar>{{ area.icon }}</mat-icon>
+        <mat-card-title>{{ area.name }}</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <p>{{ area.description }}</p>
+      </mat-card-content>
+    </mat-card>
+  }
+</section>

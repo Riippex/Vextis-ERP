@@ -1,0 +1,31 @@
+spring:
+  application:
+    name: vextis-enterprise-core
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/vextis}
+    username: ${POSTGRES_USER:vextis}
+    password: ${POSTGRES_PASSWORD:vextis_local_only}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+  graphql:
+    path: /graphql
+    graphiql:
+      enabled: ${GRAPHQL_GRAPHIQL_ENABLED:false}
+
+server:
+  port: ${ENTERPRISE_CORE_PORT:8080}
+  shutdown: graceful
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        enabled: true

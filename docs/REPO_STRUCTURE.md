@@ -11,7 +11,7 @@ vextis-erp/
 ├── services/
 │   ├── enterprise-core/             # Java + Spring Boot
 │   └── agent-runtime/               # Python + Google ADK
-├── contracts/                       # OpenAPI, eventos y esquemas
+├── contracts/                       # GraphQL, OpenAPI interno, eventos y esquemas
 ├── infra/                           # Google Cloud e infraestructura local
 ├── docs/                            # Arquitectura, ADR y demo
 ├── tools/                           # Automatización de desarrollo
@@ -54,7 +54,7 @@ apps/web/
 │   │   ├── finance-billing/
 │   │   ├── agent-mission-control/
 │   │   └── approvals/
-│   └── api/                         # Clientes generados desde OpenAPI
+│   └── api/                         # Operaciones y tipos generados desde GraphQL
 ├── public/
 ├── Dockerfile
 ├── package.json
@@ -102,7 +102,10 @@ services/enterprise-core/
 │   └── application.yml
 ├── src/test/
 ├── Dockerfile
-├── pom.xml
+├── build.gradle.kts
+├── settings.gradle.kts
+├── gradlew
+├── gradlew.bat
 └── README.md
 ```
 
@@ -111,7 +114,7 @@ services/enterprise-core/
 - `domain/`: entidades, value objects, reglas e interfaces del dominio; sin Spring, JPA ni Google Cloud.
 - `application/`: casos de uso y coordinación transaccional.
 - `infrastructure/`: JPA, Pub/Sub, Storage, clientes externos y adaptadores.
-- `api/`: controladores REST, DTO y mapeadores.
+- `api/`: adaptadores GraphQL públicos, REST internos, DTO y mapeadores.
 
 ### Reglas
 
@@ -169,8 +172,9 @@ services/agent-runtime/
 
 ```text
 contracts/
+├── graphql/
+│   └── public-api.graphqls          # Angular -> Enterprise Core
 ├── openapi/
-│   ├── public-api.yaml              # Angular -> Enterprise Core
 │   └── agent-tools-api.yaml         # Agent Runtime -> Enterprise Core
 ├── events/
 │   ├── asyncapi.yaml
@@ -184,8 +188,8 @@ contracts/
 
 ### Reglas
 
-- OpenAPI y JSON Schema son la fuente de verdad de integración.
-- Se generan clientes TypeScript y Python; no se comparte una librería binaria entre lenguajes.
+- GraphQL SDL, OpenAPI y JSON Schema son las fuentes de verdad de integración.
+- Se generan operaciones/tipos TypeScript y clientes Python; no se comparte una librería binaria entre lenguajes.
 - Todos los eventos llevan `eventId`, `eventType`, `version`, `occurredAt`, `correlationId`, `causationId`, `tenantId` y `payload`.
 - Los contratos publicados son compatibles hacia atrás o reciben una nueva versión.
 - Los ejemplos válidos de payload se prueban en CI.
@@ -239,7 +243,7 @@ Los ADR registran decisiones y consecuencias; no repiten tutoriales de instalaci
 
 ## 7. Automatización raíz
 
-Los comandos raíz deben ocultar la diferencia entre Maven, npm y Python:
+Los comandos raíz deben ocultar la diferencia entre Gradle, pnpm y Python:
 
 ```text
 tools/
@@ -311,4 +315,3 @@ Para la hackathon:
 | Eventos | Pub/Sub | Google Cloud |
 
 La separación física futura de CRM, Inventario o Billing solo se considera cuando exista una razón medible de escalado, disponibilidad, equipo o cumplimiento.
-

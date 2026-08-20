@@ -54,11 +54,12 @@ yarn-error.log*
 pnpm-debug.log*
 
 # -----------------------------------------------------------------------------
-# Java / Maven / Gradle
+# Java / Gradle
 # -----------------------------------------------------------------------------
 target/
 build/
 .gradle/
+.gradle-user-home/
 out/
 *.class
 *.jar
@@ -67,8 +68,8 @@ out/
 *.iml
 .factorypath
 
-# Maven wrapper JAR is intentionally versioned when the wrapper is added.
-!.mvn/wrapper/maven-wrapper.jar
+# Gradle Wrapper JAR is intentionally versioned.
+!gradle/wrapper/gradle-wrapper.jar
 
 # -----------------------------------------------------------------------------
 # Python
@@ -82,6 +83,8 @@ env/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.uv-cache/
+.uv-python/
 .tox/
 .nox/
 .coverage

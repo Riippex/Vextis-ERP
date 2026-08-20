@@ -1,0 +1,45 @@
+type Query {
+  health: Health!
+  execution(id: ID!): Execution
+}
+
+type Mutation {
+  createLiveSession(input: CreateLiveSessionInput!): LiveSession!
+  closeLiveSession(id: ID!): Boolean!
+}
+
+type Health {
+  status: ServiceStatus!
+}
+
+enum ServiceStatus {
+  UP
+}
+
+type Execution {
+  id: ID!
+  state: ExecutionState!
+  correlationId: String!
+  createdAt: String!
+  updatedAt: String!
+}
+
+enum ExecutionState {
+  RECEIVED
+  PLANNING
+  RUNNING
+  WAITING_APPROVAL
+  COMPLETED
+  FAILED
+}
+
+input CreateLiveSessionInput {
+  conversationId: ID!
+}
+
+type LiveSession {
+  id: ID!
+  websocketUrl: String!
+  sessionToken: String!
+  expiresAt: String!
+}

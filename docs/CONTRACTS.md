@@ -1,6 +1,6 @@
 # Contratos técnicos — Vextis
 
-Este documento define los límites estables entre Angular, Enterprise Core y Agent Runtime. Los contratos ejecutables vivirán en `contracts/` como OpenAPI, AsyncAPI y JSON Schema; este archivo explica sus invariantes y ownership.
+Este documento define los límites estables entre Angular, Enterprise Core y Agent Runtime. Los contratos ejecutables vivirán en `contracts/` como GraphQL SDL, OpenAPI, AsyncAPI y JSON Schema; este archivo explica sus invariantes y ownership.
 
 Estado: **decisión vigente desde 19 de agosto de 2026**.
 
@@ -89,7 +89,9 @@ No se inventan estados desde la UI o los prompts. Una transición inválida es r
 
 ### API pública — Angular a Enterprise Core
 
-Fuente ejecutable: `contracts/openapi/public-api.yaml`.
+Fuente ejecutable: `contracts/graphql/public-api.graphqls`.
+
+La API pública usa queries y mutaciones específicas. Los resolvers son adaptadores hacia casos de uso del Enterprise Core: no contienen reglas empresariales ni autorizan por sí solos. Antes de exponer colecciones se exigirán paginación y límites de complejidad/profundidad.
 
 Recursos mínimos:
 
@@ -245,8 +247,8 @@ La demo debe mostrar al menos:
 
 ## 10. Versionado y Clean Code
 
-- OpenAPI, AsyncAPI y JSON Schema se validan en CI.
-- Los clientes TypeScript y Python se generan; no se editan manualmente.
+- GraphQL SDL, OpenAPI, AsyncAPI y JSON Schema se validan en CI.
+- Las operaciones/tipos TypeScript y los clientes Python se generan; no se editan manualmente.
 - Cambios incompatibles crean una nueva versión de contrato.
 - DTO de transporte no se reutilizan como entidades de dominio.
 - Los casos de uso dependen de puertos; infraestructura implementa adaptadores.

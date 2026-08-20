@@ -18,7 +18,7 @@ Esta separación no es “microservicios por moda”. Existe una frontera concre
 - Angular estable con TypeScript estricto.
 - Angular Material para el sistema visual.
 - Signals/RxJS para estado local y flujos asíncronos.
-- OpenAPI Generator para clientes tipados.
+- Apollo Angular y GraphQL Code Generator para operaciones y tipos desde el schema público.
 - Server-Sent Events para el timeline de ejecución; polling como fallback.
 - Firebase Hosting o Cloud Run para el despliegue web.
 - Identity Platform/Firebase Authentication para login de la demo.
@@ -27,6 +27,8 @@ Esta separación no es “microservicios por moda”. Existe una frontera concre
 
 - Java 21 LTS.
 - Spring Boot estable.
+- Gradle Wrapper con Kotlin DSL.
+- Spring for GraphQL para la API pública consumida por Angular.
 - Spring Modulith para límites y eventos entre módulos.
 - Arquitectura hexagonal/modular monolith.
 - Spring Data JPA/Hibernate.
@@ -165,7 +167,7 @@ vextis/
 ```text
 Angular Web
     |
-    | HTTPS + SSE
+    | GraphQL/HTTPS + SSE
     v
 Enterprise Core — Java/Spring Boot — Cloud Run
     |                     |
@@ -210,7 +212,7 @@ Go sería excelente para servicios eficientes, pero no ofrece una ventaja decisi
 
 La arquitectura objetivo es Java + Python, pero la entrega se protege con una regla:
 
-> Si al finalizar el **21 de agosto** no existe un flujo vertical desplegado que atraviese Angular, core, Pub/Sub y un agente, se implementarán temporalmente las herramientas de negocio dentro del servicio Python, conservando los mismos contratos OpenAPI y límites de módulos. La separación física a Java se retomará después de la entrega.
+> Si al finalizar el **21 de agosto** no existe un flujo vertical desplegado que atraviese Angular, core, Pub/Sub y un agente, se implementarán temporalmente las herramientas de negocio dentro del servicio Python, conservando los contratos GraphQL/OpenAPI y límites de módulos. La separación física a Java se retomará después de la entrega.
 >
 > Esta fecha depende de que los créditos de Google Cloud ya estén activos — si al 19 de agosto siguen sin pedirse, correr la fecha de este checkpoint el mismo número de días que se demoró la aprobación, no dejarla fija en el calendario.
 
@@ -230,7 +232,6 @@ En runtime, Gemini debe ser el modelo principal y visible porque es un requisito
 - Una base de datos por módulo.
 - Elasticsearch.
 - Redis/Memorystore sin un cuello de botella demostrado.
-- GraphQL.
 - Microfrontends.
 - Event sourcing completo.
 

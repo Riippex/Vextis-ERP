@@ -1,0 +1,47 @@
+.hero {
+  max-width: 56rem;
+  padding: clamp(2rem, 6vw, 6rem) 0 3rem;
+}
+
+.hero__eyebrow {
+  color: #6941c6;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin: 1.5rem 0 0.6rem;
+  text-transform: uppercase;
+}
+
+h1 {
+  color: #101828;
+  font-size: clamp(2.25rem, 5vw, 4.75rem);
+  letter-spacing: -0.055em;
+  line-height: 0.98;
+  margin: 0;
+}
+
+.hero__lead {
+  color: #475467;
+  font-size: clamp(1rem, 2vw, 1.25rem);
+  line-height: 1.65;
+  max-width: 45rem;
+}
+
+.areas {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+}
+
+mat-card {
+  background: rgba(255, 255, 255, 0.82);
+  min-height: 10rem;
+}
+
+mat-icon[mat-card-avatar] {
+  align-items: center;
+  background: #f4ebff;
+  color: #6941c6;
+  display: flex;
+  justify-content: center;
+}

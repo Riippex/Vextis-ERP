@@ -1,0 +1,14 @@
+{
+  "name": "vextis-erp",
+  "private": true,
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=22.22.3"
+  },
+  "scripts": {
+    "web:start": "pnpm --dir apps/web start",
+    "web:build": "pnpm --dir apps/web build",
+    "web:test": "pnpm --dir apps/web test",
+    "web:lint": "pnpm --dir apps/web lint"
+  }
+}

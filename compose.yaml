@@ -1,0 +1,21 @@
+name: vextis
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-vextis}
+      POSTGRES_USER: ${POSTGRES_USER:-vextis}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-vextis_local_only}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-vextis} -d ${POSTGRES_DB:-vextis}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - vextis-postgres:/var/lib/postgresql/data
+
+volumes:
+  vextis-postgres:

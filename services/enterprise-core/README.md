@@ -10,5 +10,13 @@ Módulos:
 - Workflow, aprobaciones y auditoría.
 - Gobierno de agentes.
 
-Expone la API pública para Angular y la API restringida de herramientas para Agent Runtime. Publica eventos mediante transactional outbox. Ningún prompt o agente puede saltarse sus reglas de dominio.
+Expone una API GraphQL pública para Angular y una API REST/OpenAPI restringida de herramientas para Agent Runtime. Usa Gradle Kotlin DSL y publica eventos mediante transactional outbox. Ningún prompt o agente puede saltarse sus reglas de dominio.
 
+Comandos:
+
+```powershell
+./gradlew.bat check
+./gradlew.bat bootRun
+```
+
+El schema público fuente vive en `../../contracts/graphql/public-api.graphqls`; Gradle lo incorpora a los recursos sin duplicarlo.

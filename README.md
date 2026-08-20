@@ -30,7 +30,7 @@ Cloud SQL PostgreSQL + pgvector                        v
 
 - **Java** es la única autoridad para mutaciones de CRM, inventario y facturación.
 - **Python** coordina agentes, RAG, memoria y workflows, pero no escribe directamente en las tablas empresariales.
-- **OpenAPI, AsyncAPI y JSON Schema** son los contratos entre Angular, Java y Python.
+- **GraphQL SDL, OpenAPI, AsyncAPI y JSON Schema** son los contratos entre Angular, Java y Python.
 - **PostgreSQL** conserva datos transaccionales, estados durables, auditoría, outbox, idempotencia y vectores del RAG.
 - **Cloud Storage** conserva documentos y artefactos originales.
 
@@ -40,10 +40,29 @@ Cloud SQL PostgreSQL + pgvector                        v
 apps/web/                         Angular
 services/enterprise-core/         Java + Spring Boot
 services/agent-runtime/           Python + Google ADK
-contracts/                        OpenAPI, AsyncAPI y JSON Schema
+contracts/                        GraphQL, OpenAPI interno, AsyncAPI y JSON Schema
 infra/                            Terraform, despliegue y datos semilla
 docs/                             Arquitectura, decisiones y coordinación
 ```
+
+## Desarrollo local
+
+Requisitos: Java 17+ para iniciar Gradle (el wrapper descarga el toolchain Java 21), Node.js 24, pnpm 11, uv y Docker Desktop.
+
+```powershell
+Copy-Item .env.example .env
+./tools/dev.ps1 infra
+./tools/dev.ps1 core
+./tools/dev.ps1 agents
+./tools/dev.ps1 web
+```
+
+- Angular: `http://localhost:4200`.
+- GraphQL público: `http://localhost:8080/graphql`.
+- Health del Agent Runtime: `http://localhost:8081/health`.
+- Verificación completa: `./tools/check.ps1`.
+
+Gradle Wrapper y `uv` descargan sus runtimes declarados. No se requiere una instalación global de Gradle ni Python 3.13.
 
 ## Fuentes de verdad
 
