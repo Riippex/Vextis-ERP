@@ -1,100 +1,94 @@
-# Design System — Identidad visual de Vextis
+# Design System — Vextis visual identity
 
-Este documento define la identidad visual global de `apps/web` y las reglas
-para no romperla. Cualquier sesión (Codex, Gemini, Claude) que agregue una
-vista nueva debe leer esto primero.
+This document defines `apps/web`'s global visual identity and the rules for not breaking it. Any session (Codex, Gemini, Claude) that adds a new view must read this first.
 
-## Origen
+## Origin
 
-La identidad se prototipó como referencia en un mockup React aparte (fuera de
-este repo, no se commitea) y se validó con el Claude Skill `dataviz`
-(`scripts/validate_palette.js`, corrido en modo claro y oscuro). Este
-documento es la versión "de verdad" — lo que vive en `apps/web` manda sobre el
-mockup si algún día quedan desalineados.
+The identity was prototyped as a reference in a separate React mockup (outside this repo, not committed) and validated with the Claude Skill `dataviz` (`scripts/validate_palette.js`, run in light and dark mode). This document is the "source of truth" version — what lives in `apps/web` overrides the mockup if they ever drift apart.
 
-## Los dos sistemas de color, y por qué no se mezclan
+## The two color systems, and why they don't mix
 
-1. **Chrome de marca** (`--vxt-brand-*`, `--vxt-surface`, `--vxt-page`,
-   `--vxt-text-*`, etc.) — identidad de Vextis y superficie neutra de la UI.
-   Cambia entre modo claro/oscuro.
-2. **Dataviz** (`--vxt-cat-1..8`, `--vxt-status-*`) — paleta categórica y de
-   estado para gráficas y badges de ejecución. **Nunca se toca por marca.**
-   Rafa fue explícito: no se elimina el rojo/verde/amarillo de las gráficas
-   por darle identidad visual a la app.
+1. **Brand chrome** (`--vxt-brand-*`, `--vxt-surface`, `--vxt-page`,
+   `--vxt-text-*`, etc.) — Vextis identity and neutral UI surface.
+   Changes between light/dark mode.
+2. **Dataviz** (`--vxt-cat-1..8`, `--vxt-status-*`) — categorical and
+   status palette for charts and execution badges. **Never touched by branding.**
+   Rafa was explicit: the red/green/yellow of the charts is not removed
+   to give the app a visual identity.
 
-Ambos viven como variables CSS en `apps/web/src/styles/_tokens.scss`, con los
-mismos valores hex que el mockup de referencia (para que cuando se porten
-componentes del mockup al código real, los colores ya calcen).
+Both live as CSS variables in `apps/web/src/styles/_tokens.scss`, with the
+same hex values as the reference mockup (so that when components from the
+mockup are ported to real code, the colors already line up).
 
-## Toggle claro/oscuro
+## Light/dark toggle
 
-- Un solo mecanismo: la clase `dark` en `<html>`.
-- `_tokens.scss` define `:root { color-scheme: light; ... }` y
-  `html.dark { color-scheme: dark; ... }` con los valores de chrome y dataviz
-  para cada modo.
-- `styles.scss` configura `mat.theme()` con `theme-type: color-scheme`, así
-  que Angular Material también resuelve sus tokens (`--mat-sys-*`) vía
-  `light-dark()` según la misma propiedad `color-scheme` — un solo toggle
-  cambia Material y los tokens propios de Vextis a la vez.
-- El estado lo maneja el componente raíz (`app.ts`): un signal `isDark`,
-  persistido en `localStorage` (`vxt-theme`), con fallback a
-  `prefers-color-scheme` la primera vez.
-- Botón de toggle: ícono `dark_mode`/`light_mode` en el toolbar (`app.html`).
+- A single mechanism: the `dark` class on `<html>`.
+- `_tokens.scss` defines `:root { color-scheme: light; ... }` and
+  `html.dark { color-scheme: dark; ... }` with the chrome and dataviz
+  values for each mode.
+- `styles.scss` configures `mat.theme()` with `theme-type: color-scheme`, so
+  Angular Material also resolves its tokens (`--mat-sys-*`) via
+  `light-dark()` based on the same `color-scheme` property — a single toggle
+  switches Material and Vextis's own tokens at the same time.
+- State is managed by the root component (`app.ts`): an `isDark` signal,
+  persisted in `localStorage` (`vxt-theme`), falling back to
+  `prefers-color-scheme` the first time.
+- Toggle button: `dark_mode`/`light_mode` icon in the toolbar (`app.html`).
 
-## Marca
+## Brand
 
-- Azul `#2568c9` → violeta `#7c5cff`, gradiente
+- Blue `#2568c9` → violet `#7c5cff`, gradient
   `linear-gradient(135deg, #2568c9 0%, #6a4fe0 60%, #7c5cff 100%)`.
-- Uso: logo (marca "V" de nodos conectados), wordmark "VEXTIS" con
-  `background-clip: text`, acentos de navegación, CTAs, avatares de ícono.
-- No reemplaza los colores categóricos ni de estado de las gráficas.
-- El SVG de la marca está inline en `app.html` y en `login.page.html` (no hay
-  aún un `.svg` real de Rafa — cuando lo tengamos, reemplaza el `<path>`
-  reconstruido).
+- Usage: logo (connected-nodes "V" mark), "VEXTIS" wordmark with
+  `background-clip: text`, navigation accents, CTAs, icon avatars.
+- Does not replace the charts' categorical or status colors.
+- The brand SVG is inline in `app.html` and in `login.page.html` (there is
+  no real Rafa `.svg` yet — when we have one, replace the reconstructed
+  `<path>`).
 
 ## Login
 
-`apps/web/src/app/features/auth/login.page.{ts,html,scss}`, ruta `/login`.
+`apps/web/src/app/features/auth/login.page.{ts,html,scss}`, route `/login`.
 
-Deliberadamente **no seguí el toggle claro/oscuro global** — es una pantalla
-de acceso con identidad "exótica" propia (hero oscuro con esfera de puntos,
-tipografía editorial, footer de stats), inspirada en la referencia que Rafa
-compartió. El componente raíz (`app.ts`, `hideChrome`) oculta el toolbar
-global cuando la ruta empieza con `/login`.
+Deliberately **did not follow the global light/dark toggle** — it's an
+access screen with its own "exotic" identity (dark hero with a sphere of
+points, editorial typography, stats footer), inspired by the reference Rafa
+shared. The root component (`app.ts`, `hideChrome`) hides the global toolbar
+when the route starts with `/login`.
 
-Pendiente: el formulario navega directo al dashboard (`onSubmit` en
-`login.page.ts`), no hay autenticación real todavía — está marcado con
-`TODO(auth)` y depende del vertical slice de `services/enterprise-core`.
+Pending: the form navigates straight to the dashboard (`onSubmit` in
+`login.page.ts`), there's no real authentication yet — it's marked with
+`TODO(auth)` and depends on `services/enterprise-core`'s vertical slice.
 
-## Archivos
+## Files
 
-- `apps/web/src/styles/_tokens.scss` — variables CSS, única fuente de verdad
-  de color.
-- `apps/web/src/styles.scss` — entrypoint global, `mat.theme()`.
-- `apps/web/src/app/app.{ts,html,scss}` — shell: toolbar, logo, toggle de
-  tema, oculta chrome en `/login`.
-- `apps/web/src/app/features/auth/login.page.*` — pantalla de acceso.
-- `apps/web/src/app/features/dashboard/dashboard.page.scss` — primer
-  consumidor de los tokens fuera del shell (referencia de cómo usarlos en una
-  vista nueva).
+- `apps/web/src/styles/_tokens.scss` — CSS variables, the single source of
+  truth for color.
+- `apps/web/src/styles.scss` — global entrypoint, `mat.theme()`.
+- `apps/web/src/app/app.{ts,html,scss}` — shell: toolbar, logo, theme
+  toggle, hides chrome on `/login`.
+- `apps/web/src/app/features/auth/login.page.*` — access screen.
+- `apps/web/src/app/features/dashboard/dashboard.page.scss` — first
+  consumer of the tokens outside the shell (reference for how to use them in
+  a new view).
 
-## Cómo usar los tokens en una vista nueva
+## How to use the tokens in a new view
 
-No hardcodear hex. Usar `var(--vxt-...)`:
+Don't hardcode hex values. Use `var(--vxt-...)`:
 
 ```scss
-.mi-card {
+.my-card {
   background: var(--vxt-surface);
   border: 1px solid var(--vxt-border);
   color: var(--vxt-text-primary);
 }
 
-.mi-card__secundario {
+.my-card__secondary {
   color: var(--vxt-text-secondary);
 }
 ```
 
-Para gráficas, usar `--vxt-cat-1..8` en el orden de la serie, y
-`--vxt-status-good|warning|serious|critical` para estados de ejecución
-(mapeo en `executionStatus` del mockup: `RUNNING`→good, `WAITING_APPROVAL`→
+For charts, use `--vxt-cat-1..8` in series order, and
+`--vxt-status-good|warning|serious|critical` for execution states (mapped
+in the mockup's `executionStatus`: `RUNNING`→good, `WAITING_APPROVAL`→
 warning, `FAILED`→critical, etc.).

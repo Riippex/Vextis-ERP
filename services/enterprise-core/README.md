@@ -1,22 +1,22 @@
 # Enterprise Core
 
-Monolito modular Java 21/Spring Boot y única autoridad transaccional del ERP/CRM.
+Modular Java 21/Spring Boot monolith and sole transactional authority for the ERP/CRM.
 
-Módulos:
+Modules:
 
-- CRM y Ventas.
-- Inventario y Operaciones.
-- Finanzas y Facturación.
-- Workflow, aprobaciones y auditoría.
-- Gobierno de agentes.
+- CRM and Sales.
+- Inventory and Operations.
+- Finance and Billing.
+- Workflow, approvals, and audit.
+- Agent governance.
 
-Expone una API GraphQL pública para Angular y una API REST/OpenAPI restringida de herramientas para Agent Runtime. Usa Gradle Kotlin DSL y publica eventos mediante transactional outbox. Ningún prompt o agente puede saltarse sus reglas de dominio.
+Exposes a public GraphQL API for Angular and a restricted REST/OpenAPI tools API for Agent Runtime. Uses Gradle Kotlin DSL and publishes events via a transactional outbox. No prompt or agent can bypass its domain rules.
 
-Comandos:
+Commands:
 
 ```powershell
 ./gradlew.bat check
 ./gradlew.bat bootRun
 ```
 
-El schema público fuente vive en `../../contracts/graphql/public-api.graphqls`; Gradle lo incorpora a los recursos sin duplicarlo.
+The public schema source lives at `../../contracts/graphql/public-api.graphqls`; Gradle bundles it into resources without duplicating it.

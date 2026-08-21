@@ -1,5 +1,5 @@
 # infra/
 
-Configuración reproducible de Cloud Run, Cloud SQL PostgreSQL, Pub/Sub, Cloud Storage, IAM, Secret Manager, Artifact Registry y observabilidad.
+Reproducible configuration for Cloud Run, Cloud SQL PostgreSQL, Pub/Sub, Cloud Storage, IAM, Secret Manager, Artifact Registry, and observability.
 
-La infraestructura mínima se define con Terraform y un entorno `hackathon`. Recursos opcionales como Memorystore, GKE o réplicas no se crean hasta que exista una necesidad medible.
+Minimal infrastructure is defined with Terraform and a `hackathon` environment. Optional resources like Memorystore, GKE, or replicas are not created until a measurable need exists.

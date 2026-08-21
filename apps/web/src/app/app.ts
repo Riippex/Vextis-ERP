@@ -26,7 +26,7 @@ export class App {
   private readonly document = inject(DOCUMENT);
   private readonly router = inject(Router);
 
-  /** Tema activo. Persistido en localStorage; cae a `prefers-color-scheme` si no hay nada guardado. */
+  /** Active theme. Persisted in localStorage; falls back to `prefers-color-scheme` if nothing is stored. */
   protected readonly isDark = signal(this.readInitialTheme());
 
   private readonly url = toSignal(
@@ -37,7 +37,7 @@ export class App {
     { initialValue: this.router.url },
   );
 
-  /** El login tiene su propia identidad visual "exótica" de pantalla completa: sin toolbar ni padding del shell. */
+  /** The login screen has its own full-page "exotic" visual identity: no toolbar or shell padding. */
   protected readonly hideChrome = computed(() => this.url().startsWith('/login'));
 
   constructor() {
@@ -50,7 +50,7 @@ export class App {
           this.isDark() ? 'dark' : 'light',
         );
       } catch {
-        // Storage puede no estar disponible (modo privado); el tema sigue aplicando en memoria.
+        // Storage may be unavailable (private mode); the theme still applies in memory.
       }
     });
   }
@@ -65,7 +65,7 @@ export class App {
       const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
       if (stored) return stored === 'dark';
     } catch {
-      // Ignorar errores de storage y usar la preferencia del sistema operativo.
+      // Ignore storage errors and fall back to the OS preference.
     }
     return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
   }

@@ -18,8 +18,8 @@ interface BusinessArea {
 })
 export class DashboardPage {
   protected readonly areas: readonly BusinessArea[] = [
-    { icon: 'handshake', name: 'CRM y Ventas', description: 'Clientes, oportunidades y cotizaciones.' },
-    { icon: 'inventory_2', name: 'Inventario', description: 'Disponibilidad, reservas y excepciones.' },
-    { icon: 'receipt_long', name: 'Finanzas', description: 'Crédito, facturación y trazabilidad.' },
+    { icon: 'handshake', name: 'CRM & Sales', description: 'Customers, opportunities, and quotes.' },
+    { icon: 'inventory_2', name: 'Inventory', description: 'Availability, reservations, and exceptions.' },
+    { icon: 'receipt_long', name: 'Finance', description: 'Credit, billing, and traceability.' },
   ];
 }

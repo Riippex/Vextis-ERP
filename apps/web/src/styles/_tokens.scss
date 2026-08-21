@@ -1,26 +1,26 @@
-// Vextis — design tokens (identidad visual global)
+// Vextis — design tokens (global visual identity)
 //
-// Origen: mockup de referencia (`/tmp/vextis-ui`) validado con el Claude Skill
-// "dataviz" (paleta corrida por scripts/validate_palette.js en modo claro y oscuro).
+// Origin: reference mockup (`/tmp/vextis-ui`) validated with the Claude Skill
+// "dataviz" (palette run through scripts/validate_palette.js in light and dark mode).
 //
-// Reglas duras, no las rompas sin pasar de nuevo el validador:
-// 1. `--vxt-cat-*` (categórica) y `--vxt-status-*` son EXCLUSIVAS para series de
-//    gráficas y estados de ejecución (RUNNING/WAITING_APPROVAL/FAILED, etc).
-//    Nunca se usan para chrome de UI (fondos, texto, marca).
-// 2. `--vxt-brand-*` (azul→violeta) es EXCLUSIVA para identidad de marca: logo,
-//    login, acentos de navegación, CTAs. Nunca reemplaza el rojo/verde/amarillo
-//    de las gráficas.
-// 3. Todo lo demás (`--vxt-surface`, `--vxt-page`, `--vxt-text-*`, etc.) es chrome
-//    neutro y sí cambia entre modo claro/oscuro.
+// Hard rules — don't break these without re-running the validator:
+// 1. `--vxt-cat-*` (categorical) and `--vxt-status-*` are EXCLUSIVE to chart
+//    series and execution states (RUNNING/WAITING_APPROVAL/FAILED, etc).
+//    Never used for UI chrome (backgrounds, text, brand).
+// 2. `--vxt-brand-*` (blue→violet) is EXCLUSIVE to brand identity: logo,
+//    login, navigation accents, CTAs. Never replaces the chart's
+//    red/green/yellow.
+// 3. Everything else (`--vxt-surface`, `--vxt-page`, `--vxt-text-*`, etc.) is
+//    neutral chrome and does change between light/dark mode.
 
 :root {
-  // Marca Vextis — logo, login, acentos. No usar en dataviz.
+  // Vextis brand — logo, login, accents. Do not use in dataviz.
   --vxt-brand-blue: #2568c9;
   --vxt-brand-violet: #7c5cff;
   --vxt-brand-gradient: linear-gradient(135deg, #2568c9 0%, #6a4fe0 60%, #7c5cff 100%);
   --vxt-brand-violet-tint: rgba(124, 92, 255, 0.14);
 
-  // Chrome — modo claro
+  // Chrome — light mode
   --vxt-surface: #fcfcfb;
   --vxt-page: #f9f9f7;
   --vxt-text-primary: #0b0b0b;
@@ -31,17 +31,17 @@
   --vxt-success-text: #006300;
   --vxt-border: rgba(11, 11, 11, 0.08);
 
-  // Dataviz — categórica (modo claro), paleta validada (references/palette.md)
-  --vxt-cat-1: #2a78d6; // azul
-  --vxt-cat-2: #eb6834; // naranja
+  // Dataviz — categorical (light mode), validated palette (references/palette.md)
+  --vxt-cat-1: #2a78d6; // blue
+  --vxt-cat-2: #eb6834; // orange
   --vxt-cat-3: #1baf7a; // aqua
-  --vxt-cat-4: #eda100; // amarillo
+  --vxt-cat-4: #eda100; // yellow
   --vxt-cat-5: #e87ba4; // magenta
-  --vxt-cat-6: #008300; // verde
-  --vxt-cat-7: #4a3aa7; // violeta
-  --vxt-cat-8: #e34948; // rojo
+  --vxt-cat-6: #008300; // green
+  --vxt-cat-7: #4a3aa7; // violet
+  --vxt-cat-8: #e34948; // red
 
-  // Dataviz — estado (constante entre modos; significado semántico fijo)
+  // Dataviz — status (constant across modes; fixed semantic meaning)
   --vxt-status-good: #0ca30c;
   --vxt-status-warning: #fab219;
   --vxt-status-serious: #ec835a;
@@ -53,7 +53,7 @@
 html.dark {
   --vxt-brand-violet-tint: rgba(124, 92, 255, 0.22);
 
-  // Chrome — modo oscuro
+  // Chrome — dark mode
   --vxt-surface: #1a1a19;
   --vxt-page: #0d0d0d;
   --vxt-text-primary: #ffffff;
@@ -64,7 +64,7 @@ html.dark {
   --vxt-success-text: #0ca30c;
   --vxt-border: rgba(255, 255, 255, 0.08);
 
-  // Dataviz — categórica (modo oscuro)
+  // Dataviz — categorical (dark mode)
   --vxt-cat-1: #3987e5;
   --vxt-cat-2: #d95926;
   --vxt-cat-3: #199e70;

@@ -1,14 +1,13 @@
 # Agent Runtime
 
-Servicio Python con Google ADK para coordinación multiagente, Gemini, RAG, memoria, evaluación y reanudación de workflows.
+Python service with Google ADK for multi-agent coordination, Gemini, RAG, memory, evaluation, and workflow resumption.
 
-Contiene:
+Contains:
 
 - Coordinator Agent.
 - CRM Agent.
 - Inventory Agent.
 - Billing Agent.
-- Workflows, tools, policies, RAG, memory y evals.
+- Workflows, tools, policies, RAG, memory, and evals.
 
-Consume Pub/Sub y llama la API autenticada del Enterprise Core. No tiene permisos de escritura directa sobre tablas empresariales.
-
+Consumes Pub/Sub and calls Enterprise Core's authenticated API. Has no direct write permissions on business tables.

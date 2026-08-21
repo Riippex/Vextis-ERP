@@ -1,28 +1,28 @@
-# ADR 0002 — Gradle y GraphQL para la API pública
+# ADR 0002 — Gradle and GraphQL for the public API
 
-- Estado: Accepted
-- Fecha: 2026-08-20
-- Supera parcialmente: ADR 0001
+- Status: Accepted
+- Date: 2026-08-20
+- Partially supersedes: ADR 0001
 
-## Contexto
+## Context
 
-El bootstrap inicial asumía Maven para Enterprise Core y OpenAPI/REST tanto para Angular como para las herramientas internas. El equipo decidió estandarizar el build Java con Gradle y adoptar GraphQL desde el inicio para la experiencia Angular, donde las pantallas combinan CRM, inventario, facturación, workflows y auditoría.
+The initial bootstrap assumed Maven for Enterprise Core and OpenAPI/REST for both Angular and internal tools. The team decided to standardize the Java build on Gradle and adopt GraphQL from the start for the Angular experience, where screens combine CRM, inventory, billing, workflows, and audit.
 
-## Decisión
+## Decision
 
-- Enterprise Core usa Gradle Wrapper con Kotlin DSL y toolchain Java 21.
-- Angular consume una API GraphQL explícita del Enterprise Core en `/graphql`.
-- `contracts/graphql/public-api.graphqls` es la fuente de verdad del schema público.
-- Angular genera operaciones y tipos desde el schema; el código generado no se edita manualmente.
-- Agent Runtime conserva una API REST/OpenAPI separada y restringida para tools empresariales.
-- Pub/Sub conserva AsyncAPI y JSON Schema para eventos versionados.
+- Enterprise Core uses Gradle Wrapper with Kotlin DSL and a Java 21 toolchain.
+- Angular consumes an explicit GraphQL API from Enterprise Core at `/graphql`.
+- `contracts/graphql/public-api.graphqls` is the source of truth for the public schema.
+- Angular generates operations and types from the schema; generated code is not edited by hand.
+- Agent Runtime keeps a separate, restricted REST/OpenAPI API for enterprise tools.
+- Pub/Sub keeps AsyncAPI and JSON Schema for versioned events.
 
-GraphQL es una capa de transporte. Los resolvers invocan los mismos casos de uso de aplicación, autorización, aprobaciones, idempotencia y auditoría que cualquier otro adaptador. No contienen reglas de negocio ni acceden directamente a repositorios de otros módulos.
+GraphQL is a transport layer. Resolvers call the same application use cases, authorization, approvals, idempotency, and audit as any other adapter. They contain no business rules and do not access other modules' repositories directly.
 
-## Consecuencias
+## Consequences
 
-- Angular puede solicitar grafos ajustados a cada pantalla sin multiplicar endpoints de composición.
-- El schema GraphQL amplía la superficie que debe gobernarse: profundidad, complejidad, paginación y autorización por campo se incorporarán antes de exponer datos reales.
-- Las mutaciones serán específicas por caso de uso; no existirán mutaciones genéricas de tablas o registros.
-- Mantener GraphQL público y REST interno evita entregar a los agentes una API de exploración arbitraria.
-- Las referencias de ADR 0001 a OpenAPI para todos los consumidores quedan reemplazadas por GraphQL público + OpenAPI interno.
+- Angular can request screen-shaped graphs without multiplying composition endpoints.
+- The GraphQL schema widens the surface that must be governed: depth, complexity, pagination, and field-level authorization will be added before exposing real data.
+- Mutations will be use-case specific; there will be no generic table/record mutations.
+- Keeping GraphQL public and REST internal avoids giving agents an arbitrary exploration API.
+- ADR 0001's references to OpenAPI for all consumers are replaced by public GraphQL + internal OpenAPI.

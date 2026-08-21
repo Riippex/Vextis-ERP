@@ -36,6 +36,16 @@ Because both are registered as **global** MCP servers, they answer for whatever 
 
 Both packages publish npm provenance attestations. After `codegraph upgrade` or `npm update -g gitnexus`, spot-check with `npm audit signatures` before relying on the new build for anything beyond read-only exploration.
 
+## Known gotcha: gitnexus writes to the repo on first run
+
+`gitnexus setup`/`gitnexus analyze` do more than build `.gitnexus/`. Observed in this repo: it rewrote `README.md`, `package.json`, `apps/web/package.json`, `pyproject.toml`, and `build.gradle.kts` (injecting inferred license/author/repository metadata and a `VEXTIS_GRADLE_BUILD_DIR`-driven Gradle build-dir override), and created root `AGENTS.md`/`CLAUDE.md`/`NOTICE` files containing "MUST/NEVER" directives aimed at future agents. None of this is documented in its README's description of `analyze`.
+
+**Always run `git status` right after `gitnexus setup`/`analyze` on a repo for the first time**, and check with the user before keeping anything beyond `.gitnexus/` and `.gitnexusrc`. The PreToolUse/PostToolUse hook (`~/.claude/hooks/gitnexus/gitnexus-hook.cjs`) is read-only by contrast — it only queries the existing index and, at most, tells the agent the index looks stale after a `git commit/merge/rebase/pull`. It does not write to the repo.
+
+**Resolution in this repo (2026-08-20)**: the owner reviewed the injected Apache-2.0/author metadata (`NOTICE`, license fields in `package.json`/`pyproject.toml`/`README.md`) and the `build.gradle.kts` JAR-manifest/`VEXTIS_GRADLE_BUILD_DIR` addition, and confirmed they want to keep them (committed as `3d34646`). Do not revert those specific files again without a fresh explicit ask — the earlier revert earlier the same day reflected a decision the owner then reversed, not a standing rule.
+
+**Multi-agent note**: this repo was observed being edited concurrently by more than one AI coding agent (Claude Code and Codex CLI sessions running at the same time) on 2026-08-20. A prior version of this exact section was silently dropped when a concurrent session committed its own copy of this file. If a file you just edited looks reverted or different than expected, check `git log` for commits you didn't make before assuming your own edit failed.
+
 ## Setup commands
 
 Run once per machine (global) and once per fresh clone (per-repo index):

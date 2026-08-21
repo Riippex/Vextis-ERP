@@ -2,12 +2,12 @@
 @use './styles/tokens';
 
 html {
-  // theme-type: color-scheme hace que Angular Material emita cada token del
-  // sistema (--mat-sys-*) como light-dark(claro, oscuro) y los resuelva según
-  // la propiedad CSS `color-scheme` del elemento. `tokens.scss` fija
-  // `color-scheme: light` en :root y `color-scheme: dark` en `html.dark`, así
-  // que un solo toggle de clase cambia Material Y los tokens propios de Vextis
-  // a la vez.
+  // theme-type: color-scheme makes Angular Material emit every system token
+  // (--mat-sys-*) as light-dark(light, dark) and resolve it based on the
+  // element's CSS `color-scheme` property. `tokens.scss` sets
+  // `color-scheme: light` on :root and `color-scheme: dark` on `html.dark`,
+  // so a single class toggle switches Material AND Vextis's own tokens at
+  // the same time.
   @include mat.theme((
     color: (
       theme-type: color-scheme,

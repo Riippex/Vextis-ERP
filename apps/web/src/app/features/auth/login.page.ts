@@ -13,10 +13,10 @@ interface SpherePoint {
 }
 
 /**
- * Nube de puntos determinística (espiral de ángulo dorado sobre una esfera),
- * recreada del hero de referencia que compartió Rafa — en la identidad propia
- * de Vextis (azul → violeta) en vez de la paleta del original. Sin Math.random:
- * la misma semilla produce siempre la misma esfera.
+ * Deterministic point cloud (golden-angle spiral over a sphere), recreated
+ * from the reference hero Rafa shared — in Vextis's own identity (blue →
+ * violet) instead of the original's palette. No Math.random: the same seed
+ * always produces the same sphere.
  */
 function buildSpherePoints(count: number, radius: number): readonly SpherePoint[] {
   const golden = Math.PI * (3 - Math.sqrt(5));
@@ -29,7 +29,7 @@ function buildSpherePoints(count: number, radius: number): readonly SpherePoint[
     const theta = golden * i;
     const x = Math.cos(theta) * r;
     const z = Math.sin(theta) * r;
-    if (z <= -0.08) continue; // hemisferio frontal + un borde del lejano
+    if (z <= -0.08) continue; // front hemisphere + a rim of the far side
 
     const shade = Math.max(0, x * light.x + y * light.y + z * 0.4);
     const t = Math.min(1, shade * 1.3);
@@ -69,20 +69,21 @@ export class LoginPage {
   protected readonly password = signal('');
 
   constructor() {
-    // TODO(auth): esto es un reloj cosmético del hero, no un heartbeat de sesión real.
+    // TODO(auth): this is a cosmetic hero clock, not a real session heartbeat.
     const id = setInterval(() => this.now.set(new Date()), 1000);
     this.destroyRef.onDestroy(() => clearInterval(id));
   }
 
   protected get clockLabel(): string {
-    return `${this.now().toLocaleTimeString('es-CO', { hour12: false })} BOG`;
+    return `${this.now().toLocaleTimeString('en-US', { hour12: false })} BOG`;
   }
 
   protected onSubmit(event: Event): void {
     event.preventDefault();
-    // TODO(auth): reemplazar por el flujo real contra Enterprise Core cuando exista
-    // el endpoint de autenticación (ver documents/AI_HANDOFF.md — pendiente el
-    // vertical slice). Por ahora solo navega al dashboard para no bloquear la demo.
+    // TODO(auth): replace with the real flow against Enterprise Core once the
+    // authentication endpoint exists (see documents/AI_HANDOFF.md — pending the
+    // vertical slice). For now it just navigates to the dashboard so it doesn't
+    // block the demo.
     void this.router.navigateByUrl('/');
   }
 }
