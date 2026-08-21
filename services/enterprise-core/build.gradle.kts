@@ -9,6 +9,10 @@ group = "com.vextis"
 version = "0.1.0-SNAPSHOT"
 description = "Transactional authority for Vextis CRM, inventory, billing and workflows."
 
+providers.environmentVariable("VEXTIS_GRADLE_BUILD_DIR").orNull?.let {
+    layout.buildDirectory.set(file(it))
+}
+
 java {
     toolchain {
         languageVersion = JavaLanguageVersion.of(21)
@@ -54,5 +58,20 @@ tasks.named<ProcessResources>("processResources") {
     from("../../contracts/graphql") {
         into("graphql")
         include("*.graphqls")
+    }
+    from("../..") {
+        into("META-INF")
+        include("LICENSE", "NOTICE")
+    }
+}
+
+tasks.withType<Jar>().configureEach {
+    manifest {
+        attributes(
+            "Implementation-Title" to (project.description ?: "Vextis Enterprise Core"),
+            "Implementation-Version" to project.version,
+            "Implementation-Vendor" to "Rafael Patiño Díaz",
+            "License" to "Apache-2.0",
+        )
     }
 }

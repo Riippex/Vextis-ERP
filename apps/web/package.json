@@ -2,6 +2,13 @@
   "name": "@vextis/web",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
+  "author": "Rafael Patiño Díaz",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Riippex/Vextis-ERP.git",
+    "directory": "apps/web"
+  },
   "scripts": {
     "start": "ng serve --proxy-config proxy.conf.json",
     "generate:graphql": "graphql-codegen --config codegen.ts",

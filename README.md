@@ -78,6 +78,12 @@ Si dos documentos se contradicen, la decisión más reciente registrada en `docs
 
 El repositorio está en fase de arquitectura y scaffolding. El objetivo inmediato es un flujo vertical desplegado que atraviese Angular, Enterprise Core, Pub/Sub y Agent Runtime antes de ampliar funcionalidades.
 
+## Licencia
+
+Copyright © 2026 Rafael Patiño Díaz.
+
+Vextis ERP se distribuye bajo la [Apache License 2.0](./LICENSE). Consulta también el archivo de atribuciones [NOTICE](./NOTICE). Las dependencias de terceros conservan sus propias licencias.
+
 ## Referencia oficial
 
 - Hackathon: https://allthingsagentichackathon.devpost.com/
