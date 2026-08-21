@@ -1,0 +1,13 @@
+mutation ReceivePurchaseOrder($input: ReceivePurchaseOrderInput!) {
+  receivePurchaseOrder(input: $input) {
+    purchaseOrder {
+      id
+    }
+    execution {
+      state
+      timeline {
+        title
+      }
+    }
+  }
+}

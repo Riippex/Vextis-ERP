@@ -11,7 +11,7 @@
   },
   "scripts": {
     "start": "ng serve --proxy-config proxy.conf.json",
-    "generate:graphql": "graphql-codegen --config codegen.ts",
+    "generate:graphql": "graphql-codegen --config codegen.ts && node tools/normalize-generated.mjs",
     "prebuild": "pnpm generate:graphql",
     "build": "ng build",
     "pretest": "pnpm generate:graphql",

@@ -6,6 +6,13 @@ export const routes: Routes = [
     loadComponent: () => import('./features/auth/login.page').then((m) => m.LoginPage),
   },
   {
+    path: 'purchase-orders/new',
+    loadComponent: () =>
+      import('./features/purchase-orders/receive-purchase-order.page').then(
+        (module) => module.ReceivePurchaseOrderPage,
+      ),
+  },
+  {
     path: '',
     pathMatch: 'full',
     loadComponent: () =>

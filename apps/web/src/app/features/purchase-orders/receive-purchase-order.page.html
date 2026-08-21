@@ -1,0 +1,128 @@
+<header class="page-header">
+  <a mat-button routerLink="/">
+    <mat-icon>arrow_back</mat-icon>
+    Mission Control
+  </a>
+  <p class="page-header__eyebrow">Order-to-cash · Step 1</p>
+  <h1>Receive a purchase order</h1>
+  <p>
+    Register a document already stored in Cloud Storage. Enterprise Core will create the
+    durable execution, audit record, and event that starts agent planning.
+  </p>
+</header>
+
+<div class="workspace">
+  <mat-card appearance="outlined" class="intake-card">
+    <mat-card-header>
+      <mat-icon mat-card-avatar>upload_file</mat-icon>
+      <mat-card-title>Source document</mat-card-title>
+      <mat-card-subtitle>The document must use a <code>gs://</code> URI.</mat-card-subtitle>
+    </mat-card-header>
+
+    <mat-card-content>
+      <form [formGroup]="form" (ngSubmit)="submit()" class="intake-form">
+        <mat-form-field appearance="outline">
+          <mat-label>Purchase order number</mat-label>
+          <input matInput formControlName="purchaseOrderNumber" autocomplete="off" />
+          @if (form.controls.purchaseOrderNumber.touched && form.controls.purchaseOrderNumber.invalid) {
+            <mat-error>Enter a purchase order number.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline">
+          <mat-label>Customer</mat-label>
+          <input matInput formControlName="customerName" autocomplete="organization" />
+          @if (form.controls.customerName.touched && form.controls.customerName.invalid) {
+            <mat-error>Enter the customer name.</mat-error>
+          }
+        </mat-form-field>
+
+        <mat-form-field appearance="outline" class="intake-form__wide">
+          <mat-label>Cloud Storage document URI</mat-label>
+          <input matInput formControlName="documentUri" autocomplete="off" />
+          <mat-hint>Example: gs://vextis-demo/orders/po-2026-001.pdf</mat-hint>
+          @if (form.controls.documentUri.touched && form.controls.documentUri.invalid) {
+            <mat-error>Enter a valid gs:// document URI.</mat-error>
+          }
+        </mat-form-field>
+
+        <div class="intake-form__actions intake-form__wide">
+          <button mat-flat-button type="submit" [disabled]="submitting()">
+            @if (submitting()) {
+              <mat-spinner diameter="18" />
+            } @else {
+              <mat-icon>play_arrow</mat-icon>
+            }
+            {{ submitting() ? 'Receiving…' : 'Receive and create execution' }}
+          </button>
+        </div>
+      </form>
+
+      @if (errorMessage(); as message) {
+        <div class="feedback feedback--error" role="alert">
+          <mat-icon>error_outline</mat-icon>
+          <span>{{ message }}</span>
+        </div>
+      }
+    </mat-card-content>
+  </mat-card>
+
+  <section class="evidence" aria-live="polite">
+    @if (receipt(); as currentReceipt) {
+      <div class="evidence__heading">
+        <div>
+          <p class="evidence__eyebrow">Enterprise Core receipt</p>
+          <h2>{{ currentReceipt.purchaseOrder.purchaseOrderNumber }}</h2>
+        </div>
+        <span class="status status--received">{{ currentReceipt.execution.state }}</span>
+      </div>
+
+      <dl class="receipt-details">
+        <div>
+          <dt>Customer</dt>
+          <dd>{{ currentReceipt.purchaseOrder.customerName }}</dd>
+        </div>
+        <div>
+          <dt>Execution</dt>
+          <dd>{{ currentReceipt.execution.id }}</dd>
+        </div>
+        <div>
+          <dt>Correlation ID</dt>
+          <dd>{{ currentReceipt.execution.correlationId }}</dd>
+        </div>
+        <div>
+          <dt>Received</dt>
+          <dd>{{ currentReceipt.purchaseOrder.receivedAt | date: 'medium' }}</dd>
+        </div>
+      </dl>
+
+      <h3>Execution timeline</h3>
+      <ol class="timeline">
+        @for (entry of currentReceipt.execution.timeline; track entry.sequence) {
+          <li>
+            <span class="timeline__marker" aria-hidden="true"></span>
+            <div>
+              <strong>{{ entry.title }}</strong>
+              <p>{{ entry.detail }}</p>
+              <time [attr.datetime]="entry.occurredAt">{{ entry.occurredAt | date: 'mediumTime' }}</time>
+            </div>
+          </li>
+        }
+      </ol>
+
+      <button mat-stroked-button type="button" (click)="startAnother()">
+        <mat-icon>add</mat-icon>
+        Receive another order
+      </button>
+    } @else {
+      <div class="evidence__empty">
+        <mat-icon>account_tree</mat-icon>
+        <h2>Execution evidence will appear here</h2>
+        <p>
+          The UI only displays state returned by Enterprise Core. Agent planning and approvals
+          will extend this same timeline in the next slice.
+        </p>
+      </div>
+    }
+  </section>
+</div>

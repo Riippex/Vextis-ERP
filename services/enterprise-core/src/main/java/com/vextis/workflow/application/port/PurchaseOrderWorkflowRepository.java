@@ -1,0 +1,24 @@
+package com.vextis.workflow.application.port;
+
+import com.vextis.workflow.domain.Actor;
+import com.vextis.workflow.domain.PurchaseOrderReceipt;
+import com.vextis.workflow.domain.WorkflowExecution;
+
+import java.util.Optional;
+import java.util.UUID;
+
+public interface PurchaseOrderWorkflowRepository {
+
+    void acquireIdempotencyLock(String tenantId, String operation, String idempotencyKey);
+
+    Optional<PurchaseOrderReceipt> findReceipt(String tenantId, String operation, String idempotencyKey);
+
+    Optional<WorkflowExecution> findExecution(String tenantId, UUID executionId);
+
+    void saveReceivedPurchaseOrder(
+            PurchaseOrderReceipt receipt,
+            Actor actor,
+            String operation,
+            String idempotencyKey
+    );
+}

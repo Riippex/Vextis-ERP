@@ -1,7 +1,9 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
+import { RouterLink } from '@angular/router';
 
 interface BusinessArea {
   readonly icon: string;
@@ -11,7 +13,7 @@ interface BusinessArea {
 
 @Component({
   selector: 'vxt-dashboard-page',
-  imports: [MatCardModule, MatChipsModule, MatIconModule],
+  imports: [MatButtonModule, MatCardModule, MatChipsModule, MatIconModule, RouterLink],
   templateUrl: './dashboard.page.html',
   styleUrl: './dashboard.page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

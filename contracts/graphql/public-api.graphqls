@@ -4,6 +4,7 @@ type Query {
 }
 
 type Mutation {
+  receivePurchaseOrder(input: ReceivePurchaseOrderInput!): PurchaseOrderReceipt!
   createLiveSession(input: CreateLiveSessionInput!): LiveSession!
   closeLiveSession(id: ID!): Boolean!
 }
@@ -18,10 +19,29 @@ enum ServiceStatus {
 
 type Execution {
   id: ID!
+  goal: String!
   state: ExecutionState!
   correlationId: String!
   createdAt: String!
   updatedAt: String!
+  timeline: [ExecutionTimelineEntry!]!
+}
+
+type ExecutionTimelineEntry {
+  sequence: Int!
+  type: TimelineEntryType!
+  title: String!
+  detail: String!
+  occurredAt: String!
+}
+
+enum TimelineEntryType {
+  RECEIVED
+  STATUS_CHANGED
+  APPROVAL_REQUESTED
+  APPROVAL_DECIDED
+  COMPLETED
+  FAILED
 }
 
 enum ExecutionState {
@@ -31,6 +51,26 @@ enum ExecutionState {
   WAITING_APPROVAL
   COMPLETED
   FAILED
+}
+
+input ReceivePurchaseOrderInput {
+  purchaseOrderNumber: String!
+  customerName: String!
+  documentUri: String!
+  idempotencyKey: String!
+}
+
+type PurchaseOrderReceipt {
+  purchaseOrder: PurchaseOrder!
+  execution: Execution!
+}
+
+type PurchaseOrder {
+  id: ID!
+  purchaseOrderNumber: String!
+  customerName: String!
+  documentUri: String!
+  receivedAt: String!
 }
 
 input CreateLiveSessionInput {

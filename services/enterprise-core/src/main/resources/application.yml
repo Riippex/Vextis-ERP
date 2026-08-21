@@ -29,3 +29,8 @@ management:
     health:
       probes:
         enabled: true
+
+vextis:
+  demo:
+    tenant-id: ${VEXTIS_DEMO_TENANT_ID:demo-tenant}
+    actor-id: ${VEXTIS_DEMO_ACTOR_ID:demo-user}
