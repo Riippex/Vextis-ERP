@@ -12,7 +12,7 @@ from vextis_agents.tools.core_api.planning import (
     EnterpriseCorePlanningClient,
 )
 from vextis_agents.workflows.order_to_cash.events import PurchaseOrderReceivedV2
-from vextis_agents.workflows.order_to_cash.planning import GeneratedPlan
+from vextis_agents.workflows.order_to_cash.planning import GeneratedPlan, PlanningContext
 
 
 @pytest.mark.asyncio
@@ -33,6 +33,7 @@ async def test_client_propagates_trusted_context_to_narrow_tool() -> None:
                 "purchaseOrderNumber": "PO-2026-001",
                 "customerName": "Acme Colombia",
                 "documentUri": "gs://vextis-demo/orders/po-2026-001.pdf",
+                "readinessEvaluated": False,
             },
         )
 
@@ -66,6 +67,7 @@ async def test_client_records_validated_plan_with_stable_idempotency_key() -> No
                     "purchaseOrderNumber": "PO-2026-001",
                     "customerName": "Acme Colombia",
                     "documentUri": "gs://vextis-demo/orders/po-2026-001.pdf",
+                    "readinessEvaluated": False,
                 },
             )
         captured = request
@@ -93,6 +95,8 @@ async def test_client_records_validated_plan_with_stable_idempotency_key() -> No
                     "requires_approval": False,
                 }
             ],
+            "order_lines": [{"sku": "VXT-CHAIR-01", "quantity": 10}],
+            "requested_payment_terms_days": 30,
         }
     )
 
@@ -104,6 +108,41 @@ async def test_client_records_validated_plan_with_stable_idempotency_key() -> No
     body = json.loads(captured.content)
     assert body["modelId"] == "gemini-3.5-flash"
     assert body["steps"][0]["requiresApproval"] is False
+    assert body["orderLines"] == [{"sku": "VXT-CHAIR-01", "quantity": 10}]
+
+
+@pytest.mark.asyncio
+async def test_client_evaluates_readiness_with_stable_idempotency_key() -> None:
+    captured: httpx.Request | None = None
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal captured
+        captured = request
+        return httpx.Response(
+            200,
+            json={
+                "id": "8d3f290d-1322-44a2-8bd7-3b325f170e07",
+                "state": "RUNNING",
+                "correlationId": "corr-001",
+                "updatedAt": "2026-08-21T03:30:06Z",
+            },
+        )
+
+    client = EnterpriseCorePlanningClient(settings(), httpx.MockTransport(respond))
+    event = PurchaseOrderReceivedV2.model_validate(purchase_order_event())
+    context = PlanningContext(
+        id=str(event.payload.execution_id), state="RUNNING", correlationId=event.correlation_id,
+        updatedAt="2026-08-21T03:30:04Z", goal="Process", purchaseOrderNumber="PO-2026-001",
+        customerName="Acme Colombia",
+        documentUri=event.payload.document_uri,
+        readinessEvaluated=False,
+    )
+    result = await client.evaluate_readiness(event, context)
+
+    assert result.state == "RUNNING"
+    assert captured is not None
+    assert captured.url.path.endswith("/readiness")
+    assert captured.headers["Idempotency-Key"].endswith(":evaluate-readiness")
 
 
 @pytest.mark.asyncio

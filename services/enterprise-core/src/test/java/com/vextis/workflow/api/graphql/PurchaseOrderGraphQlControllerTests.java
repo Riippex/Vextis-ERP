@@ -5,6 +5,7 @@ import com.vextis.workflow.application.ReceivePurchaseOrderCommand;
 import com.vextis.workflow.application.ReceivePurchaseOrderUseCase;
 import com.vextis.workflow.domain.ExecutionState;
 import com.vextis.workflow.domain.ExecutionTimelineEntry;
+import com.vextis.workflow.domain.ExtractedOrderLine;
 import com.vextis.workflow.domain.PlanningDepartment;
 import com.vextis.workflow.domain.PurchaseOrderReceipt;
 import com.vextis.workflow.domain.PurchaseOrderSource;
@@ -12,6 +13,9 @@ import com.vextis.workflow.domain.TimelineEntryType;
 import com.vextis.workflow.domain.WorkflowExecution;
 import com.vextis.workflow.domain.WorkflowPlan;
 import com.vextis.workflow.domain.WorkflowPlanStep;
+import com.vextis.workflow.domain.ReadinessStatus;
+import com.vextis.workflow.domain.WorkflowReadiness;
+import com.vextis.workflow.domain.WorkflowReadinessCheck;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.graphql.test.autoconfigure.GraphQlTest;
@@ -82,7 +86,13 @@ class PurchaseOrderGraphQlControllerTests {
                             state
                             correlationId
                             timeline { sequence }
-                            plan { modelId steps { sequence department requiresApproval } }
+                            plan {
+                              modelId
+                              requestedPaymentTermsDays
+                              orderLines { sku quantity }
+                              steps { sequence department requiresApproval }
+                            }
+                            readiness { checks { department status detail } }
                           }
                         }
                         """)
@@ -96,7 +106,13 @@ class PurchaseOrderGraphQlControllerTests {
                 .isEqualTo("gemini-3.5-flash")
                 .path("execution.plan.steps[0].department")
                 .entity(String.class)
-                .isEqualTo("CRM_SALES");
+                .isEqualTo("CRM_SALES")
+                .path("execution.plan.orderLines[0].sku")
+                .entity(String.class)
+                .isEqualTo("VXT-CHAIR-01")
+                .path("execution.readiness.checks[0].status")
+                .entity(String.class)
+                .isEqualTo("READY");
     }
 
     private PurchaseOrderReceipt receipt() {
@@ -146,7 +162,7 @@ class PurchaseOrderGraphQlControllerTests {
                         NOW
                 ))
         );
-        return planning.recordPlan(
+        WorkflowExecution running = planning.recordPlan(
                 new WorkflowPlan(
                         "Validate the customer and order.",
                         "gemini-3.5-flash",
@@ -156,8 +172,21 @@ class PurchaseOrderGraphQlControllerTests {
                                 PlanningDepartment.CRM_SALES,
                                 "Validate customer context.",
                                 false
-                        ))
+                        )),
+                        List.of(new ExtractedOrderLine("VXT-CHAIR-01", 10)),
+                        30
                 ),
+                NOW
+        );
+        return running.recordReadiness(
+                new WorkflowReadiness(NOW, List.of(
+                        new WorkflowReadinessCheck(
+                                PlanningDepartment.CRM_SALES, ReadinessStatus.READY, "Customer matched."),
+                        new WorkflowReadinessCheck(
+                                PlanningDepartment.INVENTORY_OPERATIONS, ReadinessStatus.READY, "Stock available."),
+                        new WorkflowReadinessCheck(
+                                PlanningDepartment.FINANCE_BILLING, ReadinessStatus.READY, "Terms accepted.")
+                )),
                 NOW
         );
     }

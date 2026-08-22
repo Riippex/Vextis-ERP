@@ -50,11 +50,18 @@ mockup are ported to real code, the colors already line up).
 
 `apps/web/src/app/features/auth/login.page.{ts,html,scss}`, route `/login`.
 
-Deliberately **did not follow the global light/dark toggle** — it's an
-access screen with its own "exotic" identity (dark hero with a sphere of
-points, editorial typography, stats footer), inspired by the reference Rafa
-shared. The root component (`app.ts`, `hideChrome`) hides the global toolbar
-when the route starts with `/login`.
+Keeps its own "exotic" identity (hero with a sphere of points, editorial
+typography, stats footer), inspired by the reference Rafa shared, rather
+than reusing the shell's chrome tokens directly — but as of 2026-08-22 it
+**does follow the global light/dark toggle**. `login.page.scss` defines its
+own `--login-*` custom properties at `:host`, reusing `--vxt-*` tokens for
+the light (default) values, with a `:host-context(html.dark)` override
+block holding the original dark-only look byte-for-byte unchanged. No
+wiring needed in `login.page.ts` — `app.ts`'s theme effect already toggles
+`dark` on `<html>` regardless of route, so the component only needed to
+react to the class that was already there. The root component (`app.ts`,
+`hideChrome`) still hides the global toolbar when the route starts with
+`/login` — that part is unrelated to theme and unchanged.
 
 Pending: the form navigates straight to the dashboard (`onSubmit` in
 `login.page.ts`), there's no real authentication yet — it's marked with

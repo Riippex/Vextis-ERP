@@ -116,7 +116,7 @@ export class ReceivePurchaseOrderPage {
             fetchPolicy: 'network-only',
           }),
         ),
-        takeWhile(({ data }) => this.isAwaitingPlan(data?.execution?.state), true),
+        takeWhile(({ data }) => this.isAwaitingReadiness(data?.execution), true),
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
@@ -125,7 +125,7 @@ export class ReceivePurchaseOrderPage {
             return;
           }
           this.updateExecution(data.execution);
-          if (!this.isAwaitingPlan(data.execution.state)) {
+          if (!this.isAwaitingReadiness(data.execution)) {
             this.monitoring.set(false);
           }
         },
@@ -145,8 +145,12 @@ export class ReceivePurchaseOrderPage {
     );
   }
 
-  private isAwaitingPlan(state: string | undefined): boolean {
-    return state === 'RECEIVED' || state === 'PLANNING';
+  private isAwaitingReadiness(execution: Execution | null | undefined): boolean {
+    return (
+      execution?.state === 'RECEIVED' ||
+      execution?.state === 'PLANNING' ||
+      (execution?.state === 'RUNNING' && !execution.readiness)
+    );
   }
 
   private toActionableMessage(error: unknown): string {

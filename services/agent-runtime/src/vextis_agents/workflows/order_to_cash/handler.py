@@ -10,17 +10,16 @@ class PurchaseOrderReceivedHandler:
 
     async def handle(self, event: PurchaseOrderReceivedV2) -> PlanningResult:
         context = await self._planning_tool.start_planning(event)
-        if context.state != "PLANNING":
+        if context.readiness_evaluated:
             return PlanningResult(
                 id=context.id,
                 state=context.state,
                 correlationId=context.correlation_id,
                 updatedAt=context.updated_at,
             )
-        plan = await self._plan_generator.generate(context)
-        return await self._planning_tool.record_plan(
-            event,
-            context,
-            plan,
-            self._plan_generator.model_id,
-        )
+        if context.state == "PLANNING":
+            plan = await self._plan_generator.generate(context)
+            await self._planning_tool.record_plan(
+                event, context, plan, self._plan_generator.model_id
+            )
+        return await self._planning_tool.evaluate_readiness(event, context)

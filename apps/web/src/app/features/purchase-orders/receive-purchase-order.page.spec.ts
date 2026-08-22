@@ -34,6 +34,7 @@ describe('ReceivePurchaseOrderPage', () => {
               },
             ],
             plan: null,
+            readiness: null,
           },
         },
       },
@@ -76,6 +77,8 @@ describe('ReceivePurchaseOrderPage', () => {
             summary: 'Validate customer, inventory, and commercial terms.',
             modelId: 'gemini-3.5-flash',
             generatedAt: '2026-08-21T03:30:04Z',
+            requestedPaymentTermsDays: 30,
+            orderLines: [{ sku: 'VXT-CHAIR-01', quantity: 10 }],
             steps: [
               {
                 sequence: 1,
@@ -94,6 +97,26 @@ describe('ReceivePurchaseOrderPage', () => {
                 department: 'FINANCE_BILLING',
                 objective: 'Validate commercial terms.',
                 requiresApproval: true,
+              },
+            ],
+          },
+          readiness: {
+            evaluatedAt: '2026-08-21T03:30:06Z',
+            checks: [
+              {
+                department: 'CRM_SALES',
+                status: 'READY',
+                detail: 'Active customer matched: Acme Colombia.',
+              },
+              {
+                department: 'INVENTORY_OPERATIONS',
+                status: 'READY',
+                detail: 'All extracted SKU lines have sufficient stock.',
+              },
+              {
+                department: 'FINANCE_BILLING',
+                status: 'READY',
+                detail: 'Credit standing is good.',
               },
             ],
           },
@@ -135,5 +158,8 @@ describe('ReceivePurchaseOrderPage', () => {
     expect(fixture.nativeElement.textContent).toContain('Agent planning started');
     expect(fixture.nativeElement.textContent).toContain('gemini-3.5-flash');
     expect(fixture.nativeElement.textContent).toContain('Human approval required');
+    expect(fixture.nativeElement.textContent).toContain('VXT-CHAIR-01');
+    expect(fixture.nativeElement.textContent).toContain('Order readiness');
+    expect(fixture.nativeElement.textContent).toContain('Credit standing is good');
   });
 });

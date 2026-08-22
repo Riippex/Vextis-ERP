@@ -16,11 +16,15 @@ from vextis_agents.workflows.order_to_cash.planning import (
 
 
 class PlanningToolStub:
-    def __init__(self, unavailable: bool = False, state: str = "PLANNING") -> None:
+    def __init__(
+        self, unavailable: bool = False, state: str = "PLANNING", readiness_evaluated: bool = False
+    ) -> None:
         self.event: PurchaseOrderReceivedV2 | None = None
         self.plan: GeneratedPlan | None = None
         self.unavailable = unavailable
         self.state = state
+        self.readiness_evaluated = readiness_evaluated
+        self.readiness_calls = 0
 
     async def start_planning(self, event: PurchaseOrderReceivedV2) -> PlanningContext:
         self.event = event
@@ -35,6 +39,16 @@ class PlanningToolStub:
             purchaseOrderNumber="PO-2026-001",
             customerName="Acme Colombia",
             documentUri=event.payload.document_uri,
+            readinessEvaluated=self.readiness_evaluated,
+        )
+
+    async def evaluate_readiness(
+        self, event: PurchaseOrderReceivedV2, context: PlanningContext
+    ) -> PlanningResult:
+        self.readiness_calls += 1
+        return PlanningResult(
+            id=context.id, state="RUNNING", correlationId=context.correlation_id,
+            updatedAt="2026-08-21T03:30:06Z",
         )
 
     async def record_plan(
@@ -77,6 +91,8 @@ class PlanGeneratorStub:
                         "requires_approval": False,
                     }
                 ],
+                "order_lines": [{"sku": "VXT-CHAIR-01", "quantity": 10}],
+                "requested_payment_terms_days": 30,
             }
         )
 
@@ -101,6 +117,7 @@ def test_push_invokes_typed_planning_tool_and_acknowledges() -> None:
     assert tool.event.tenant_id == "demo-tenant"
     assert tool.plan is not None
     assert generator.calls == 1
+    assert tool.readiness_calls == 1
 
 
 def test_malformed_event_is_acknowledged_without_calling_tool() -> None:
@@ -159,7 +176,7 @@ def test_transient_gemini_failure_requests_pubsub_retry() -> None:
 
 
 def test_replayed_completed_transition_skips_duplicate_gemini_call() -> None:
-    tool = PlanningToolStub(state="RUNNING")
+    tool = PlanningToolStub(state="RUNNING", readiness_evaluated=True)
     generator = PlanGeneratorStub()
     app = create_app(
         Settings(pubsub_push_enabled=True),
@@ -176,3 +193,20 @@ def test_replayed_completed_transition_skips_duplicate_gemini_call() -> None:
     assert response.status_code == 204
     assert generator.calls == 0
     assert tool.plan is None
+    assert tool.readiness_calls == 0
+
+
+def test_replay_resumes_readiness_without_duplicate_gemini_call() -> None:
+    tool = PlanningToolStub(state="RUNNING", readiness_evaluated=False)
+    generator = PlanGeneratorStub()
+    app = create_app(
+        Settings(pubsub_push_enabled=True), planning_tool=tool, plan_generator=generator
+    )
+
+    response = TestClient(app).post(
+        "/events/pubsub", content=pubsub_push_body(), headers={"Content-Type": "application/json"}
+    )
+
+    assert response.status_code == 204
+    assert generator.calls == 0
+    assert tool.readiness_calls == 1

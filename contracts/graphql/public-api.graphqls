@@ -26,6 +26,7 @@ type Execution {
   updatedAt: String!
   timeline: [ExecutionTimelineEntry!]!
   plan: ExecutionPlan
+  readiness: ExecutionReadiness
 }
 
 type ExecutionPlan {
@@ -33,6 +34,29 @@ type ExecutionPlan {
   modelId: String!
   generatedAt: String!
   steps: [ExecutionPlanStep!]!
+  orderLines: [ExtractedOrderLine!]!
+  requestedPaymentTermsDays: Int!
+}
+
+type ExtractedOrderLine {
+  sku: String!
+  quantity: Int!
+}
+
+type ExecutionReadiness {
+  evaluatedAt: String!
+  checks: [ReadinessCheck!]!
+}
+
+type ReadinessCheck {
+  department: PlanningDepartment!
+  status: ReadinessStatus!
+  detail: String!
+}
+
+enum ReadinessStatus {
+  READY
+  REVIEW_REQUIRED
 }
 
 type ExecutionPlanStep {

@@ -17,11 +17,24 @@ query FindExecution($id: ID!) {
       summary
       modelId
       generatedAt
+      requestedPaymentTermsDays
+      orderLines {
+        sku
+        quantity
+      }
       steps {
         sequence
         department
         objective
         requiresApproval
+      }
+    }
+    readiness {
+      evaluatedAt
+      checks {
+        department
+        status
+        detail
       }
     }
   }

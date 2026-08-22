@@ -5,11 +5,14 @@ import com.vextis.workflow.application.ReceivePurchaseOrderCommand;
 import com.vextis.workflow.application.ReceivePurchaseOrderUseCase;
 import com.vextis.workflow.domain.Actor;
 import com.vextis.workflow.domain.ExecutionTimelineEntry;
+import com.vextis.workflow.domain.ExtractedOrderLine;
 import com.vextis.workflow.domain.PurchaseOrderReceipt;
 import com.vextis.workflow.domain.PurchaseOrderSource;
 import com.vextis.workflow.domain.WorkflowExecution;
 import com.vextis.workflow.domain.WorkflowPlan;
 import com.vextis.workflow.domain.WorkflowPlanStep;
+import com.vextis.workflow.domain.WorkflowReadiness;
+import com.vextis.workflow.domain.WorkflowReadinessCheck;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -108,7 +111,8 @@ class PurchaseOrderGraphQlController {
             String createdAt,
             String updatedAt,
             List<TimelineEntryView> timeline,
-            PlanView plan
+            PlanView plan,
+            ReadinessView readiness
     ) {
 
         static ExecutionView from(WorkflowExecution execution) {
@@ -120,20 +124,50 @@ class PurchaseOrderGraphQlController {
                     execution.createdAt().toString(),
                     execution.updatedAt().toString(),
                     execution.timeline().stream().map(TimelineEntryView::from).toList(),
-                    execution.plan() == null ? null : PlanView.from(execution.plan())
+                    execution.plan() == null ? null : PlanView.from(execution.plan()),
+                    execution.readiness() == null ? null : ReadinessView.from(execution.readiness())
             );
         }
     }
 
-    record PlanView(String summary, String modelId, String generatedAt, List<PlanStepView> steps) {
+    record PlanView(
+            String summary,
+            String modelId,
+            String generatedAt,
+            List<PlanStepView> steps,
+            List<OrderLineView> orderLines,
+            int requestedPaymentTermsDays
+    ) {
 
         static PlanView from(WorkflowPlan plan) {
             return new PlanView(
                     plan.summary(),
                     plan.modelId(),
                     plan.generatedAt().toString(),
-                    plan.steps().stream().map(PlanStepView::from).toList()
+                    plan.steps().stream().map(PlanStepView::from).toList(),
+                    plan.orderLines().stream().map(OrderLineView::from).toList(),
+                    plan.requestedPaymentTermsDays()
             );
+        }
+    }
+
+    record OrderLineView(String sku, int quantity) {
+        static OrderLineView from(ExtractedOrderLine line) {
+            return new OrderLineView(line.sku(), line.quantity());
+        }
+    }
+
+    record ReadinessView(String evaluatedAt, List<ReadinessCheckView> checks) {
+        static ReadinessView from(WorkflowReadiness readiness) {
+            return new ReadinessView(
+                    readiness.evaluatedAt().toString(),
+                    readiness.checks().stream().map(ReadinessCheckView::from).toList());
+        }
+    }
+
+    record ReadinessCheckView(String department, String status, String detail) {
+        static ReadinessCheckView from(WorkflowReadinessCheck check) {
+            return new ReadinessCheckView(check.department().name(), check.status().name(), check.detail());
         }
     }
 

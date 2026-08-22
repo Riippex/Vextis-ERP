@@ -18,6 +18,10 @@ export type PlanningDepartment =
   | 'FINANCE_BILLING'
   | 'INVENTORY_OPERATIONS';
 
+export type ReadinessStatus =
+  | 'READY'
+  | 'REVIEW_REQUIRED';
+
 export type ReceivePurchaseOrderInput = {
   customerName: string;
   documentUri: string;
@@ -46,14 +50,14 @@ export type FindExecutionQueryVariables = Exact<{
 }>;
 
 
-export type FindExecutionQuery = { execution: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null } | null };
+export type FindExecutionQuery = { execution: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, orderLines: Array<{ sku: string, quantity: number }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null } | null };
 
 export type ReceivePurchaseOrderMutationVariables = Exact<{
   input: ReceivePurchaseOrderInput;
 }>;
 
 
-export type ReceivePurchaseOrderMutation = { receivePurchaseOrder: { purchaseOrder: { id: string, purchaseOrderNumber: string, customerName: string, documentUri: string, receivedAt: string }, execution: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null } } };
+export type ReceivePurchaseOrderMutation = { receivePurchaseOrder: { purchaseOrder: { id: string, purchaseOrderNumber: string, customerName: string, documentUri: string, receivedAt: string }, execution: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, orderLines: Array<{ sku: string, quantity: number }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null } } };
 
 export const HealthDocument = gql`
     query Health {
@@ -93,11 +97,24 @@ export const FindExecutionDocument = gql`
       summary
       modelId
       generatedAt
+      requestedPaymentTermsDays
+      orderLines {
+        sku
+        quantity
+      }
       steps {
         sequence
         department
         objective
         requiresApproval
+      }
+    }
+    readiness {
+      evaluatedAt
+      checks {
+        department
+        status
+        detail
       }
     }
   }
@@ -142,11 +159,24 @@ export const ReceivePurchaseOrderDocument = gql`
         summary
         modelId
         generatedAt
+        requestedPaymentTermsDays
+        orderLines {
+          sku
+          quantity
+        }
         steps {
           sequence
           department
           objective
           requiresApproval
+        }
+      }
+      readiness {
+        evaluatedAt
+        checks {
+          department
+          status
+          detail
         }
       }
     }

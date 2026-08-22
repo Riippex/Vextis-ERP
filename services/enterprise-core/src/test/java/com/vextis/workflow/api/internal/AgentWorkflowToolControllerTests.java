@@ -1,12 +1,14 @@
 package com.vextis.workflow.api.internal;
 
 import com.vextis.workflow.application.PlanningContext;
+import com.vextis.workflow.application.EvaluateReadinessUseCase;
 import com.vextis.workflow.application.RecordPlanCommand;
 import com.vextis.workflow.application.RecordPlanUseCase;
 import com.vextis.workflow.application.StartPlanningCommand;
 import com.vextis.workflow.application.StartPlanningUseCase;
 import com.vextis.workflow.domain.ExecutionState;
 import com.vextis.workflow.domain.ExecutionTimelineEntry;
+import com.vextis.workflow.domain.ExtractedOrderLine;
 import com.vextis.workflow.domain.PlanningDepartment;
 import com.vextis.workflow.domain.PurchaseOrderSource;
 import com.vextis.workflow.domain.TimelineEntryType;
@@ -49,6 +51,9 @@ class AgentWorkflowToolControllerTests {
     @MockitoBean
     private RecordPlanUseCase recordPlan;
 
+    @MockitoBean
+    private EvaluateReadinessUseCase evaluateReadiness;
+
     @Test
     void authenticatedCoordinatorCanStartPlanning() throws Exception {
         when(startPlanning.startPlanning(any(StartPlanningCommand.class))).thenReturn(planningContext());
@@ -68,7 +73,7 @@ class AgentWorkflowToolControllerTests {
         mockMvc.perform(validRequest("Bearer wrong-token", "demo-tenant"))
                 .andExpect(status().isUnauthorized());
 
-        verifyNoInteractions(startPlanning, recordPlan);
+        verifyNoInteractions(startPlanning, recordPlan, evaluateReadiness);
     }
 
     @Test
@@ -76,7 +81,7 @@ class AgentWorkflowToolControllerTests {
         mockMvc.perform(validRequest("Bearer test-service-token", "other-tenant"))
                 .andExpect(status().isForbidden());
 
-        verifyNoInteractions(startPlanning, recordPlan);
+        verifyNoInteractions(startPlanning, recordPlan, evaluateReadiness);
     }
 
     @Test
@@ -94,6 +99,8 @@ class AgentWorkflowToolControllerTests {
                                 {
                                   "modelId": "gemini-3.5-flash",
                                   "summary": "Validate order feasibility.",
+                                  "orderLines": [{"sku": "VXT-CHAIR-01", "quantity": 10}],
+                                  "requestedPaymentTermsDays": 30,
                                   "steps": [
                                     {
                                       "sequence": 1,
@@ -186,7 +193,9 @@ class AgentWorkflowToolControllerTests {
                                 PlanningDepartment.CRM_SALES,
                                 "Validate customer context.",
                                 false
-                        ))
+                        )),
+                        List.of(new ExtractedOrderLine("VXT-CHAIR-01", 10)),
+                        30
                 ),
                 now
         );

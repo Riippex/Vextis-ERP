@@ -37,6 +37,8 @@ def build_planning_agent(settings: Settings) -> LlmAgent:
             "inventory, credit, quotes, orders, or invoices were changed. Enterprise Core "
             "independently validates "
             "and authorizes every future action. Do not expose hidden reasoning."
+            " Extract only explicit SKU, quantity, and payment-term facts from the document; "
+            "never invent missing order data."
         ),
         output_schema=GeneratedPlan,
         output_key="workflow_plan",

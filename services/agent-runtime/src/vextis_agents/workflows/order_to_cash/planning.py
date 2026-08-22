@@ -19,16 +19,28 @@ class GeneratedPlanStep(BaseModel):
     requires_approval: bool
 
 
+class ExtractedOrderLine(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    sku: Annotated[str, Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9._-]+$")]
+    quantity: Annotated[int, Field(ge=1, le=1_000_000)]
+
+
 class GeneratedPlan(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     summary: Annotated[str, Field(min_length=1, max_length=500)]
     steps: Annotated[list[GeneratedPlanStep], Field(min_length=1, max_length=5)]
+    order_lines: Annotated[list[ExtractedOrderLine], Field(min_length=1, max_length=20)]
+    requested_payment_terms_days: Annotated[int, Field(ge=0, le=365)]
 
     @model_validator(mode="after")
     def ensure_contiguous_sequence(self) -> "GeneratedPlan":
         if [step.sequence for step in self.steps] != list(range(1, len(self.steps) + 1)):
             raise ValueError("Plan step sequence must be contiguous and start at 1")
+        normalized_skus = [line.sku.upper() for line in self.order_lines]
+        if len(set(normalized_skus)) != len(normalized_skus):
+            raise ValueError("Extracted order line SKUs must be unique")
         return self
 
 
@@ -43,6 +55,7 @@ class PlanningContext(BaseModel):
     purchase_order_number: str = Field(alias="purchaseOrderNumber")
     customer_name: str = Field(alias="customerName")
     document_uri: str = Field(alias="documentUri", pattern=r"^gs://")
+    readiness_evaluated: bool = Field(alias="readinessEvaluated")
 
 
 class PlanGenerator(Protocol):

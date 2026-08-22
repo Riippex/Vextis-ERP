@@ -1,6 +1,7 @@
 package com.vextis.workflow.application;
 
 import com.vextis.workflow.domain.Actor;
+import com.vextis.workflow.domain.ExtractedOrderLine;
 import com.vextis.workflow.domain.WorkflowPlanStep;
 
 import java.util.List;
@@ -14,12 +15,14 @@ public record RecordPlanCommand(
         String modelId,
         String summary,
         List<WorkflowPlanStep> steps,
+        List<ExtractedOrderLine> orderLines,
+        int requestedPaymentTermsDays,
         String idempotencyKey
 ) {
 
     public RecordPlanCommand {
-        if (actor == null || executionId == null || steps == null) {
-            throw new IllegalArgumentException("Actor, execution id and plan steps are required");
+        if (actor == null || executionId == null || steps == null || orderLines == null) {
+            throw new IllegalArgumentException("Actor, execution id, plan steps and order lines are required");
         }
         if (tenantId == null || tenantId.isBlank() || correlationId == null || correlationId.isBlank()
                 || modelId == null || modelId.isBlank() || summary == null || summary.isBlank()
@@ -27,5 +30,6 @@ public record RecordPlanCommand(
             throw new IllegalArgumentException("Tenant, correlation, model, summary and idempotency key are required");
         }
         steps = List.copyOf(steps);
+        orderLines = List.copyOf(orderLines);
     }
 }

@@ -8,7 +8,9 @@ public record WorkflowPlan(
         String summary,
         String modelId,
         Instant generatedAt,
-        List<WorkflowPlanStep> steps
+        List<WorkflowPlanStep> steps,
+        List<ExtractedOrderLine> orderLines,
+        int requestedPaymentTermsDays
 ) {
 
     public WorkflowPlan {
@@ -30,5 +32,15 @@ public record WorkflowPlan(
             throw new IllegalArgumentException("Plan step sequence must be contiguous and start at 1");
         }
         steps = validatedSteps;
+        if (orderLines == null || orderLines.isEmpty() || orderLines.size() > 20) {
+            throw new IllegalArgumentException("Plan must contain between 1 and 20 extracted order lines");
+        }
+        orderLines = List.copyOf(orderLines);
+        if (orderLines.stream().map(ExtractedOrderLine::sku).distinct().count() != orderLines.size()) {
+            throw new IllegalArgumentException("Extracted order line SKUs must be unique");
+        }
+        if (requestedPaymentTermsDays < 0 || requestedPaymentTermsDays > 365) {
+            throw new IllegalArgumentException("Requested payment terms must be between 0 and 365 days");
+        }
     }
 }

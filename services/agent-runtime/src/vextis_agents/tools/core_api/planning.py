@@ -28,6 +28,10 @@ class PlanningTool(Protocol):
         model_id: str,
     ) -> PlanningResult: ...
 
+    async def evaluate_readiness(
+        self, event: PurchaseOrderReceivedV2, context: PlanningContext
+    ) -> PlanningResult: ...
+
 
 class CoreToolRejectedError(RuntimeError):
     """Enterprise Core deterministically rejected the requested transition."""
@@ -102,6 +106,8 @@ class EnterpriseCorePlanningClient:
         payload = {
             "modelId": model_id,
             "summary": plan.summary,
+            "orderLines": [line.model_dump() for line in plan.order_lines],
+            "requestedPaymentTermsDays": plan.requested_payment_terms_days,
             "steps": [
                 {
                     "sequence": step.sequence,
@@ -132,4 +138,34 @@ class EnterpriseCorePlanningClient:
             raise CoreToolUnavailableError("Enterprise Core returned a transient failure")
         raise CoreToolRejectedError(
             f"Enterprise Core rejected the structured plan with {response.status_code}"
+        )
+
+    async def evaluate_readiness(
+        self, event: PurchaseOrderReceivedV2, context: PlanningContext
+    ) -> PlanningResult:
+        headers = {
+            "Authorization": f"Bearer {self._service_token}",
+            "X-Tenant-Id": event.tenant_id,
+            "X-Agent-Id": self._agent_id,
+            "X-Correlation-Id": context.correlation_id,
+            "Idempotency-Key": f"{event.event_id}:evaluate-readiness",
+        }
+        try:
+            async with httpx.AsyncClient(
+                base_url=self._base_url,
+                timeout=httpx.Timeout(10.0, connect=3.0),
+                transport=self._transport,
+            ) as client:
+                response = await client.post(
+                    f"/internal/agent-tools/v1/workflows/{context.id}/readiness",
+                    headers=headers,
+                )
+        except httpx.HTTPError as exception:
+            raise CoreToolUnavailableError("Enterprise Core could not be reached") from exception
+        if 200 <= response.status_code < 300:
+            return PlanningResult.model_validate(response.json())
+        if response.status_code >= 500:
+            raise CoreToolUnavailableError("Enterprise Core returned a transient failure")
+        raise CoreToolRejectedError(
+            f"Enterprise Core rejected readiness evaluation with {response.status_code}"
         )

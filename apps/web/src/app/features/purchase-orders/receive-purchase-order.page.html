@@ -82,7 +82,7 @@
       @if (monitoring()) {
         <div class="feedback" role="status">
           <mat-spinner diameter="18" />
-          <span>Waiting for Gemini to produce and validate the execution plan…</span>
+          <span>Waiting for Gemini and the authoritative CRM, stock, and credit checks…</span>
         </div>
       }
 
@@ -115,6 +115,18 @@
             <span>{{ plan.modelId }}</span>
           </div>
           <p>{{ plan.summary }}</p>
+          <dl class="extracted-facts">
+            <div>
+              <dt>Requested terms</dt>
+              <dd>{{ plan.requestedPaymentTermsDays }} days</dd>
+            </div>
+            @for (line of plan.orderLines; track line.sku) {
+              <div>
+                <dt>{{ line.sku }}</dt>
+                <dd>{{ line.quantity }} units</dd>
+              </div>
+            }
+          </dl>
           <ol class="plan__steps">
             @for (step of plan.steps; track step.sequence) {
               <li>
@@ -132,6 +144,33 @@
           <time [attr.datetime]="plan.generatedAt">
             Generated {{ plan.generatedAt | date: 'medium' }}
           </time>
+        </section>
+      }
+
+      @if (currentReceipt.execution.readiness; as readiness) {
+        <section class="readiness" aria-labelledby="readiness-title">
+          <div class="plan__heading">
+            <div>
+              <p class="evidence__eyebrow">Enterprise Core evidence</p>
+              <h3 id="readiness-title">Order readiness</h3>
+            </div>
+            <time [attr.datetime]="readiness.evaluatedAt">
+              {{ readiness.evaluatedAt | date: 'mediumTime' }}
+            </time>
+          </div>
+          <ul>
+            @for (check of readiness.checks; track check.department) {
+              <li [class.readiness__check--review]="check.status === 'REVIEW_REQUIRED'">
+                <mat-icon>{{ check.status === 'READY' ? 'check_circle' : 'error_outline' }}</mat-icon>
+                <div>
+                  <strong>{{ check.department }}</strong>
+                  <span>{{ check.status }}</span>
+                  <p>{{ check.detail }}</p>
+                </div>
+              </li>
+            }
+          </ul>
+          <small>No inventory, credit, order, or invoice state was changed.</small>
         </section>
       }
 

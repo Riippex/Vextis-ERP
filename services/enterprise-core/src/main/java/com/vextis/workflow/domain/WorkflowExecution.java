@@ -15,7 +15,8 @@ public record WorkflowExecution(
         Instant createdAt,
         Instant updatedAt,
         List<ExecutionTimelineEntry> timeline,
-        WorkflowPlan plan
+        WorkflowPlan plan,
+        WorkflowReadiness readiness
 ) {
 
     public WorkflowExecution(
@@ -29,7 +30,15 @@ public record WorkflowExecution(
             Instant updatedAt,
             List<ExecutionTimelineEntry> timeline
     ) {
-        this(id, tenantId, sourceId, goal, state, correlationId, createdAt, updatedAt, timeline, null);
+        this(id, tenantId, sourceId, goal, state, correlationId, createdAt, updatedAt, timeline, null, null);
+    }
+
+    public WorkflowExecution(
+            UUID id, String tenantId, UUID sourceId, String goal, ExecutionState state,
+            String correlationId, Instant createdAt, Instant updatedAt,
+            List<ExecutionTimelineEntry> timeline, WorkflowPlan plan
+    ) {
+        this(id, tenantId, sourceId, goal, state, correlationId, createdAt, updatedAt, timeline, plan, null);
     }
 
     public WorkflowExecution {
@@ -65,7 +74,8 @@ public record WorkflowExecution(
                 createdAt,
                 now,
                 updatedTimeline,
-                plan
+                plan,
+                readiness
         );
     }
 
@@ -94,7 +104,29 @@ public record WorkflowExecution(
                 createdAt,
                 now,
                 updatedTimeline,
-                structuredPlan
+                structuredPlan,
+                readiness
+        );
+    }
+
+    public WorkflowExecution recordReadiness(WorkflowReadiness evaluation, Instant now) {
+        if (state != ExecutionState.RUNNING || plan == null || plan.orderLines().isEmpty()) {
+            throw new IllegalStateException("Only a running execution with extracted order lines can be evaluated");
+        }
+        if (readiness != null || evaluation == null) {
+            throw new IllegalStateException("Readiness has already been evaluated or is missing");
+        }
+        ArrayList<ExecutionTimelineEntry> updatedTimeline = new ArrayList<>(timeline);
+        updatedTimeline.add(new ExecutionTimelineEntry(
+                timeline.size() + 1,
+                TimelineEntryType.STATUS_CHANGED,
+                "Read-only readiness evaluated",
+                "CRM, inventory and billing checks were recorded without changing business state.",
+                now
+        ));
+        return new WorkflowExecution(
+                id, tenantId, sourceId, goal, state, correlationId, createdAt, now,
+                updatedTimeline, plan, evaluation
         );
     }
 }

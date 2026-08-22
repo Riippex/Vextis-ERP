@@ -1,6 +1,8 @@
 package com.vextis.workflow.api.internal;
 
 import com.vextis.workflow.application.PlanningContext;
+import com.vextis.workflow.application.EvaluateReadinessCommand;
+import com.vextis.workflow.application.EvaluateReadinessUseCase;
 import com.vextis.workflow.application.RecordPlanCommand;
 import com.vextis.workflow.application.RecordPlanUseCase;
 import com.vextis.workflow.application.StartPlanningCommand;
@@ -8,6 +10,7 @@ import com.vextis.workflow.application.StartPlanningUseCase;
 import com.vextis.workflow.application.WorkflowConflictException;
 import com.vextis.workflow.application.WorkflowNotFoundException;
 import com.vextis.workflow.domain.Actor;
+import com.vextis.workflow.domain.ExtractedOrderLine;
 import com.vextis.workflow.domain.PlanningDepartment;
 import com.vextis.workflow.domain.WorkflowExecution;
 import com.vextis.workflow.domain.WorkflowPlanStep;
@@ -39,15 +42,18 @@ class AgentWorkflowToolController {
 
     private final StartPlanningUseCase startPlanning;
     private final RecordPlanUseCase recordPlan;
+    private final EvaluateReadinessUseCase evaluateReadiness;
     private final AgentToolAuthorizer authorizer;
 
     AgentWorkflowToolController(
             StartPlanningUseCase startPlanning,
             RecordPlanUseCase recordPlan,
+            EvaluateReadinessUseCase evaluateReadiness,
             AgentToolAuthorizer authorizer
     ) {
         this.startPlanning = startPlanning;
         this.recordPlan = recordPlan;
+        this.evaluateReadiness = evaluateReadiness;
         this.authorizer = authorizer;
     }
 
@@ -93,6 +99,8 @@ class AgentWorkflowToolController {
         authorizer.authorize(authorization, agentId, tenantId);
         try {
             List<WorkflowPlanStep> steps = request.steps().stream().map(PlanStepRequest::toDomain).toList();
+            List<ExtractedOrderLine> orderLines = request.orderLines().stream()
+                    .map(ExtractedOrderLineRequest::toDomain).toList();
             WorkflowExecution execution = recordPlan.recordPlan(new RecordPlanCommand(
                     tenantId,
                     new Actor(Actor.Type.AGENT, agentId),
@@ -101,9 +109,31 @@ class AgentWorkflowToolController {
                     request.modelId(),
                     request.summary(),
                     steps,
+                    orderLines,
+                    request.requestedPaymentTermsDays(),
                     idempotencyKey
             ));
             return ExecutionResponse.from(execution);
+        } catch (WorkflowNotFoundException exception) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, exception.getMessage(), exception);
+        } catch (WorkflowConflictException | IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, exception.getMessage(), exception);
+        }
+    }
+
+    @PostMapping("/{executionId}/readiness")
+    ExecutionResponse evaluateReadiness(
+            @PathVariable UUID executionId,
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization,
+            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 100) String tenantId,
+            @RequestHeader("X-Agent-Id") @NotBlank @Size(max = 150) String agentId,
+            @RequestHeader("X-Correlation-Id") @NotBlank @Size(max = 100) String correlationId,
+            @RequestHeader("Idempotency-Key") @NotBlank @Size(min = 16, max = 200) String idempotencyKey
+    ) {
+        authorizer.authorize(authorization, agentId, tenantId);
+        try {
+            return ExecutionResponse.from(evaluateReadiness.evaluateReadiness(new EvaluateReadinessCommand(
+                    tenantId, new Actor(Actor.Type.AGENT, agentId), executionId, correlationId, idempotencyKey)));
         } catch (WorkflowNotFoundException exception) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, exception.getMessage(), exception);
         } catch (WorkflowConflictException | IllegalArgumentException exception) {
@@ -120,8 +150,19 @@ class AgentWorkflowToolController {
     record RecordPlanRequest(
             @NotBlank @Size(max = 150) String modelId,
             @NotBlank @Size(max = 500) String summary,
-            @NotNull @Size(min = 1, max = 5) List<@Valid PlanStepRequest> steps
+            @NotNull @Size(min = 1, max = 5) List<@Valid PlanStepRequest> steps,
+            @NotNull @Size(min = 1, max = 20) List<@Valid ExtractedOrderLineRequest> orderLines,
+            @Min(0) @Max(365) int requestedPaymentTermsDays
     ) {
+    }
+
+    record ExtractedOrderLineRequest(
+            @NotBlank @Size(max = 100) @Pattern(regexp = "^[A-Za-z0-9._-]+$") String sku,
+            @Min(1) @Max(1_000_000) int quantity
+    ) {
+        ExtractedOrderLine toDomain() {
+            return new ExtractedOrderLine(sku, quantity);
+        }
     }
 
     record PlanStepRequest(
@@ -144,7 +185,8 @@ class AgentWorkflowToolController {
             String goal,
             String purchaseOrderNumber,
             String customerName,
-            String documentUri
+            String documentUri,
+            boolean readinessEvaluated
     ) {
 
         static PlanningContextResponse from(PlanningContext context) {
@@ -156,7 +198,8 @@ class AgentWorkflowToolController {
                     context.execution().goal(),
                     context.purchaseOrder().purchaseOrderNumber(),
                     context.purchaseOrder().customerName(),
-                    context.purchaseOrder().documentUri()
+                    context.purchaseOrder().documentUri(),
+                    context.execution().readiness() != null
             );
         }
     }

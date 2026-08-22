@@ -100,15 +100,17 @@
     <h2 class="login__panel-title">Welcome back</h2>
     <p class="login__panel-subtitle">Sign in to Mission Control with your Vextis account.</p>
 
-    <form class="login__form" (submit)="onSubmit($event)">
+    <form class="login__form" novalidate (submit)="onSubmit($event)">
       <label class="login__field">
         <span>Email</span>
         <input
           type="email"
           name="email"
           autocomplete="username"
+          required
+          [attr.aria-invalid]="error() ? true : null"
           [value]="email()"
-          (input)="email.set($any($event.target).value)"
+          (input)="updateEmail($any($event.target).value)"
         />
       </label>
       <label class="login__field">
@@ -117,10 +119,16 @@
           type="password"
           name="password"
           autocomplete="current-password"
+          required
+          [attr.aria-invalid]="error() ? true : null"
           [value]="password()"
-          (input)="password.set($any($event.target).value)"
+          (input)="updatePassword($any($event.target).value)"
         />
       </label>
+
+      @if (error(); as message) {
+        <p class="login__error" role="alert">{{ message }}</p>
+      }
 
       <button type="submit" class="login__submit">
         Sign in

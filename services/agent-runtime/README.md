@@ -29,4 +29,6 @@ GOOGLE_GENAI_USE_VERTEXAI=true
 
 For the purchase-order slice, Google ADK sends the Cloud Storage PDF to Gemini as untrusted multimodal data and enforces a strict Pydantic output schema. The validated proposal is then recorded through Enterprise Core's authenticated `record_plan` tool; Agent Runtime never writes workflow tables directly.
 
+The schema extracts only explicit SKU, quantity, and requested payment-term facts. Enterprise Core then evaluates CRM, stock, and credit readiness from tenant-scoped records and persists that evidence; Agent Runtime cannot assert those authoritative outcomes itself.
+
 In Cloud Run, keep the service unauthenticated setting disabled. Configure the Pub/Sub push subscription with a dedicated service account and OIDC token that has only `roles/run.invoker` on Agent Runtime. The application-level service token must come from Secret Manager and protects calls from Agent Runtime back to Enterprise Core.

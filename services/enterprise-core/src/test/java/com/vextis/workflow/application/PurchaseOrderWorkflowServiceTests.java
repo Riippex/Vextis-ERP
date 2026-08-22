@@ -1,8 +1,12 @@
 package com.vextis.workflow.application;
 
+import com.vextis.billing.CreditLookup;
+import com.vextis.crm.CustomerLookup;
+import com.vextis.inventory.StockLookup;
 import com.vextis.workflow.application.port.PurchaseOrderWorkflowRepository;
 import com.vextis.workflow.domain.Actor;
 import com.vextis.workflow.domain.ExecutionState;
+import com.vextis.workflow.domain.ExtractedOrderLine;
 import com.vextis.workflow.domain.PlanningDepartment;
 import com.vextis.workflow.domain.PurchaseOrderReceipt;
 import com.vextis.workflow.domain.PurchaseOrderSource;
@@ -27,7 +31,12 @@ class PurchaseOrderWorkflowServiceTests {
     private final InMemoryRepository repository = new InMemoryRepository();
     private final PurchaseOrderWorkflowService service = new PurchaseOrderWorkflowService(
             repository,
-            Clock.fixed(NOW, ZoneOffset.UTC)
+            Clock.fixed(NOW, ZoneOffset.UTC),
+            (tenant, name) -> Optional.of(new CustomerLookup.CustomerSnapshot(
+                    UUID.fromString("11111111-1111-1111-1111-111111111111"), name, true)),
+            (tenant, sku) -> Optional.of(new StockLookup.StockSnapshot(sku, 40)),
+            (tenant, customerId) -> Optional.of(new CreditLookup.CreditSnapshot(
+                    CreditLookup.CreditStanding.GOOD, 30))
     );
 
     @Test
@@ -125,6 +134,8 @@ class PurchaseOrderWorkflowServiceTests {
                         new WorkflowPlanStep(2, PlanningDepartment.INVENTORY_OPERATIONS, "Check availability.", false),
                         new WorkflowPlanStep(3, PlanningDepartment.FINANCE_BILLING, "Validate terms.", true)
                 ),
+                List.of(new ExtractedOrderLine("VXT-CHAIR-01", 10)),
+                30,
                 eventId + ":record-plan"
         );
 
@@ -138,6 +149,32 @@ class PurchaseOrderWorkflowServiceTests {
         assertThat(first.timeline().getLast().title()).isEqualTo("Structured plan recorded");
         assertThat(repeated).isEqualTo(first);
         assertThat(repository.planSaveCount).isEqualTo(1);
+    }
+
+    @Test
+    void evaluatesAuthoritativeReadinessWithoutChangingBusinessState() {
+        PurchaseOrderReceipt received = service.receive(command("receive-po-001"));
+        UUID eventId = UUID.fromString("8b962f0a-1850-4fcc-a6f5-97e45c67a16e");
+        PlanningContext planning = service.startPlanning(new StartPlanningCommand(
+                "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"), received.execution().id(),
+                eventId, received.execution().correlationId(), received.purchaseOrder().documentUri(), eventId.toString()));
+        service.recordPlan(new RecordPlanCommand(
+                "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"), planning.execution().id(),
+                planning.execution().correlationId(), "gemini-3.5-flash", "Validate readiness.",
+                List.of(new WorkflowPlanStep(1, PlanningDepartment.CRM_SALES, "Validate.", false)),
+                List.of(new ExtractedOrderLine("VXT-CHAIR-01", 10)), 30, eventId + ":record-plan"));
+
+        EvaluateReadinessCommand command = new EvaluateReadinessCommand(
+                "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"), received.execution().id(),
+                received.execution().correlationId(), eventId + ":evaluate-readiness");
+        WorkflowExecution evaluated = service.evaluateReadiness(command);
+        WorkflowExecution repeated = service.evaluateReadiness(command);
+
+        assertThat(evaluated.state()).isEqualTo(ExecutionState.RUNNING);
+        assertThat(evaluated.readiness().checks()).allMatch(check -> check.status().name().equals("READY"));
+        assertThat(evaluated.timeline().getLast().title()).isEqualTo("Read-only readiness evaluated");
+        assertThat(repeated).isEqualTo(evaluated);
+        assertThat(repository.readinessSaveCount).isEqualTo(1);
     }
 
     @Test
@@ -182,6 +219,8 @@ class PurchaseOrderWorkflowServiceTests {
         private int planningSaveCount;
         private String planIdempotencyKey;
         private int planSaveCount;
+        private String readinessIdempotencyKey;
+        private int readinessSaveCount;
 
         @Override
         public void acquireIdempotencyLock(String tenantId, String operation, String idempotencyKey) {
@@ -226,6 +265,9 @@ class PurchaseOrderWorkflowServiceTests {
             if (idempotencyKey.equals(planIdempotencyKey)) {
                 return Optional.ofNullable(receipt).map(PurchaseOrderReceipt::execution);
             }
+            if (idempotencyKey.equals(readinessIdempotencyKey)) {
+                return Optional.ofNullable(receipt).map(PurchaseOrderReceipt::execution);
+            }
             return Optional.empty();
         }
 
@@ -267,6 +309,16 @@ class PurchaseOrderWorkflowServiceTests {
             receipt = new PurchaseOrderReceipt(receipt.purchaseOrder(), updated);
             planIdempotencyKey = idempotencyKey;
             planSaveCount++;
+        }
+
+        @Override
+        public void saveReadinessRecorded(
+                WorkflowExecution previous, WorkflowExecution updated, Actor actor,
+                String operation, String idempotencyKey
+        ) {
+            receipt = new PurchaseOrderReceipt(receipt.purchaseOrder(), updated);
+            readinessIdempotencyKey = idempotencyKey;
+            readinessSaveCount++;
         }
     }
 }

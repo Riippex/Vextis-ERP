@@ -65,8 +65,9 @@ export class LoginPage {
   protected readonly sphereViewBox = `${-SPHERE_SIZE / 2} ${-SPHERE_SIZE / 2} ${SPHERE_SIZE} ${SPHERE_SIZE}`;
 
   protected readonly now = signal(new Date());
-  protected readonly email = signal('rafa@vextis.io');
-  protected readonly password = signal('');
+  protected readonly email = signal('admin@vextis.io');
+  protected readonly password = signal('admin123');
+  protected readonly error = signal<string | null>(null);
 
   constructor() {
     // TODO(auth): this is a cosmetic hero clock, not a real session heartbeat.
@@ -78,8 +79,22 @@ export class LoginPage {
     return `${this.now().toLocaleTimeString('en-US', { hour12: false })} BOG`;
   }
 
+  protected updateEmail(value: string): void {
+    this.email.set(value);
+    this.error.set(null);
+  }
+
+  protected updatePassword(value: string): void {
+    this.password.set(value);
+    this.error.set(null);
+  }
+
   protected onSubmit(event: Event): void {
     event.preventDefault();
+    if (!this.email().trim() || !this.password().trim()) {
+      this.error.set('Enter your email and password to continue.');
+      return;
+    }
     // TODO(auth): replace with the real flow against Enterprise Core once the
     // authentication endpoint exists (see documents/AI_HANDOFF.md — pending the
     // vertical slice). For now it just navigates to the dashboard so it doesn't

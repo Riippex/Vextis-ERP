@@ -28,6 +28,8 @@ def test_representative_three_department_plan_passes_contract() -> None:
                     "requires_approval": True,
                 },
             ],
+            "order_lines": [{"sku": "VXT-CHAIR-01", "quantity": 10}],
+            "requested_payment_terms_days": 30,
         }
     )
 
@@ -59,6 +61,22 @@ def test_representative_three_department_plan_passes_contract() -> None:
                     "requires_approval": False,
                 }
             ],
+        },
+        {
+            "summary": "Duplicate the same stock line.",
+            "steps": [
+                {
+                    "sequence": 1,
+                    "department": "INVENTORY_OPERATIONS",
+                    "objective": "Check stock.",
+                    "requires_approval": False,
+                }
+            ],
+            "order_lines": [
+                {"sku": "VXT-CHAIR-01", "quantity": 30},
+                {"sku": "vxt-chair-01", "quantity": 30},
+            ],
+            "requested_payment_terms_days": 30,
         },
     ],
 )

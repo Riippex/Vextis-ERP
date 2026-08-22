@@ -51,7 +51,9 @@ async def test_adk_planner_attaches_document_and_parses_structured_output(
               "objective": "Validate customer context.",
               "requires_approval": false
             }
-          ]
+          ],
+          "order_lines": [{"sku": "VXT-CHAIR-01", "quantity": 10}],
+          "requested_payment_terms_days": 30
         }
         """
     )
@@ -100,4 +102,5 @@ def context() -> PlanningContext:
         purchaseOrderNumber="PO-2026-001",
         customerName="Acme Colombia",
         documentUri="gs://vextis-demo/orders/po-2026-001.pdf",
+        readinessEvaluated=False,
     )
