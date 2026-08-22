@@ -1,0 +1,17 @@
+query FindExecution($id: ID!) {
+  execution(id: $id) {
+    id
+    goal
+    state
+    correlationId
+    createdAt
+    updatedAt
+    timeline {
+      sequence
+      type
+      title
+      detail
+      occurredAt
+    }
+  }
+}

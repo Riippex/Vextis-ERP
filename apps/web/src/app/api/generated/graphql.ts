@@ -36,6 +36,13 @@ export type HealthQueryVariables = Exact<{ [key: string]: never; }>;
 
 export type HealthQuery = { health: { status: ServiceStatus } };
 
+export type FindExecutionQueryVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type FindExecutionQuery = { execution: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }> } | null };
+
 export type ReceivePurchaseOrderMutationVariables = Exact<{
   input: ReceivePurchaseOrderInput;
 }>;
@@ -56,6 +63,36 @@ export const HealthDocument = gql`
   })
   export class HealthGQL extends Apollo.Query<HealthQuery, HealthQueryVariables> {
     document = HealthDocument;
+
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const FindExecutionDocument = gql`
+    query FindExecution($id: ID!) {
+  execution(id: $id) {
+    id
+    goal
+    state
+    correlationId
+    createdAt
+    updatedAt
+    timeline {
+      sequence
+      type
+      title
+      detail
+      occurredAt
+    }
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class FindExecutionGQL extends Apollo.Query<FindExecutionQuery, FindExecutionQueryVariables> {
+    document = FindExecutionDocument;
 
     constructor(apollo: Apollo.Apollo) {
       super(apollo);

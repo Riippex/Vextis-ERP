@@ -6,6 +6,41 @@ info:
 servers:
   - url: /internal/agent-tools/v1
 paths:
+  /workflows/{executionId}/planning:
+    post:
+      operationId: startExecutionPlanning
+      security:
+        - serviceBearer: []
+      parameters:
+        - name: executionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartPlanningRequest"
+      responses:
+        "200":
+          description: Execution moved to planning, or the idempotent result was returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowExecution"
+        "401":
+          description: Missing or invalid service credential
+        "403":
+          description: Agent is not authorized for this tool or tenant
+        "409":
+          description: Event context does not match the execution or the transition is invalid
   /inventory/reservations:
     post:
       operationId: reserveStock
@@ -55,7 +90,20 @@ paths:
         "403":
           description: Agent is not authorized to register quote assets
 components:
+  securitySchemes:
+    serviceBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque-service-token
   parameters:
+    TenantId:
+      name: X-Tenant-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 100
     AgentId:
       name: X-Agent-Id
       in: header
@@ -76,6 +124,34 @@ components:
         type: string
         minLength: 16
   schemas:
+    StartPlanningRequest:
+      type: object
+      additionalProperties: false
+      required: [eventId, documentUri]
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        documentUri:
+          type: string
+          pattern: "^gs://"
+          maxLength: 1000
+    WorkflowExecution:
+      type: object
+      additionalProperties: false
+      required: [id, state, correlationId, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum: [RECEIVED, PLANNING, RUNNING, WAITING_APPROVAL, COMPLETED, FAILED]
+        correlationId:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
     ReserveStockRequest:
       type: object
       additionalProperties: false

@@ -4,6 +4,7 @@ import com.vextis.workflow.application.port.PurchaseOrderWorkflowRepository;
 import com.vextis.workflow.domain.Actor;
 import com.vextis.workflow.domain.ExecutionState;
 import com.vextis.workflow.domain.PurchaseOrderReceipt;
+import com.vextis.workflow.domain.PurchaseOrderSource;
 import com.vextis.workflow.domain.WorkflowExecution;
 import org.junit.jupiter.api.Test;
 
@@ -71,6 +72,50 @@ class PurchaseOrderWorkflowServiceTests {
         assertThat(repository.saveCount).isEqualTo(1);
     }
 
+    @Test
+    void startsPlanningFromTrustedEventContextAndIsIdempotent() {
+        PurchaseOrderReceipt received = service.receive(command("receive-po-001"));
+        UUID eventId = UUID.fromString("8b962f0a-1850-4fcc-a6f5-97e45c67a16e");
+        StartPlanningCommand planning = new StartPlanningCommand(
+                "demo-tenant",
+                new Actor(Actor.Type.AGENT, "coordinator-agent"),
+                received.execution().id(),
+                eventId,
+                received.execution().correlationId(),
+                received.purchaseOrder().documentUri(),
+                eventId.toString()
+        );
+
+        WorkflowExecution first = service.startPlanning(planning);
+        WorkflowExecution repeated = service.startPlanning(planning);
+
+        assertThat(first.state()).isEqualTo(ExecutionState.PLANNING);
+        assertThat(first.timeline()).hasSize(2);
+        assertThat(first.timeline().getLast().title()).isEqualTo("Agent planning started");
+        assertThat(repeated).isEqualTo(first);
+        assertThat(repository.planningSaveCount).isEqualTo(1);
+    }
+
+    @Test
+    void rejectsPlanningWhenCorrelationDoesNotMatch() {
+        PurchaseOrderReceipt received = service.receive(command("receive-po-001"));
+
+        StartPlanningCommand planning = new StartPlanningCommand(
+                "demo-tenant",
+                new Actor(Actor.Type.AGENT, "coordinator-agent"),
+                received.execution().id(),
+                UUID.randomUUID(),
+                "wrong-correlation",
+                received.purchaseOrder().documentUri(),
+                "planning-key-0001"
+        );
+
+        assertThatThrownBy(() -> service.startPlanning(planning))
+                .isInstanceOf(WorkflowConflictException.class)
+                .hasMessage("Correlation id does not match the execution");
+        assertThat(repository.planningSaveCount).isZero();
+    }
+
     private ReceivePurchaseOrderCommand command(String idempotencyKey) {
         return new ReceivePurchaseOrderCommand(
                 "demo-tenant",
@@ -89,6 +134,8 @@ class PurchaseOrderWorkflowServiceTests {
         private String savedIdempotencyKey;
         private int saveCount;
         private int lockCount;
+        private String planningIdempotencyKey;
+        private int planningSaveCount;
 
         @Override
         public void acquireIdempotencyLock(String tenantId, String operation, String idempotencyKey) {
@@ -115,6 +162,25 @@ class PurchaseOrderWorkflowServiceTests {
         }
 
         @Override
+        public Optional<PurchaseOrderSource> findPurchaseOrder(String tenantId, UUID purchaseOrderId) {
+            return Optional.ofNullable(receipt)
+                    .map(PurchaseOrderReceipt::purchaseOrder)
+                    .filter(source -> source.id().equals(purchaseOrderId));
+        }
+
+        @Override
+        public Optional<WorkflowExecution> findExecutionResult(
+                String tenantId,
+                String operation,
+                String idempotencyKey
+        ) {
+            if (idempotencyKey.equals(planningIdempotencyKey)) {
+                return Optional.ofNullable(receipt).map(PurchaseOrderReceipt::execution);
+            }
+            return Optional.empty();
+        }
+
+        @Override
         public void saveReceivedPurchaseOrder(
                 PurchaseOrderReceipt receipt,
                 Actor actor,
@@ -125,6 +191,20 @@ class PurchaseOrderWorkflowServiceTests {
             this.savedActor = actor;
             this.savedIdempotencyKey = idempotencyKey;
             saveCount++;
+        }
+
+        @Override
+        public void savePlanningStarted(
+                WorkflowExecution previous,
+                WorkflowExecution updated,
+                Actor actor,
+                UUID eventId,
+                String operation,
+                String idempotencyKey
+        ) {
+            receipt = new PurchaseOrderReceipt(receipt.purchaseOrder(), updated);
+            planningIdempotencyKey = idempotencyKey;
+            planningSaveCount++;
         }
     }
 }

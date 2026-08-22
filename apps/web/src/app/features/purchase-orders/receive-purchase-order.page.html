@@ -74,8 +74,17 @@
           <p class="evidence__eyebrow">Enterprise Core receipt</p>
           <h2>{{ currentReceipt.purchaseOrder.purchaseOrderNumber }}</h2>
         </div>
-        <span class="status status--received">{{ currentReceipt.execution.state }}</span>
+        <span class="status" [class.status--received]="currentReceipt.execution.state === 'RECEIVED'">
+          {{ currentReceipt.execution.state }}
+        </span>
       </div>
+
+      @if (monitoring()) {
+        <div class="feedback" role="status">
+          <mat-spinner diameter="18" />
+          <span>Waiting for Agent Runtime to start planning…</span>
+        </div>
+      }
 
       <dl class="receipt-details">
         <div>
@@ -119,8 +128,8 @@
         <mat-icon>account_tree</mat-icon>
         <h2>Execution evidence will appear here</h2>
         <p>
-          The UI only displays state returned by Enterprise Core. Agent planning and approvals
-          will extend this same timeline in the next slice.
+          The UI only displays durable state returned by Enterprise Core. Agent Runtime updates
+          this same execution and timeline through an authenticated tool.
         </p>
       </div>
     }

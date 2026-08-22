@@ -1,6 +1,7 @@
 package com.vextis.workflow.application;
 
 import com.vextis.workflow.application.port.PurchaseOrderWorkflowRepository;
+import com.vextis.workflow.domain.Actor;
 import com.vextis.workflow.domain.ExecutionState;
 import com.vextis.workflow.domain.ExecutionTimelineEntry;
 import com.vextis.workflow.domain.PurchaseOrderReceipt;
@@ -17,9 +18,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
-public class PurchaseOrderWorkflowService implements ReceivePurchaseOrderUseCase, FindExecutionUseCase {
+public class PurchaseOrderWorkflowService implements ReceivePurchaseOrderUseCase, FindExecutionUseCase, StartPlanningUseCase {
 
     static final String RECEIVE_OPERATION = "workflow.receive-purchase-order";
+    static final String START_PLANNING_OPERATION = "workflow.start-planning";
 
     private final PurchaseOrderWorkflowRepository repository;
     private final Clock clock;
@@ -81,6 +83,54 @@ public class PurchaseOrderWorkflowService implements ReceivePurchaseOrderUseCase
     @Transactional(readOnly = true)
     public Optional<WorkflowExecution> findById(String tenantId, UUID executionId) {
         return repository.findExecution(tenantId, executionId);
+    }
+
+    @Override
+    @Transactional
+    public WorkflowExecution startPlanning(StartPlanningCommand command) {
+        if (command.actor().type() != Actor.Type.AGENT) {
+            throw new WorkflowConflictException("Only an authenticated agent can start planning");
+        }
+        repository.acquireIdempotencyLock(
+                command.tenantId(),
+                START_PLANNING_OPERATION,
+                command.idempotencyKey()
+        );
+        Optional<WorkflowExecution> previousResult = repository.findExecutionResult(
+                command.tenantId(),
+                START_PLANNING_OPERATION,
+                command.idempotencyKey()
+        );
+        if (previousResult.isPresent()) {
+            return previousResult.get();
+        }
+
+        WorkflowExecution current = repository.findExecution(command.tenantId(), command.executionId())
+                .orElseThrow(() -> new WorkflowNotFoundException("Execution was not found for tenant"));
+        if (!current.correlationId().equals(command.correlationId())) {
+            throw new WorkflowConflictException("Correlation id does not match the execution");
+        }
+        PurchaseOrderSource source = repository.findPurchaseOrder(command.tenantId(), current.sourceId())
+                .orElseThrow(() -> new WorkflowNotFoundException("Purchase order source was not found"));
+        if (!source.documentUri().equals(command.documentUri())) {
+            throw new WorkflowConflictException("Document URI does not match the execution source");
+        }
+
+        WorkflowExecution updated;
+        try {
+            updated = current.startPlanning(clock.instant());
+        } catch (IllegalStateException exception) {
+            throw new WorkflowConflictException(exception.getMessage());
+        }
+        repository.savePlanningStarted(
+                current,
+                updated,
+                command.actor(),
+                command.eventId(),
+                START_PLANNING_OPERATION,
+                command.idempotencyKey()
+        );
+        return updated;
     }
 
     private void assertSameRequest(PurchaseOrderReceipt existing, ReceivePurchaseOrderCommand command) {

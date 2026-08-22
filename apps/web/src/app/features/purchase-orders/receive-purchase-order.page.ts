@@ -9,13 +9,17 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
+import { Subscription, switchMap, takeWhile, timer } from 'rxjs';
 
 import {
+  FindExecutionGQL,
   ReceivePurchaseOrderGQL,
+  type FindExecutionQuery,
   type ReceivePurchaseOrderMutation,
 } from '../../api/generated/graphql';
 
 type PurchaseOrderReceipt = ReceivePurchaseOrderMutation['receivePurchaseOrder'];
+type Execution = NonNullable<FindExecutionQuery['execution']>;
 
 @Component({
   selector: 'vxt-receive-purchase-order-page',
@@ -37,9 +41,12 @@ type PurchaseOrderReceipt = ReceivePurchaseOrderMutation['receivePurchaseOrder']
 export class ReceivePurchaseOrderPage {
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly receivePurchaseOrder = inject(ReceivePurchaseOrderGQL);
+  private readonly findExecution = inject(FindExecutionGQL);
   private readonly destroyRef = inject(DestroyRef);
+  private monitoringSubscription?: Subscription;
 
   protected readonly submitting = signal(false);
+  protected readonly monitoring = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly receipt = signal<PurchaseOrderReceipt | null>(null);
 
@@ -72,6 +79,7 @@ export class ReceivePurchaseOrderPage {
             return;
           }
           this.receipt.set(data.receivePurchaseOrder);
+          this.monitorExecution(data.receivePurchaseOrder.execution.id);
         },
         error: (error: unknown) => {
           this.submitting.set(false);
@@ -81,6 +89,8 @@ export class ReceivePurchaseOrderPage {
   }
 
   protected startAnother(): void {
+    this.monitoringSubscription?.unsubscribe();
+    this.monitoring.set(false);
     this.receipt.set(null);
     this.errorMessage.set(null);
     this.form.reset({
@@ -93,6 +103,46 @@ export class ReceivePurchaseOrderPage {
 
   private newIdempotencyKey(): string {
     return `receive-po-${globalThis.crypto.randomUUID()}`;
+  }
+
+  private monitorExecution(executionId: string): void {
+    this.monitoringSubscription?.unsubscribe();
+    this.monitoring.set(true);
+    this.monitoringSubscription = timer(0, 2_000)
+      .pipe(
+        switchMap(() =>
+          this.findExecution.fetch({
+            variables: { id: executionId },
+            fetchPolicy: 'network-only',
+          }),
+        ),
+        takeWhile(({ data }) => data?.execution?.state === 'RECEIVED', true),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe({
+        next: ({ data }) => {
+          if (!data?.execution) {
+            return;
+          }
+          this.updateExecution(data.execution);
+          if (data.execution.state !== 'RECEIVED') {
+            this.monitoring.set(false);
+          }
+        },
+        error: () => {
+          this.monitoring.set(false);
+          this.errorMessage.set(
+            'The order was received, but its live status could not be refreshed.',
+          );
+        },
+        complete: () => this.monitoring.set(false),
+      });
+  }
+
+  private updateExecution(execution: Execution): void {
+    this.receipt.update((current) =>
+      current ? { ...current, execution } : current,
+    );
   }
 
   private toActionableMessage(error: unknown): string {

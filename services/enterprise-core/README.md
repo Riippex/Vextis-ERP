@@ -20,3 +20,16 @@ Commands:
 ```
 
 The public schema source lives at `../../contracts/graphql/public-api.graphqls`; Gradle bundles it into resources without duplicating it.
+
+## Purchase-order event relay
+
+The transactional outbox publisher is disabled by default. Enable it only after the Pub/Sub topic exists and Application Default Credentials can publish to it:
+
+```text
+VEXTIS_PUBSUB_ENABLED=true
+GOOGLE_CLOUD_PROJECT=<project-id>
+VEXTIS_PUBSUB_TOPIC_ID=order-events
+VEXTIS_AGENT_TOOLS_TOKEN=<secret-shared-with-agent-runtime>
+```
+
+Store the service token in Secret Manager in deployed environments; never commit it.

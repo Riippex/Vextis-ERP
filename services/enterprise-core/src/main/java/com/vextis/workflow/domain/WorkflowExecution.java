@@ -1,6 +1,7 @@
 package com.vextis.workflow.domain;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,5 +26,30 @@ public record WorkflowExecution(
             throw new IllegalArgumentException("Execution tenant, goal and correlation id are required");
         }
         timeline = List.copyOf(timeline);
+    }
+
+    public WorkflowExecution startPlanning(Instant now) {
+        if (state != ExecutionState.RECEIVED) {
+            throw new IllegalStateException("Only a received execution can start planning");
+        }
+        ArrayList<ExecutionTimelineEntry> updatedTimeline = new ArrayList<>(timeline);
+        updatedTimeline.add(new ExecutionTimelineEntry(
+                timeline.size() + 1,
+                TimelineEntryType.STATUS_CHANGED,
+                "Agent planning started",
+                "Agent Runtime accepted the event and started planning the order.",
+                now
+        ));
+        return new WorkflowExecution(
+                id,
+                tenantId,
+                sourceId,
+                goal,
+                ExecutionState.PLANNING,
+                correlationId,
+                createdAt,
+                now,
+                updatedTimeline
+        );
     }
 }

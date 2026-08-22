@@ -92,6 +92,29 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
     }
 
     @Override
+    public Optional<WorkflowExecution> findExecutionResult(
+            String tenantId,
+            String operation,
+            String idempotencyKey
+    ) {
+        List<UUID> executionIds = jdbc.query(
+                """
+                SELECT (response_body ->> 'executionId')::uuid AS execution_id
+                FROM idempotency_records
+                WHERE tenant_id = :tenantId
+                  AND operation = :operation
+                  AND idempotency_key = :idempotencyKey
+                """,
+                new MapSqlParameterSource()
+                        .addValue("tenantId", tenantId)
+                        .addValue("operation", operation)
+                        .addValue("idempotencyKey", idempotencyKey),
+                (rs, rowNumber) -> rs.getObject("execution_id", UUID.class)
+        );
+        return executionIds.stream().findFirst().flatMap(id -> findExecution(tenantId, id));
+    }
+
+    @Override
     public void saveReceivedPurchaseOrder(
             PurchaseOrderReceipt receipt,
             Actor actor,
@@ -175,7 +198,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
         String eventEnvelope = toJson(Map.of(
                 "event_id", eventId,
                 "event_type", "purchase_order.received",
-                "event_version", 1,
+                "event_version", 2,
                 "occurred_at", execution.createdAt().toString(),
                 "producer", "enterprise-core",
                 "tenant_id", execution.tenantId(),
@@ -184,6 +207,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                 "actor", Map.of("type", actor.type().name(), "id", actor.id()),
                 "payload", Map.of(
                         "purchase_order_id", purchaseOrder.id().toString(),
+                        "execution_id", execution.id().toString(),
                         "document_uri", purchaseOrder.documentUri()
                 )
         ));
@@ -193,7 +217,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                     (event_id, event_type, event_version, aggregate_type, aggregate_id, tenant_id,
                      correlation_id, causation_id, payload, occurred_at)
                 VALUES
-                    (:eventId, 'purchase_order.received', 1, 'PURCHASE_ORDER', :aggregateId, :tenantId,
+                    (:eventId, 'purchase_order.received', 2, 'PURCHASE_ORDER', :aggregateId, :tenantId,
                      :correlationId, :causationId, CAST(:payload AS JSONB), :occurredAt)
                 """,
                 new MapSqlParameterSource()
@@ -225,7 +249,8 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
         );
     }
 
-    private Optional<PurchaseOrderSource> findPurchaseOrder(String tenantId, UUID purchaseOrderId) {
+    @Override
+    public Optional<PurchaseOrderSource> findPurchaseOrder(String tenantId, UUID purchaseOrderId) {
         return jdbc.query(
                 """
                 SELECT id, tenant_id, purchase_order_number, customer_name, document_uri, received_at
@@ -242,6 +267,87 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                         rs.getObject("received_at", Instant.class)
                 )
         ).stream().findFirst();
+    }
+
+    @Override
+    public void savePlanningStarted(
+            WorkflowExecution previous,
+            WorkflowExecution updated,
+            Actor actor,
+            UUID eventId,
+            String operation,
+            String idempotencyKey
+    ) {
+        int changed = jdbc.update(
+                """
+                UPDATE workflow_executions
+                SET state = :newState, updated_at = :updatedAt
+                WHERE tenant_id = :tenantId AND id = :executionId AND state = :previousState
+                """,
+                new MapSqlParameterSource()
+                        .addValue("newState", updated.state().name())
+                        .addValue("updatedAt", updated.updatedAt())
+                        .addValue("tenantId", updated.tenantId())
+                        .addValue("executionId", updated.id())
+                        .addValue("previousState", previous.state().name())
+        );
+        if (changed != 1) {
+            throw new IllegalStateException("Execution state changed concurrently");
+        }
+
+        ExecutionTimelineEntry entry = updated.timeline().getLast();
+        jdbc.update(
+                """
+                INSERT INTO workflow_timeline_entries
+                    (id, execution_id, sequence_number, entry_type, title, detail, occurred_at)
+                VALUES
+                    (:id, :executionId, :sequence, :entryType, :title, :detail, :occurredAt)
+                """,
+                new MapSqlParameterSource()
+                        .addValue("id", UUID.randomUUID())
+                        .addValue("executionId", updated.id())
+                        .addValue("sequence", entry.sequence())
+                        .addValue("entryType", entry.type().name())
+                        .addValue("title", entry.title())
+                        .addValue("detail", entry.detail())
+                        .addValue("occurredAt", entry.occurredAt())
+        );
+
+        jdbc.update(
+                """
+                INSERT INTO audit_records
+                    (id, tenant_id, correlation_id, actor_type, actor_id, action, resource_type, resource_id, result, occurred_at)
+                VALUES
+                    (:id, :tenantId, :correlationId, :actorType, :actorId, 'START_EXECUTION_PLANNING',
+                     'WORKFLOW_EXECUTION', :resourceId, 'SUCCEEDED', :occurredAt)
+                """,
+                new MapSqlParameterSource()
+                        .addValue("id", UUID.randomUUID())
+                        .addValue("tenantId", updated.tenantId())
+                        .addValue("correlationId", updated.correlationId())
+                        .addValue("actorType", actor.type().name())
+                        .addValue("actorId", actor.id())
+                        .addValue("resourceId", updated.id())
+                        .addValue("occurredAt", updated.updatedAt())
+        );
+
+        jdbc.update(
+                """
+                INSERT INTO idempotency_records
+                    (id, tenant_id, operation, idempotency_key, response_code, response_body)
+                VALUES
+                    (:id, :tenantId, :operation, :idempotencyKey, 200, CAST(:responseBody AS JSONB))
+                """,
+                new MapSqlParameterSource()
+                        .addValue("id", UUID.randomUUID())
+                        .addValue("tenantId", updated.tenantId())
+                        .addValue("operation", operation)
+                        .addValue("idempotencyKey", idempotencyKey)
+                        .addValue("responseBody", toJson(Map.of(
+                                "executionId", updated.id().toString(),
+                                "eventId", eventId.toString()
+                        )))
+        );
     }
 
     private List<ExecutionTimelineEntry> findTimeline(UUID executionId) {
