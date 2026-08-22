@@ -4,10 +4,13 @@ import com.vextis.workflow.application.port.PurchaseOrderWorkflowRepository;
 import com.vextis.workflow.domain.Actor;
 import com.vextis.workflow.domain.ExecutionState;
 import com.vextis.workflow.domain.ExecutionTimelineEntry;
+import com.vextis.workflow.domain.PlanningDepartment;
 import com.vextis.workflow.domain.PurchaseOrderReceipt;
 import com.vextis.workflow.domain.PurchaseOrderSource;
 import com.vextis.workflow.domain.TimelineEntryType;
 import com.vextis.workflow.domain.WorkflowExecution;
+import com.vextis.workflow.domain.WorkflowPlan;
+import com.vextis.workflow.domain.WorkflowPlanStep;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -86,7 +89,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                 WHERE tenant_id = :tenantId AND id = :executionId
                 """,
                 Map.of("tenantId", tenantId, "executionId", executionId),
-                (rs, rowNumber) -> mapExecution(rs, findTimeline(executionId))
+                (rs, rowNumber) -> mapExecution(rs, findTimeline(executionId), findPlan(executionId).orElse(null))
         );
         return executions.stream().findFirst();
     }
@@ -350,6 +353,116 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
         );
     }
 
+    @Override
+    public void savePlanRecorded(
+            WorkflowExecution previous,
+            WorkflowExecution updated,
+            Actor actor,
+            String operation,
+            String idempotencyKey
+    ) {
+        int changed = jdbc.update(
+                """
+                UPDATE workflow_executions
+                SET state = :newState, updated_at = :updatedAt
+                WHERE tenant_id = :tenantId AND id = :executionId AND state = :previousState
+                """,
+                new MapSqlParameterSource()
+                        .addValue("newState", updated.state().name())
+                        .addValue("updatedAt", updated.updatedAt())
+                        .addValue("tenantId", updated.tenantId())
+                        .addValue("executionId", updated.id())
+                        .addValue("previousState", previous.state().name())
+        );
+        if (changed != 1) {
+            throw new IllegalStateException("Execution state changed concurrently");
+        }
+
+        WorkflowPlan plan = updated.plan();
+        if (plan == null) {
+            throw new IllegalArgumentException("Recorded execution must contain a plan");
+        }
+        jdbc.update(
+                """
+                INSERT INTO workflow_execution_plans (execution_id, summary, model_id, generated_at)
+                VALUES (:executionId, :summary, :modelId, :generatedAt)
+                """,
+                new MapSqlParameterSource()
+                        .addValue("executionId", updated.id())
+                        .addValue("summary", plan.summary())
+                        .addValue("modelId", plan.modelId())
+                        .addValue("generatedAt", plan.generatedAt())
+        );
+        for (WorkflowPlanStep step : plan.steps()) {
+            jdbc.update(
+                    """
+                    INSERT INTO workflow_execution_plan_steps
+                        (id, execution_id, sequence_number, department, objective, requires_approval)
+                    VALUES
+                        (:id, :executionId, :sequence, :department, :objective, :requiresApproval)
+                    """,
+                    new MapSqlParameterSource()
+                            .addValue("id", UUID.randomUUID())
+                            .addValue("executionId", updated.id())
+                            .addValue("sequence", step.sequence())
+                            .addValue("department", step.department().name())
+                            .addValue("objective", step.objective())
+                            .addValue("requiresApproval", step.requiresApproval())
+            );
+        }
+
+        ExecutionTimelineEntry entry = updated.timeline().getLast();
+        jdbc.update(
+                """
+                INSERT INTO workflow_timeline_entries
+                    (id, execution_id, sequence_number, entry_type, title, detail, occurred_at)
+                VALUES
+                    (:id, :executionId, :sequence, :entryType, :title, :detail, :occurredAt)
+                """,
+                new MapSqlParameterSource()
+                        .addValue("id", UUID.randomUUID())
+                        .addValue("executionId", updated.id())
+                        .addValue("sequence", entry.sequence())
+                        .addValue("entryType", entry.type().name())
+                        .addValue("title", entry.title())
+                        .addValue("detail", entry.detail())
+                        .addValue("occurredAt", entry.occurredAt())
+        );
+
+        jdbc.update(
+                """
+                INSERT INTO audit_records
+                    (id, tenant_id, correlation_id, actor_type, actor_id, action, resource_type, resource_id, result, occurred_at)
+                VALUES
+                    (:id, :tenantId, :correlationId, :actorType, :actorId, 'RECORD_EXECUTION_PLAN',
+                     'WORKFLOW_EXECUTION', :resourceId, 'SUCCEEDED', :occurredAt)
+                """,
+                new MapSqlParameterSource()
+                        .addValue("id", UUID.randomUUID())
+                        .addValue("tenantId", updated.tenantId())
+                        .addValue("correlationId", updated.correlationId())
+                        .addValue("actorType", actor.type().name())
+                        .addValue("actorId", actor.id())
+                        .addValue("resourceId", updated.id())
+                        .addValue("occurredAt", updated.updatedAt())
+        );
+
+        jdbc.update(
+                """
+                INSERT INTO idempotency_records
+                    (id, tenant_id, operation, idempotency_key, response_code, response_body)
+                VALUES
+                    (:id, :tenantId, :operation, :idempotencyKey, 200, CAST(:responseBody AS JSONB))
+                """,
+                new MapSqlParameterSource()
+                        .addValue("id", UUID.randomUUID())
+                        .addValue("tenantId", updated.tenantId())
+                        .addValue("operation", operation)
+                        .addValue("idempotencyKey", idempotencyKey)
+                        .addValue("responseBody", toJson(Map.of("executionId", updated.id().toString())))
+        );
+    }
+
     private List<ExecutionTimelineEntry> findTimeline(UUID executionId) {
         return jdbc.query(
                 """
@@ -369,7 +482,47 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
         );
     }
 
-    private WorkflowExecution mapExecution(ResultSet rs, List<ExecutionTimelineEntry> timeline) throws SQLException {
+    private Optional<WorkflowPlan> findPlan(UUID executionId) {
+        List<WorkflowPlan> plans = jdbc.query(
+                """
+                SELECT summary, model_id, generated_at
+                FROM workflow_execution_plans
+                WHERE execution_id = :executionId
+                """,
+                Map.of("executionId", executionId),
+                (rs, rowNumber) -> new WorkflowPlan(
+                        rs.getString("summary"),
+                        rs.getString("model_id"),
+                        rs.getObject("generated_at", Instant.class),
+                        findPlanSteps(executionId)
+                )
+        );
+        return plans.stream().findFirst();
+    }
+
+    private List<WorkflowPlanStep> findPlanSteps(UUID executionId) {
+        return jdbc.query(
+                """
+                SELECT sequence_number, department, objective, requires_approval
+                FROM workflow_execution_plan_steps
+                WHERE execution_id = :executionId
+                ORDER BY sequence_number
+                """,
+                Map.of("executionId", executionId),
+                (rs, rowNumber) -> new WorkflowPlanStep(
+                        rs.getInt("sequence_number"),
+                        PlanningDepartment.valueOf(rs.getString("department")),
+                        rs.getString("objective"),
+                        rs.getBoolean("requires_approval")
+                )
+        );
+    }
+
+    private WorkflowExecution mapExecution(
+            ResultSet rs,
+            List<ExecutionTimelineEntry> timeline,
+            WorkflowPlan plan
+    ) throws SQLException {
         return new WorkflowExecution(
                 rs.getObject("id", UUID.class),
                 rs.getString("tenant_id"),
@@ -379,7 +532,8 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                 rs.getString("correlation_id"),
                 rs.getObject("created_at", Instant.class),
                 rs.getObject("updated_at", Instant.class),
-                timeline
+                timeline,
+                plan
         );
     }
 

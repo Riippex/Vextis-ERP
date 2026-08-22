@@ -14,8 +14,23 @@ public record WorkflowExecution(
         String correlationId,
         Instant createdAt,
         Instant updatedAt,
-        List<ExecutionTimelineEntry> timeline
+        List<ExecutionTimelineEntry> timeline,
+        WorkflowPlan plan
 ) {
+
+    public WorkflowExecution(
+            UUID id,
+            String tenantId,
+            UUID sourceId,
+            String goal,
+            ExecutionState state,
+            String correlationId,
+            Instant createdAt,
+            Instant updatedAt,
+            List<ExecutionTimelineEntry> timeline
+    ) {
+        this(id, tenantId, sourceId, goal, state, correlationId, createdAt, updatedAt, timeline, null);
+    }
 
     public WorkflowExecution {
         if (id == null || sourceId == null || state == null || createdAt == null || updatedAt == null) {
@@ -49,7 +64,37 @@ public record WorkflowExecution(
                 correlationId,
                 createdAt,
                 now,
-                updatedTimeline
+                updatedTimeline,
+                plan
+        );
+    }
+
+    public WorkflowExecution recordPlan(WorkflowPlan structuredPlan, Instant now) {
+        if (state != ExecutionState.PLANNING) {
+            throw new IllegalStateException("Only a planning execution can record a plan");
+        }
+        if (structuredPlan == null) {
+            throw new IllegalArgumentException("Structured plan is required");
+        }
+        ArrayList<ExecutionTimelineEntry> updatedTimeline = new ArrayList<>(timeline);
+        updatedTimeline.add(new ExecutionTimelineEntry(
+                timeline.size() + 1,
+                TimelineEntryType.STATUS_CHANGED,
+                "Structured plan recorded",
+                "Gemini produced a validated plan with " + structuredPlan.steps().size() + " steps.",
+                now
+        ));
+        return new WorkflowExecution(
+                id,
+                tenantId,
+                sourceId,
+                goal,
+                ExecutionState.RUNNING,
+                correlationId,
+                createdAt,
+                now,
+                updatedTimeline,
+                structuredPlan
         );
     }
 }

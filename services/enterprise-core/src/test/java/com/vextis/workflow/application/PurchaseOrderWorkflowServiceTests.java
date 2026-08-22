@@ -3,14 +3,17 @@ package com.vextis.workflow.application;
 import com.vextis.workflow.application.port.PurchaseOrderWorkflowRepository;
 import com.vextis.workflow.domain.Actor;
 import com.vextis.workflow.domain.ExecutionState;
+import com.vextis.workflow.domain.PlanningDepartment;
 import com.vextis.workflow.domain.PurchaseOrderReceipt;
 import com.vextis.workflow.domain.PurchaseOrderSource;
 import com.vextis.workflow.domain.WorkflowExecution;
+import com.vextis.workflow.domain.WorkflowPlanStep;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -86,14 +89,55 @@ class PurchaseOrderWorkflowServiceTests {
                 eventId.toString()
         );
 
-        WorkflowExecution first = service.startPlanning(planning);
-        WorkflowExecution repeated = service.startPlanning(planning);
+        PlanningContext first = service.startPlanning(planning);
+        PlanningContext repeated = service.startPlanning(planning);
 
-        assertThat(first.state()).isEqualTo(ExecutionState.PLANNING);
-        assertThat(first.timeline()).hasSize(2);
-        assertThat(first.timeline().getLast().title()).isEqualTo("Agent planning started");
+        assertThat(first.execution().state()).isEqualTo(ExecutionState.PLANNING);
+        assertThat(first.execution().timeline()).hasSize(2);
+        assertThat(first.execution().timeline().getLast().title()).isEqualTo("Agent planning started");
+        assertThat(first.purchaseOrder()).isEqualTo(received.purchaseOrder());
         assertThat(repeated).isEqualTo(first);
         assertThat(repository.planningSaveCount).isEqualTo(1);
+    }
+
+    @Test
+    void recordsStructuredPlanAndMovesExecutionToRunningIdempotently() {
+        PurchaseOrderReceipt received = service.receive(command("receive-po-001"));
+        UUID eventId = UUID.fromString("8b962f0a-1850-4fcc-a6f5-97e45c67a16e");
+        PlanningContext planning = service.startPlanning(new StartPlanningCommand(
+                "demo-tenant",
+                new Actor(Actor.Type.AGENT, "coordinator-agent"),
+                received.execution().id(),
+                eventId,
+                received.execution().correlationId(),
+                received.purchaseOrder().documentUri(),
+                eventId.toString()
+        ));
+        RecordPlanCommand command = new RecordPlanCommand(
+                "demo-tenant",
+                new Actor(Actor.Type.AGENT, "coordinator-agent"),
+                planning.execution().id(),
+                planning.execution().correlationId(),
+                "gemini-3.5-flash",
+                "Validate the customer, inventory, and commercial terms.",
+                List.of(
+                        new WorkflowPlanStep(1, PlanningDepartment.CRM_SALES, "Validate customer context.", false),
+                        new WorkflowPlanStep(2, PlanningDepartment.INVENTORY_OPERATIONS, "Check availability.", false),
+                        new WorkflowPlanStep(3, PlanningDepartment.FINANCE_BILLING, "Validate terms.", true)
+                ),
+                eventId + ":record-plan"
+        );
+
+        WorkflowExecution first = service.recordPlan(command);
+        WorkflowExecution repeated = service.recordPlan(command);
+
+        assertThat(first.state()).isEqualTo(ExecutionState.RUNNING);
+        assertThat(first.plan()).isNotNull();
+        assertThat(first.plan().modelId()).isEqualTo("gemini-3.5-flash");
+        assertThat(first.plan().steps()).hasSize(3);
+        assertThat(first.timeline().getLast().title()).isEqualTo("Structured plan recorded");
+        assertThat(repeated).isEqualTo(first);
+        assertThat(repository.planSaveCount).isEqualTo(1);
     }
 
     @Test
@@ -136,6 +180,8 @@ class PurchaseOrderWorkflowServiceTests {
         private int lockCount;
         private String planningIdempotencyKey;
         private int planningSaveCount;
+        private String planIdempotencyKey;
+        private int planSaveCount;
 
         @Override
         public void acquireIdempotencyLock(String tenantId, String operation, String idempotencyKey) {
@@ -177,6 +223,9 @@ class PurchaseOrderWorkflowServiceTests {
             if (idempotencyKey.equals(planningIdempotencyKey)) {
                 return Optional.ofNullable(receipt).map(PurchaseOrderReceipt::execution);
             }
+            if (idempotencyKey.equals(planIdempotencyKey)) {
+                return Optional.ofNullable(receipt).map(PurchaseOrderReceipt::execution);
+            }
             return Optional.empty();
         }
 
@@ -205,6 +254,19 @@ class PurchaseOrderWorkflowServiceTests {
             receipt = new PurchaseOrderReceipt(receipt.purchaseOrder(), updated);
             planningIdempotencyKey = idempotencyKey;
             planningSaveCount++;
+        }
+
+        @Override
+        public void savePlanRecorded(
+                WorkflowExecution previous,
+                WorkflowExecution updated,
+                Actor actor,
+                String operation,
+                String idempotencyKey
+        ) {
+            receipt = new PurchaseOrderReceipt(receipt.purchaseOrder(), updated);
+            planIdempotencyKey = idempotencyKey;
+            planSaveCount++;
         }
     }
 }

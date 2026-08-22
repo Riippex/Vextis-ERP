@@ -13,5 +13,16 @@ query FindExecution($id: ID!) {
       detail
       occurredAt
     }
+    plan {
+      summary
+      modelId
+      generatedAt
+      steps {
+        sequence
+        department
+        objective
+        requiresApproval
+      }
+    }
   }
 }

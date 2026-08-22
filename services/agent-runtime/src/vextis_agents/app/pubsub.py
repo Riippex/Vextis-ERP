@@ -11,6 +11,7 @@ from vextis_agents.workflows.order_to_cash.events import (
     decode_purchase_order_event,
 )
 from vextis_agents.workflows.order_to_cash.handler import PurchaseOrderReceivedHandler
+from vextis_agents.workflows.order_to_cash.planning import PlanGenerationUnavailableError
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +36,8 @@ def create_pubsub_router(handler: PurchaseOrderReceivedHandler) -> APIRouter:
                 event.payload.execution_id,
             )
             return Response(status_code=status.HTTP_204_NO_CONTENT)
-        except CoreToolUnavailableError:
-            logger.warning("Transient Enterprise Core failure for event %s", event.event_id)
+        except (CoreToolUnavailableError, PlanGenerationUnavailableError):
+            logger.warning("Transient planning failure for event %s", event.event_id)
             return Response(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
 
         return Response(status_code=status.HTTP_204_NO_CONTENT)

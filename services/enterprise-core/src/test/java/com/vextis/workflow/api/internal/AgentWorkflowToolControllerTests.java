@@ -1,11 +1,18 @@
 package com.vextis.workflow.api.internal;
 
+import com.vextis.workflow.application.PlanningContext;
+import com.vextis.workflow.application.RecordPlanCommand;
+import com.vextis.workflow.application.RecordPlanUseCase;
 import com.vextis.workflow.application.StartPlanningCommand;
 import com.vextis.workflow.application.StartPlanningUseCase;
 import com.vextis.workflow.domain.ExecutionState;
 import com.vextis.workflow.domain.ExecutionTimelineEntry;
+import com.vextis.workflow.domain.PlanningDepartment;
+import com.vextis.workflow.domain.PurchaseOrderSource;
 import com.vextis.workflow.domain.TimelineEntryType;
 import com.vextis.workflow.domain.WorkflowExecution;
+import com.vextis.workflow.domain.WorkflowPlan;
+import com.vextis.workflow.domain.WorkflowPlanStep;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -39,15 +46,19 @@ class AgentWorkflowToolControllerTests {
     @MockitoBean
     private StartPlanningUseCase startPlanning;
 
+    @MockitoBean
+    private RecordPlanUseCase recordPlan;
+
     @Test
     void authenticatedCoordinatorCanStartPlanning() throws Exception {
-        when(startPlanning.startPlanning(any(StartPlanningCommand.class))).thenReturn(planningExecution());
+        when(startPlanning.startPlanning(any(StartPlanningCommand.class))).thenReturn(planningContext());
 
         mockMvc.perform(validRequest("Bearer test-service-token", "demo-tenant"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(EXECUTION_ID.toString()))
                 .andExpect(jsonPath("$.state").value("PLANNING"))
-                .andExpect(jsonPath("$.correlationId").value("corr-001"));
+                .andExpect(jsonPath("$.correlationId").value("corr-001"))
+                .andExpect(jsonPath("$.purchaseOrderNumber").value("PO-2026-001"));
 
         verify(startPlanning).startPlanning(any(StartPlanningCommand.class));
     }
@@ -57,7 +68,7 @@ class AgentWorkflowToolControllerTests {
         mockMvc.perform(validRequest("Bearer wrong-token", "demo-tenant"))
                 .andExpect(status().isUnauthorized());
 
-        verifyNoInteractions(startPlanning);
+        verifyNoInteractions(startPlanning, recordPlan);
     }
 
     @Test
@@ -65,7 +76,38 @@ class AgentWorkflowToolControllerTests {
         mockMvc.perform(validRequest("Bearer test-service-token", "other-tenant"))
                 .andExpect(status().isForbidden());
 
-        verifyNoInteractions(startPlanning);
+        verifyNoInteractions(startPlanning, recordPlan);
+    }
+
+    @Test
+    void authenticatedCoordinatorCanRecordStructuredPlan() throws Exception {
+        when(recordPlan.recordPlan(any(RecordPlanCommand.class))).thenReturn(runningExecution());
+
+        mockMvc.perform(post("/internal/agent-tools/v1/workflows/{executionId}/plan", EXECUTION_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer test-service-token")
+                        .header("X-Tenant-Id", "demo-tenant")
+                        .header("X-Agent-Id", "coordinator-agent")
+                        .header("X-Correlation-Id", "corr-001")
+                        .header("Idempotency-Key", "8b962f0a-1850-4fcc-a6f5-97e45c67a16e:plan")
+                        .content("""
+                                {
+                                  "modelId": "gemini-3.5-flash",
+                                  "summary": "Validate order feasibility.",
+                                  "steps": [
+                                    {
+                                      "sequence": 1,
+                                      "department": "CRM_SALES",
+                                      "objective": "Validate customer context.",
+                                      "requiresApproval": false
+                                    }
+                                  ]
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.state").value("RUNNING"));
+
+        verify(recordPlan).recordPlan(any(RecordPlanCommand.class));
     }
 
     private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder validRequest(
@@ -114,6 +156,39 @@ class AgentWorkflowToolControllerTests {
                                 now
                         )
                 )
+        );
+    }
+
+    private PlanningContext planningContext() {
+        return new PlanningContext(
+                planningExecution(),
+                new PurchaseOrderSource(
+                        SOURCE_ID,
+                        "demo-tenant",
+                        "PO-2026-001",
+                        "Acme Colombia",
+                        "gs://vextis-demo/orders/po-2026-001.pdf",
+                        Instant.parse("2026-08-21T03:30:00Z")
+                )
+        );
+    }
+
+    private WorkflowExecution runningExecution() {
+        WorkflowExecution planning = planningExecution();
+        Instant now = Instant.parse("2026-08-21T03:30:04Z");
+        return planning.recordPlan(
+                new WorkflowPlan(
+                        "Validate order feasibility.",
+                        "gemini-3.5-flash",
+                        now,
+                        List.of(new WorkflowPlanStep(
+                                1,
+                                PlanningDepartment.CRM_SALES,
+                                "Validate customer context.",
+                                false
+                        ))
+                ),
+                now
         );
     }
 }

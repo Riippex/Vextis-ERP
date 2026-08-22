@@ -188,6 +188,76 @@ h1 {
   font-size: 0.78rem;
 }
 
+.plan {
+  background: color-mix(in srgb, var(--vxt-brand-violet) 6%, var(--vxt-surface));
+  border: 1px solid color-mix(in srgb, var(--vxt-brand-violet) 20%, var(--vxt-border));
+  border-radius: 0.75rem;
+  margin: 1.5rem 0 2rem;
+  padding: 1rem;
+}
+
+.plan__heading {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.plan__heading h3,
+.plan__heading .evidence__eyebrow {
+  margin: 0;
+}
+
+.plan__heading > span,
+.plan > time {
+  color: var(--vxt-muted);
+  font-size: 0.75rem;
+}
+
+.plan__steps {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 1rem 0;
+  padding: 0;
+}
+
+.plan__steps li {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1.75rem 1fr;
+}
+
+.plan__steps li > span {
+  align-items: center;
+  background: var(--vxt-brand-violet);
+  border-radius: 50%;
+  color: white;
+  display: flex;
+  font-size: 0.75rem;
+  height: 1.75rem;
+  justify-content: center;
+  width: 1.75rem;
+}
+
+.plan__steps p {
+  color: var(--vxt-text-secondary);
+  margin: 0.25rem 0;
+}
+
+.plan__steps small {
+  align-items: center;
+  color: var(--vxt-status-critical);
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.plan__steps small mat-icon {
+  font-size: 1rem;
+  height: 1rem;
+  width: 1rem;
+}
+
 .evidence__empty {
   align-items: center;
   display: flex;

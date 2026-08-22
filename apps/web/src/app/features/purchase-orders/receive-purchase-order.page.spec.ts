@@ -33,6 +33,7 @@ describe('ReceivePurchaseOrderPage', () => {
                 occurredAt: '2026-08-21T03:30:00Z',
               },
             ],
+            plan: null,
           },
         },
       },
@@ -44,7 +45,7 @@ describe('ReceivePurchaseOrderPage', () => {
         execution: {
           id: '8d3f290d-1322-44a2-8bd7-3b325f170e07',
           goal: 'Process PO-2026-001',
-          state: 'PLANNING',
+          state: 'RUNNING',
           correlationId: 'corr-001',
           createdAt: '2026-08-21T03:30:00Z',
           updatedAt: '2026-08-21T03:30:02Z',
@@ -63,7 +64,39 @@ describe('ReceivePurchaseOrderPage', () => {
               detail: 'Agent Runtime accepted the event.',
               occurredAt: '2026-08-21T03:30:02Z',
             },
+            {
+              sequence: 3,
+              type: 'STATUS_CHANGED',
+              title: 'Structured plan recorded',
+              detail: 'Gemini produced a validated plan with 3 steps.',
+              occurredAt: '2026-08-21T03:30:04Z',
+            },
           ],
+          plan: {
+            summary: 'Validate customer, inventory, and commercial terms.',
+            modelId: 'gemini-3.5-flash',
+            generatedAt: '2026-08-21T03:30:04Z',
+            steps: [
+              {
+                sequence: 1,
+                department: 'CRM_SALES',
+                objective: 'Validate customer context.',
+                requiresApproval: false,
+              },
+              {
+                sequence: 2,
+                department: 'INVENTORY_OPERATIONS',
+                objective: 'Check requested products and availability.',
+                requiresApproval: false,
+              },
+              {
+                sequence: 3,
+                department: 'FINANCE_BILLING',
+                objective: 'Validate commercial terms.',
+                requiresApproval: true,
+              },
+            ],
+          },
         },
       },
     }),
@@ -98,7 +131,9 @@ describe('ReceivePurchaseOrderPage', () => {
     expect(fixture.nativeElement.textContent).toContain('Enterprise Core receipt');
     expect(fixture.nativeElement.textContent).toContain('corr-001');
     expect(fixture.nativeElement.textContent).toContain('Order received');
-    expect(fixture.nativeElement.textContent).toContain('PLANNING');
+    expect(fixture.nativeElement.textContent).toContain('RUNNING');
     expect(fixture.nativeElement.textContent).toContain('Agent planning started');
+    expect(fixture.nativeElement.textContent).toContain('gemini-3.5-flash');
+    expect(fixture.nativeElement.textContent).toContain('Human approval required');
   });
 });

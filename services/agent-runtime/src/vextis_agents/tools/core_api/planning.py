@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from vextis_agents.app.config import Settings
 from vextis_agents.workflows.order_to_cash.events import PurchaseOrderReceivedV2
+from vextis_agents.workflows.order_to_cash.planning import GeneratedPlan, PlanningContext
 
 
 class PlanningResult(BaseModel):
@@ -17,7 +18,15 @@ class PlanningResult(BaseModel):
 
 
 class PlanningTool(Protocol):
-    async def start_planning(self, event: PurchaseOrderReceivedV2) -> PlanningResult: ...
+    async def start_planning(self, event: PurchaseOrderReceivedV2) -> PlanningContext: ...
+
+    async def record_plan(
+        self,
+        event: PurchaseOrderReceivedV2,
+        context: PlanningContext,
+        plan: GeneratedPlan,
+        model_id: str,
+    ) -> PlanningResult: ...
 
 
 class CoreToolRejectedError(RuntimeError):
@@ -41,7 +50,7 @@ class EnterpriseCorePlanningClient:
         self._agent_id = settings.coordinator_agent_id
         self._transport = transport
 
-    async def start_planning(self, event: PurchaseOrderReceivedV2) -> PlanningResult:
+    async def start_planning(self, event: PurchaseOrderReceivedV2) -> PlanningContext:
         execution_id = event.payload.execution_id
         headers = {
             "Authorization": f"Bearer {self._service_token}",
@@ -69,9 +78,58 @@ class EnterpriseCorePlanningClient:
             raise CoreToolUnavailableError("Enterprise Core could not be reached") from exception
 
         if 200 <= response.status_code < 300:
-            return PlanningResult.model_validate(response.json())
+            return PlanningContext.model_validate(response.json())
         if response.status_code >= 500:
             raise CoreToolUnavailableError("Enterprise Core returned a transient failure")
         raise CoreToolRejectedError(
             f"Enterprise Core rejected planning with {response.status_code}"
+        )
+
+    async def record_plan(
+        self,
+        event: PurchaseOrderReceivedV2,
+        context: PlanningContext,
+        plan: GeneratedPlan,
+        model_id: str,
+    ) -> PlanningResult:
+        headers = {
+            "Authorization": f"Bearer {self._service_token}",
+            "X-Tenant-Id": event.tenant_id,
+            "X-Agent-Id": self._agent_id,
+            "X-Correlation-Id": context.correlation_id,
+            "Idempotency-Key": f"{event.event_id}:record-plan",
+        }
+        payload = {
+            "modelId": model_id,
+            "summary": plan.summary,
+            "steps": [
+                {
+                    "sequence": step.sequence,
+                    "department": step.department.value,
+                    "objective": step.objective,
+                    "requiresApproval": step.requires_approval,
+                }
+                for step in plan.steps
+            ],
+        }
+        try:
+            async with httpx.AsyncClient(
+                base_url=self._base_url,
+                timeout=httpx.Timeout(10.0, connect=3.0),
+                transport=self._transport,
+            ) as client:
+                response = await client.post(
+                    f"/internal/agent-tools/v1/workflows/{context.id}/plan",
+                    headers=headers,
+                    json=payload,
+                )
+        except httpx.HTTPError as exception:
+            raise CoreToolUnavailableError("Enterprise Core could not be reached") from exception
+
+        if 200 <= response.status_code < 300:
+            return PlanningResult.model_validate(response.json())
+        if response.status_code >= 500:
+            raise CoreToolUnavailableError("Enterprise Core returned a transient failure")
+        raise CoreToolRejectedError(
+            f"Enterprise Core rejected the structured plan with {response.status_code}"
         )

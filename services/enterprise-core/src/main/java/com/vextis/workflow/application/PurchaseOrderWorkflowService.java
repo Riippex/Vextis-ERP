@@ -8,6 +8,7 @@ import com.vextis.workflow.domain.PurchaseOrderReceipt;
 import com.vextis.workflow.domain.PurchaseOrderSource;
 import com.vextis.workflow.domain.TimelineEntryType;
 import com.vextis.workflow.domain.WorkflowExecution;
+import com.vextis.workflow.domain.WorkflowPlan;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,10 +19,12 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
-public class PurchaseOrderWorkflowService implements ReceivePurchaseOrderUseCase, FindExecutionUseCase, StartPlanningUseCase {
+public class PurchaseOrderWorkflowService implements ReceivePurchaseOrderUseCase, FindExecutionUseCase,
+        StartPlanningUseCase, RecordPlanUseCase {
 
     static final String RECEIVE_OPERATION = "workflow.receive-purchase-order";
     static final String START_PLANNING_OPERATION = "workflow.start-planning";
+    static final String RECORD_PLAN_OPERATION = "workflow.record-plan";
 
     private final PurchaseOrderWorkflowRepository repository;
     private final Clock clock;
@@ -87,7 +90,7 @@ public class PurchaseOrderWorkflowService implements ReceivePurchaseOrderUseCase
 
     @Override
     @Transactional
-    public WorkflowExecution startPlanning(StartPlanningCommand command) {
+    public PlanningContext startPlanning(StartPlanningCommand command) {
         if (command.actor().type() != Actor.Type.AGENT) {
             throw new WorkflowConflictException("Only an authenticated agent can start planning");
         }
@@ -102,7 +105,10 @@ public class PurchaseOrderWorkflowService implements ReceivePurchaseOrderUseCase
                 command.idempotencyKey()
         );
         if (previousResult.isPresent()) {
-            return previousResult.get();
+            WorkflowExecution previous = previousResult.get();
+            PurchaseOrderSource previousSource = repository.findPurchaseOrder(command.tenantId(), previous.sourceId())
+                    .orElseThrow(() -> new WorkflowNotFoundException("Purchase order source was not found"));
+            return new PlanningContext(previous, previousSource);
         }
 
         WorkflowExecution current = repository.findExecution(command.tenantId(), command.executionId())
@@ -128,6 +134,47 @@ public class PurchaseOrderWorkflowService implements ReceivePurchaseOrderUseCase
                 command.actor(),
                 command.eventId(),
                 START_PLANNING_OPERATION,
+                command.idempotencyKey()
+        );
+        return new PlanningContext(updated, source);
+    }
+
+    @Override
+    @Transactional
+    public WorkflowExecution recordPlan(RecordPlanCommand command) {
+        if (command.actor().type() != Actor.Type.AGENT) {
+            throw new WorkflowConflictException("Only an authenticated agent can record a plan");
+        }
+        repository.acquireIdempotencyLock(command.tenantId(), RECORD_PLAN_OPERATION, command.idempotencyKey());
+        Optional<WorkflowExecution> previousResult = repository.findExecutionResult(
+                command.tenantId(),
+                RECORD_PLAN_OPERATION,
+                command.idempotencyKey()
+        );
+        if (previousResult.isPresent()) {
+            return previousResult.get();
+        }
+
+        WorkflowExecution current = repository.findExecution(command.tenantId(), command.executionId())
+                .orElseThrow(() -> new WorkflowNotFoundException("Execution was not found for tenant"));
+        if (!current.correlationId().equals(command.correlationId())) {
+            throw new WorkflowConflictException("Correlation id does not match the execution");
+        }
+
+        Instant now = clock.instant();
+        WorkflowPlan plan;
+        WorkflowExecution updated;
+        try {
+            plan = new WorkflowPlan(command.summary(), command.modelId(), now, command.steps());
+            updated = current.recordPlan(plan, now);
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            throw new WorkflowConflictException(exception.getMessage());
+        }
+        repository.savePlanRecorded(
+                current,
+                updated,
+                command.actor(),
+                RECORD_PLAN_OPERATION,
                 command.idempotencyKey()
         );
         return updated;

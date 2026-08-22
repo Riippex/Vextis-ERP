@@ -21,6 +21,17 @@ mutation ReceivePurchaseOrder($input: ReceivePurchaseOrderInput!) {
         detail
         occurredAt
       }
+      plan {
+        summary
+        modelId
+        generatedAt
+        steps {
+          sequence
+          department
+          objective
+          requiresApproval
+        }
+      }
     }
   }
 }

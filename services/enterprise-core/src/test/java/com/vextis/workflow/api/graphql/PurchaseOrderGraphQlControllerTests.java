@@ -5,10 +5,13 @@ import com.vextis.workflow.application.ReceivePurchaseOrderCommand;
 import com.vextis.workflow.application.ReceivePurchaseOrderUseCase;
 import com.vextis.workflow.domain.ExecutionState;
 import com.vextis.workflow.domain.ExecutionTimelineEntry;
+import com.vextis.workflow.domain.PlanningDepartment;
 import com.vextis.workflow.domain.PurchaseOrderReceipt;
 import com.vextis.workflow.domain.PurchaseOrderSource;
 import com.vextis.workflow.domain.TimelineEntryType;
 import com.vextis.workflow.domain.WorkflowExecution;
+import com.vextis.workflow.domain.WorkflowPlan;
+import com.vextis.workflow.domain.WorkflowPlanStep;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.graphql.test.autoconfigure.GraphQlTest;
@@ -70,18 +73,30 @@ class PurchaseOrderGraphQlControllerTests {
     @Test
     void findsExecutionWithinDemoTenant() {
         when(findExecution.findById(eq("demo-tenant"), eq(EXECUTION_ID)))
-                .thenReturn(Optional.of(receipt().execution()));
+                .thenReturn(Optional.of(runningExecution()));
 
         graphQlTester.document("""
                         query FindExecution($id: ID!) {
-                          execution(id: $id) { id state correlationId timeline { sequence } }
+                          execution(id: $id) {
+                            id
+                            state
+                            correlationId
+                            timeline { sequence }
+                            plan { modelId steps { sequence department requiresApproval } }
+                          }
                         }
                         """)
                 .variable("id", EXECUTION_ID.toString())
                 .execute()
                 .path("execution.id")
                 .entity(String.class)
-                .isEqualTo(EXECUTION_ID.toString());
+                .isEqualTo(EXECUTION_ID.toString())
+                .path("execution.plan.modelId")
+                .entity(String.class)
+                .isEqualTo("gemini-3.5-flash")
+                .path("execution.plan.steps[0].department")
+                .entity(String.class)
+                .isEqualTo("CRM_SALES");
     }
 
     private PurchaseOrderReceipt receipt() {
@@ -111,5 +126,39 @@ class PurchaseOrderGraphQlControllerTests {
                 ))
         );
         return new PurchaseOrderReceipt(purchaseOrder, execution);
+    }
+
+    private WorkflowExecution runningExecution() {
+        WorkflowExecution planning = new WorkflowExecution(
+                EXECUTION_ID,
+                "demo-tenant",
+                PURCHASE_ORDER_ID,
+                "Procesar la orden PO-2026-001 de Acme Colombia",
+                ExecutionState.PLANNING,
+                "corr-001",
+                NOW,
+                NOW,
+                List.of(new ExecutionTimelineEntry(
+                        1,
+                        TimelineEntryType.RECEIVED,
+                        "Orden recibida",
+                        "Lista para planificación.",
+                        NOW
+                ))
+        );
+        return planning.recordPlan(
+                new WorkflowPlan(
+                        "Validate the customer and order.",
+                        "gemini-3.5-flash",
+                        NOW,
+                        List.of(new WorkflowPlanStep(
+                                1,
+                                PlanningDepartment.CRM_SALES,
+                                "Validate customer context.",
+                                false
+                        ))
+                ),
+                NOW
+        );
     }
 }

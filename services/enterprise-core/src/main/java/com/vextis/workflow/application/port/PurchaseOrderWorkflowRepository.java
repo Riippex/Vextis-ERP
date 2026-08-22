@@ -39,4 +39,12 @@ public interface PurchaseOrderWorkflowRepository {
             String operation,
             String idempotencyKey
     );
+
+    void savePlanRecorded(
+            WorkflowExecution previous,
+            WorkflowExecution updated,
+            Actor actor,
+            String operation,
+            String idempotencyKey
+    );
 }

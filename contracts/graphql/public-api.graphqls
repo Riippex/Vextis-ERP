@@ -25,6 +25,27 @@ type Execution {
   createdAt: String!
   updatedAt: String!
   timeline: [ExecutionTimelineEntry!]!
+  plan: ExecutionPlan
+}
+
+type ExecutionPlan {
+  summary: String!
+  modelId: String!
+  generatedAt: String!
+  steps: [ExecutionPlanStep!]!
+}
+
+type ExecutionPlanStep {
+  sequence: Int!
+  department: PlanningDepartment!
+  objective: String!
+  requiresApproval: Boolean!
+}
+
+enum PlanningDepartment {
+  CRM_SALES
+  INVENTORY_OPERATIONS
+  FINANCE_BILLING
 }
 
 type ExecutionTimelineEntry {

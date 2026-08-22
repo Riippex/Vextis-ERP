@@ -82,7 +82,7 @@
       @if (monitoring()) {
         <div class="feedback" role="status">
           <mat-spinner diameter="18" />
-          <span>Waiting for Agent Runtime to start planning…</span>
+          <span>Waiting for Gemini to produce and validate the execution plan…</span>
         </div>
       }
 
@@ -104,6 +104,36 @@
           <dd>{{ currentReceipt.purchaseOrder.receivedAt | date: 'medium' }}</dd>
         </div>
       </dl>
+
+      @if (currentReceipt.execution.plan; as plan) {
+        <section class="plan" aria-labelledby="execution-plan-title">
+          <div class="plan__heading">
+            <div>
+              <p class="evidence__eyebrow">Gemini structured output</p>
+              <h3 id="execution-plan-title">Execution plan</h3>
+            </div>
+            <span>{{ plan.modelId }}</span>
+          </div>
+          <p>{{ plan.summary }}</p>
+          <ol class="plan__steps">
+            @for (step of plan.steps; track step.sequence) {
+              <li>
+                <span>{{ step.sequence }}</span>
+                <div>
+                  <strong>{{ step.department }}</strong>
+                  <p>{{ step.objective }}</p>
+                  @if (step.requiresApproval) {
+                    <small><mat-icon>verified_user</mat-icon> Human approval required</small>
+                  }
+                </div>
+              </li>
+            }
+          </ol>
+          <time [attr.datetime]="plan.generatedAt">
+            Generated {{ plan.generatedAt | date: 'medium' }}
+          </time>
+        </section>
+      }
 
       <h3>Execution timeline</h3>
       <ol class="timeline">

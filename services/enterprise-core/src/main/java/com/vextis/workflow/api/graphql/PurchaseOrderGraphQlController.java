@@ -8,6 +8,8 @@ import com.vextis.workflow.domain.ExecutionTimelineEntry;
 import com.vextis.workflow.domain.PurchaseOrderReceipt;
 import com.vextis.workflow.domain.PurchaseOrderSource;
 import com.vextis.workflow.domain.WorkflowExecution;
+import com.vextis.workflow.domain.WorkflowPlan;
+import com.vextis.workflow.domain.WorkflowPlanStep;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -105,7 +107,8 @@ class PurchaseOrderGraphQlController {
             String correlationId,
             String createdAt,
             String updatedAt,
-            List<TimelineEntryView> timeline
+            List<TimelineEntryView> timeline,
+            PlanView plan
     ) {
 
         static ExecutionView from(WorkflowExecution execution) {
@@ -116,7 +119,32 @@ class PurchaseOrderGraphQlController {
                     execution.correlationId(),
                     execution.createdAt().toString(),
                     execution.updatedAt().toString(),
-                    execution.timeline().stream().map(TimelineEntryView::from).toList()
+                    execution.timeline().stream().map(TimelineEntryView::from).toList(),
+                    execution.plan() == null ? null : PlanView.from(execution.plan())
+            );
+        }
+    }
+
+    record PlanView(String summary, String modelId, String generatedAt, List<PlanStepView> steps) {
+
+        static PlanView from(WorkflowPlan plan) {
+            return new PlanView(
+                    plan.summary(),
+                    plan.modelId(),
+                    plan.generatedAt().toString(),
+                    plan.steps().stream().map(PlanStepView::from).toList()
+            );
+        }
+    }
+
+    record PlanStepView(int sequence, String department, String objective, boolean requiresApproval) {
+
+        static PlanStepView from(WorkflowPlanStep step) {
+            return new PlanStepView(
+                    step.sequence(),
+                    step.department().name(),
+                    step.objective(),
+                    step.requiresApproval()
             );
         }
     }
