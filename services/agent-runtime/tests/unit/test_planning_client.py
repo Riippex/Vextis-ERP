@@ -50,6 +50,64 @@ async def test_client_propagates_trusted_context_to_narrow_tool() -> None:
 
 
 @pytest.mark.asyncio
+async def test_client_preserves_business_token_and_adds_cloud_run_identity() -> None:
+    captured: httpx.Request | None = None
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal captured
+        captured = request
+        return httpx.Response(
+            200,
+            json={
+                "id": "8d3f290d-1322-44a2-8bd7-3b325f170e07",
+                "state": "PLANNING",
+                "correlationId": "corr-001",
+                "updatedAt": "2026-08-21T03:30:02Z",
+                "goal": "Process purchase order",
+                "purchaseOrderNumber": "PO-2026-001",
+                "customerName": "Acme Colombia",
+                "documentUri": "gs://vextis-demo/orders/po-2026-001.pdf",
+                "readinessEvaluated": False,
+            },
+        )
+
+    async def identity_token() -> str:
+        return "cloud-run-id-token"
+
+    cloud_settings = settings().model_copy(
+        update={"enterprise_core_audience": "https://enterprise-core.example.run.app"}
+    )
+    client = EnterpriseCorePlanningClient(
+        cloud_settings,
+        httpx.MockTransport(respond),
+        identity_token_provider=identity_token,
+    )
+
+    await client.start_planning(PurchaseOrderReceivedV2.model_validate(purchase_order_event()))
+
+    assert captured is not None
+    assert captured.headers["Authorization"] == "Bearer test-service-token"
+    assert captured.headers["X-Serverless-Authorization"] == "Bearer cloud-run-id-token"
+
+
+@pytest.mark.asyncio
+async def test_client_surfaces_identity_failure_as_transient() -> None:
+    async def unavailable_identity() -> str:
+        raise RuntimeError("metadata server unavailable")
+
+    client = EnterpriseCorePlanningClient(
+        settings(),
+        httpx.MockTransport(lambda request: httpx.Response(200)),
+        identity_token_provider=unavailable_identity,
+    )
+
+    with pytest.raises(CoreToolUnavailableError, match="identity token"):
+        await client.start_planning(
+            PurchaseOrderReceivedV2.model_validate(purchase_order_event())
+        )
+
+
+@pytest.mark.asyncio
 async def test_client_records_validated_plan_with_stable_idempotency_key() -> None:
     captured: httpx.Request | None = None
 

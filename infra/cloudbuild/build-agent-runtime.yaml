@@ -1,0 +1,21 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    id: build-agent-runtime
+    args:
+      - build
+      - --file
+      - services/agent-runtime/Dockerfile
+      - --tag
+      - us-central1-docker.pkg.dev/$PROJECT_ID/vextis/agent-runtime:${_TAG}
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    id: push-agent-runtime
+    args:
+      - push
+      - us-central1-docker.pkg.dev/$PROJECT_ID/vextis/agent-runtime:${_TAG}
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 900s

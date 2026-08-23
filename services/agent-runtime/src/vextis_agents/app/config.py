@@ -11,6 +11,7 @@ class Settings(BaseSettings):
 
     environment: str = "local"
     enterprise_core_url: str = "http://localhost:8080"
+    enterprise_core_audience: str | None = None
     agent_tools_token: SecretStr | None = None
     coordinator_agent_id: str = "coordinator-agent"
     pubsub_push_enabled: bool = False

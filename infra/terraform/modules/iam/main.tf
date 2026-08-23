@@ -35,6 +35,17 @@ resource "google_service_account" "pubsub_push" {
   }
 }
 
+resource "google_service_account" "cloud_build" {
+  project      = var.project_id
+  account_id   = "vextis-build-${var.environment}"
+  display_name = "Vextis Cloud Build (${var.environment})"
+  description  = "Least-privilege identity for building Vextis container images."
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 resource "google_project_iam_member" "enterprise_core_cloud_sql" {
   project = var.project_id
   role    = "roles/cloudsql.client"
@@ -51,6 +62,12 @@ resource "google_project_iam_member" "agent_runtime_vertex_ai" {
   project = var.project_id
   role    = "roles/aiplatform.user"
   member  = "serviceAccount:${google_service_account.agent_runtime.email}"
+}
+
+resource "google_project_iam_member" "cloud_build_log_writer" {
+  project = var.project_id
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.cloud_build.email}"
 }
 
 resource "google_secret_manager_secret" "agent_tools_token" {

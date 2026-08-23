@@ -13,6 +13,16 @@ variable "publisher_service_account_email" {
   type        = string
 }
 
+variable "agent_runtime_url" {
+  description = "Private Agent Runtime URL that receives authenticated push events."
+  type        = string
+}
+
+variable "push_service_account_email" {
+  description = "Service identity used to mint Pub/Sub push OIDC tokens."
+  type        = string
+}
+
 variable "labels" {
   description = "Labels applied to Pub/Sub resources."
   type        = map(string)

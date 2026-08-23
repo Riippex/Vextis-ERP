@@ -1,6 +1,11 @@
+import asyncio
+from collections.abc import Awaitable, Callable
 from typing import Protocol
 
 import httpx
+from google.auth.credentials import Credentials
+from google.auth.transport.requests import Request
+from google.oauth2.id_token import fetch_id_token_credentials
 from pydantic import BaseModel, ConfigDict, Field
 
 from vextis_agents.app.config import Settings
@@ -41,11 +46,44 @@ class CoreToolUnavailableError(RuntimeError):
     """The tool could not obtain a definitive result and Pub/Sub should retry."""
 
 
+IdentityTokenProvider = Callable[[], Awaitable[str]]
+
+
+class GoogleIdentityTokenProvider:
+    """Caches an ADC-backed ID token for one private Cloud Run audience."""
+
+    def __init__(self, audience: str) -> None:
+        self._audience = audience
+        self._credentials: Credentials | None = None
+        self._request = Request()
+        self._lock = asyncio.Lock()
+
+    async def __call__(self) -> str:
+        async with self._lock:
+            credentials = self._credentials
+            if credentials is None:
+                credentials = await asyncio.to_thread(
+                    fetch_id_token_credentials,
+                    self._audience,
+                    self._request,
+                )
+                if credentials is None:
+                    raise RuntimeError("Google identity credentials are unavailable")
+                self._credentials = credentials
+            if not credentials.valid:
+                await asyncio.to_thread(credentials.refresh, self._request)
+            token = credentials.token
+            if not isinstance(token, str):
+                raise RuntimeError("Google identity credentials did not produce an ID token")
+            return token
+
+
 class EnterpriseCorePlanningClient:
     def __init__(
         self,
         settings: Settings,
         transport: httpx.AsyncBaseTransport | None = None,
+        identity_token_provider: IdentityTokenProvider | None = None,
     ) -> None:
         if settings.agent_tools_token is None:
             raise ValueError("VEXTIS_AGENT_TOOLS_TOKEN is required when Pub/Sub push is enabled")
@@ -53,16 +91,38 @@ class EnterpriseCorePlanningClient:
         self._service_token = settings.agent_tools_token.get_secret_value()
         self._agent_id = settings.coordinator_agent_id
         self._transport = transport
+        self._identity_token_provider = identity_token_provider
+        if settings.enterprise_core_audience and identity_token_provider is None:
+            self._identity_token_provider = GoogleIdentityTokenProvider(
+                settings.enterprise_core_audience
+            )
 
-    async def start_planning(self, event: PurchaseOrderReceivedV2) -> PlanningContext:
-        execution_id = event.payload.execution_id
+    async def _headers(
+        self,
+        event: PurchaseOrderReceivedV2,
+        correlation_id: str,
+        idempotency_key: str,
+    ) -> dict[str, str]:
         headers = {
             "Authorization": f"Bearer {self._service_token}",
             "X-Tenant-Id": event.tenant_id,
             "X-Agent-Id": self._agent_id,
-            "X-Correlation-Id": event.correlation_id,
-            "Idempotency-Key": str(event.event_id),
+            "X-Correlation-Id": correlation_id,
+            "Idempotency-Key": idempotency_key,
         }
+        if self._identity_token_provider is not None:
+            try:
+                identity_token = await self._identity_token_provider()
+            except Exception as exception:
+                raise CoreToolUnavailableError(
+                    "Cloud Run identity token could not be obtained"
+                ) from exception
+            headers["X-Serverless-Authorization"] = f"Bearer {identity_token}"
+        return headers
+
+    async def start_planning(self, event: PurchaseOrderReceivedV2) -> PlanningContext:
+        execution_id = event.payload.execution_id
+        headers = await self._headers(event, event.correlation_id, str(event.event_id))
         payload = {
             "eventId": str(event.event_id),
             "documentUri": event.payload.document_uri,
@@ -96,13 +156,11 @@ class EnterpriseCorePlanningClient:
         plan: GeneratedPlan,
         model_id: str,
     ) -> PlanningResult:
-        headers = {
-            "Authorization": f"Bearer {self._service_token}",
-            "X-Tenant-Id": event.tenant_id,
-            "X-Agent-Id": self._agent_id,
-            "X-Correlation-Id": context.correlation_id,
-            "Idempotency-Key": f"{event.event_id}:record-plan",
-        }
+        headers = await self._headers(
+            event,
+            context.correlation_id,
+            f"{event.event_id}:record-plan",
+        )
         payload = {
             "modelId": model_id,
             "summary": plan.summary,
@@ -143,13 +201,11 @@ class EnterpriseCorePlanningClient:
     async def evaluate_readiness(
         self, event: PurchaseOrderReceivedV2, context: PlanningContext
     ) -> PlanningResult:
-        headers = {
-            "Authorization": f"Bearer {self._service_token}",
-            "X-Tenant-Id": event.tenant_id,
-            "X-Agent-Id": self._agent_id,
-            "X-Correlation-Id": context.correlation_id,
-            "Idempotency-Key": f"{event.event_id}:evaluate-readiness",
-        }
+        headers = await self._headers(
+            event,
+            context.correlation_id,
+            f"{event.event_id}:evaluate-readiness",
+        )
         try:
             async with httpx.AsyncClient(
                 base_url=self._base_url,

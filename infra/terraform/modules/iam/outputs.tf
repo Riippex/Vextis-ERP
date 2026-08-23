@@ -13,6 +13,11 @@ output "pubsub_push_email" {
   value       = google_service_account.pubsub_push.email
 }
 
+output "cloud_build_email" {
+  description = "Least-privilege service identity for Cloud Build."
+  value       = google_service_account.cloud_build.email
+}
+
 output "agent_tools_secret_id" {
   description = "Secret Manager identifier for the internal Agent Tools token."
   value       = google_secret_manager_secret.agent_tools_token.secret_id
