@@ -13,6 +13,17 @@ resource "google_service_account" "enterprise_core" {
   }
 }
 
+resource "google_service_account" "enterprise_core_public" {
+  project      = var.project_id
+  account_id   = "vextis-core-public-${var.environment}"
+  display_name = "Vextis Public Enterprise Core (${var.environment})"
+  description  = "Runtime identity for the Firebase-authenticated public GraphQL API."
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 resource "google_service_account" "agent_runtime" {
   project      = var.project_id
   account_id   = "vextis-agent-${var.environment}"
@@ -58,6 +69,18 @@ resource "google_project_iam_member" "enterprise_core_cloud_sql" {
   }
 }
 
+resource "google_project_iam_member" "enterprise_core_public_cloud_sql" {
+  project = var.project_id
+  role    = "roles/cloudsql.client"
+  member  = "serviceAccount:${google_service_account.enterprise_core_public.email}"
+
+  condition {
+    title       = "vextis_hackathon_public_database_only"
+    description = "Limit the public Enterprise Core runtime to its hackathon Cloud SQL instance."
+    expression  = "resource.name == 'projects/${var.project_id}/instances/${var.cloud_sql_instance_name}' && resource.service == 'sqladmin.googleapis.com'"
+  }
+}
+
 resource "google_project_iam_member" "agent_runtime_vertex_ai" {
   project = var.project_id
   role    = "roles/aiplatform.user"
@@ -98,6 +121,13 @@ resource "google_secret_manager_secret_iam_member" "enterprise_core_database_pas
   secret_id = var.database_password_secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.enterprise_core.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "enterprise_core_public_database_password" {
+  project   = var.project_id
+  secret_id = var.database_password_secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.enterprise_core_public.email}"
 }
 
 resource "google_secret_manager_secret_iam_member" "enterprise_core_agent_tools_token" {

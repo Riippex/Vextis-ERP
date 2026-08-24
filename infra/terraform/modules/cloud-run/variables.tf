@@ -23,6 +23,11 @@ variable "enterprise_core_service_account_email" {
   type        = string
 }
 
+variable "enterprise_core_public_service_account_email" {
+  description = "Runtime identity for the public Firebase-authenticated Enterprise Core."
+  type        = string
+}
+
 variable "agent_runtime_service_account_email" {
   description = "Runtime identity for Agent Runtime."
   type        = string

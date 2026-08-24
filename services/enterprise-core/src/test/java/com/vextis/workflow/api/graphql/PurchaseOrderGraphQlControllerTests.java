@@ -21,6 +21,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.graphql.test.autoconfigure.GraphQlTest;
 import org.springframework.graphql.test.tester.GraphQlTester;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.context.TestPropertySource;
+import org.springframework.security.test.context.support.WithMockUser;
+import org.mockito.ArgumentCaptor;
 
 import java.time.Instant;
 import java.util.List;
@@ -32,8 +35,10 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.assertj.core.api.Assertions.assertThat;
 
 @GraphQlTest(PurchaseOrderGraphQlController.class)
+@TestPropertySource(properties = "vextis.exposure=PUBLIC")
 class PurchaseOrderGraphQlControllerTests {
 
     private static final UUID PURCHASE_ORDER_ID = UUID.fromString("77cc63cc-3c91-4d80-a918-605b7f231cf8");
@@ -50,6 +55,7 @@ class PurchaseOrderGraphQlControllerTests {
     private FindExecutionUseCase findExecution;
 
     @Test
+    @WithMockUser(username = "firebase-user-123")
     void receivesPurchaseOrderAndReturnsExecutionEvidence() {
         when(receivePurchaseOrder.receive(any(ReceivePurchaseOrderCommand.class))).thenReturn(receipt());
 
@@ -71,7 +77,10 @@ class PurchaseOrderGraphQlControllerTests {
                 .entity(String.class)
                 .isEqualTo("Orden recibida");
 
-        verify(receivePurchaseOrder).receive(any(ReceivePurchaseOrderCommand.class));
+        ArgumentCaptor<ReceivePurchaseOrderCommand> command =
+                ArgumentCaptor.forClass(ReceivePurchaseOrderCommand.class);
+        verify(receivePurchaseOrder).receive(command.capture());
+        assertThat(command.getValue().actor().id()).isEqualTo("firebase-user-123");
     }
 
     @Test

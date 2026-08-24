@@ -1,5 +1,8 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
+import { FirebaseError } from 'firebase/app';
+
+import { FirebaseAuthService } from '../../core/auth/firebase-auth.service';
 
 const SPHERE_SIZE = 380;
 const SPHERE_POINT_COUNT = 260;
@@ -58,6 +61,7 @@ function buildSpherePoints(count: number, radius: number): readonly SpherePoint[
 export class LoginPage {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly auth = inject(FirebaseAuthService);
 
   protected readonly sphereSize = SPHERE_SIZE;
   protected readonly sphereRadius = SPHERE_SIZE * 0.43;
@@ -65,9 +69,10 @@ export class LoginPage {
   protected readonly sphereViewBox = `${-SPHERE_SIZE / 2} ${-SPHERE_SIZE / 2} ${SPHERE_SIZE} ${SPHERE_SIZE}`;
 
   protected readonly now = signal(new Date());
-  protected readonly email = signal('admin@vextis.io');
-  protected readonly password = signal('admin123');
+  protected readonly email = signal('');
+  protected readonly password = signal('');
   protected readonly error = signal<string | null>(null);
+  protected readonly submitting = signal(false);
 
   constructor() {
     // TODO(auth): this is a cosmetic hero clock, not a real session heartbeat.
@@ -89,16 +94,32 @@ export class LoginPage {
     this.error.set(null);
   }
 
-  protected onSubmit(event: Event): void {
+  protected async onSubmit(event: Event): Promise<void> {
     event.preventDefault();
     if (!this.email().trim() || !this.password().trim()) {
       this.error.set('Enter your email and password to continue.');
       return;
     }
-    // TODO(auth): replace with the real flow against Enterprise Core once the
-    // authentication endpoint exists (see documents/AI_HANDOFF.md — pending the
-    // vertical slice). For now it just navigates to the dashboard so it doesn't
-    // block the demo.
-    void this.router.navigateByUrl('/');
+    this.submitting.set(true);
+    try {
+      await this.auth.signIn(this.email().trim(), this.password());
+      await this.router.navigateByUrl('/');
+    } catch (cause) {
+      this.error.set(this.loginError(cause));
+    } finally {
+      this.submitting.set(false);
+    }
+  }
+
+  private loginError(cause: unknown): string {
+    if (cause instanceof FirebaseError) {
+      if (cause.code === 'auth/invalid-credential' || cause.code === 'auth/user-not-found') {
+        return 'The email or password is incorrect.';
+      }
+      if (cause.code === 'auth/too-many-requests') {
+        return 'Too many attempts. Wait a moment and try again.';
+      }
+    }
+    return 'We could not sign you in. Check the connection and try again.';
   }
 }

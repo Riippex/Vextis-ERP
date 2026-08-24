@@ -3,6 +3,11 @@ output "enterprise_core_email" {
   value       = google_service_account.enterprise_core.email
 }
 
+output "enterprise_core_public_email" {
+  description = "Service identity for the public Firebase-authenticated Enterprise Core."
+  value       = google_service_account.enterprise_core_public.email
+}
+
 output "agent_runtime_email" {
   description = "Service identity for Agent Runtime."
   value       = google_service_account.agent_runtime.email

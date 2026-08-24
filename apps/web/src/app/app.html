@@ -31,9 +31,9 @@
       >
         <mat-icon>{{ isDark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
       </button>
-      <a mat-icon-button routerLink="/login" aria-label="Ver pantalla de acceso">
-        <mat-icon>account_circle</mat-icon>
-      </a>
+      <button mat-icon-button type="button" aria-label="Cerrar sesiÃ³n" (click)="signOut()">
+        <mat-icon>logout</mat-icon>
+      </button>
     </div>
   </mat-toolbar>
 }

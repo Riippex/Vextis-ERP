@@ -11,7 +11,18 @@ switch ($Target) {
     'infra' { docker compose --file (Join-Path $repositoryRoot 'compose.yaml') up -d postgres }
     'core' {
         Push-Location (Join-Path $repositoryRoot 'services/enterprise-core')
-        try { & ./gradlew.bat bootRun } finally { Pop-Location }
+        $previousVextisExposure = $env:VEXTIS_EXPOSURE
+        try {
+            $env:VEXTIS_EXPOSURE = 'LOCAL'
+            & ./gradlew.bat bootRun
+        } finally {
+            if ($null -eq $previousVextisExposure) {
+                Remove-Item Env:VEXTIS_EXPOSURE -ErrorAction SilentlyContinue
+            } else {
+                $env:VEXTIS_EXPOSURE = $previousVextisExposure
+            }
+            Pop-Location
+        }
     }
     'web' {
         Push-Location (Join-Path $repositoryRoot 'apps/web')

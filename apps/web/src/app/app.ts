@@ -10,14 +10,15 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { DOCUMENT } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatToolbarModule } from '@angular/material/toolbar';
-import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
+import { FirebaseAuthService } from './core/auth/firebase-auth.service';
 
 const THEME_STORAGE_KEY = 'vxt-theme';
 
 @Component({
   selector: 'vxt-root',
-  imports: [MatIconModule, MatToolbarModule, RouterLink, RouterOutlet],
+  imports: [MatIconModule, MatToolbarModule, RouterOutlet],
   templateUrl: './app.html',
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -25,6 +26,7 @@ const THEME_STORAGE_KEY = 'vxt-theme';
 export class App {
   private readonly document = inject(DOCUMENT);
   private readonly router = inject(Router);
+  private readonly auth = inject(FirebaseAuthService);
 
   /** Active theme. Persisted in localStorage; falls back to `prefers-color-scheme` if nothing is stored. */
   protected readonly isDark = signal(this.readInitialTheme());
@@ -57,6 +59,11 @@ export class App {
 
   protected toggleTheme(): void {
     this.isDark.update((value) => !value);
+  }
+
+  protected async signOut(): Promise<void> {
+    await this.auth.signOut();
+    await this.router.navigateByUrl('/login');
   }
 
   private readInitialTheme(): boolean {

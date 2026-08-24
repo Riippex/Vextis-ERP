@@ -80,6 +80,10 @@ resource "google_cloud_run_v2_service" "enterprise_core" {
         value = "false"
       }
       env {
+        name  = "VEXTIS_EXPOSURE"
+        value = "INTERNAL"
+      }
+      env {
         name  = "JAVA_TOOL_OPTIONS"
         value = "-XX:MaxRAMPercentage=75.0 -XX:+UseSerialGC"
       }
@@ -89,6 +93,102 @@ resource "google_cloud_run_v2_service" "enterprise_core" {
   lifecycle {
     prevent_destroy = true
   }
+}
+
+resource "google_cloud_run_v2_service" "enterprise_core_public" {
+  project             = var.project_id
+  location            = var.region
+  name                = "vextis-enterprise-core-public"
+  ingress             = "INGRESS_TRAFFIC_ALL"
+  deletion_protection = true
+  labels              = var.labels
+
+  template {
+    service_account                  = var.enterprise_core_public_service_account_email
+    timeout                          = "60s"
+    max_instance_request_concurrency = 40
+
+    scaling {
+      min_instance_count = 0
+      max_instance_count = 2
+    }
+
+    containers {
+      image = var.enterprise_core_image
+
+      ports {
+        name           = "http1"
+        container_port = 8080
+      }
+
+      resources {
+        limits = {
+          cpu    = "1"
+          memory = "1Gi"
+        }
+        cpu_idle          = true
+        startup_cpu_boost = true
+      }
+
+      env {
+        name  = "DATABASE_URL"
+        value = local.database_url
+      }
+      env {
+        name  = "POSTGRES_USER"
+        value = "vextis_app"
+      }
+      env {
+        name = "POSTGRES_PASSWORD"
+        value_source {
+          secret_key_ref {
+            secret  = var.database_password_secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name  = "GOOGLE_CLOUD_PROJECT"
+        value = var.project_id
+      }
+      env {
+        name  = "VEXTIS_FIREBASE_PROJECT_ID"
+        value = var.project_id
+      }
+      env {
+        name  = "VEXTIS_EXPOSURE"
+        value = "PUBLIC"
+      }
+      env {
+        name  = "VEXTIS_PUBSUB_ENABLED"
+        value = "true"
+      }
+      env {
+        name  = "VEXTIS_PUBSUB_TOPIC_ID"
+        value = var.pubsub_topic_id
+      }
+      env {
+        name  = "GRAPHQL_GRAPHIQL_ENABLED"
+        value = "false"
+      }
+      env {
+        name  = "JAVA_TOOL_OPTIONS"
+        value = "-XX:MaxRAMPercentage=75.0 -XX:+UseSerialGC"
+      }
+    }
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "google_cloud_run_v2_service_iam_member" "public_invokes_enterprise_core_public" {
+  project  = var.project_id
+  location = google_cloud_run_v2_service.enterprise_core_public.location
+  name     = google_cloud_run_v2_service.enterprise_core_public.name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
 }
 
 resource "google_cloud_run_v2_service" "agent_runtime" {

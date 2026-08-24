@@ -31,6 +31,9 @@ management:
         enabled: true
 
 vextis:
+  exposure: ${VEXTIS_EXPOSURE:INTERNAL}
+  firebase:
+    project-id: ${VEXTIS_FIREBASE_PROJECT_ID:${GOOGLE_CLOUD_PROJECT:}}
   demo:
     tenant-id: ${VEXTIS_DEMO_TENANT_ID:demo-tenant}
     actor-id: ${VEXTIS_DEMO_ACTOR_ID:demo-user}

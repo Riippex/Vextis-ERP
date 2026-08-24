@@ -348,6 +348,11 @@
   &:hover {
     opacity: 0.9;
   }
+
+  &:disabled {
+    cursor: wait;
+    opacity: 0.65;
+  }
 }
 
 .login__audit-note {

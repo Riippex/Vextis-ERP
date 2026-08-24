@@ -19,6 +19,10 @@ Commands:
 ./gradlew.bat bootRun
 ```
 
+The deployed service fails closed as `INTERNAL` unless `VEXTIS_EXPOSURE` is
+explicitly configured. Use `VEXTIS_EXPOSURE=LOCAL` only for local development;
+the public Cloud Run revision uses `PUBLIC` and verifies Firebase ID tokens.
+
 The public schema source lives at `../../contracts/graphql/public-api.graphqls`; Gradle bundles it into resources without duplicating it.
 
 ## Purchase-order event relay

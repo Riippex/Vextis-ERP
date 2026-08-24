@@ -18,6 +18,10 @@ output "enterprise_core_service_account" {
   value = module.iam.enterprise_core_email
 }
 
+output "enterprise_core_public_service_account" {
+  value = module.iam.enterprise_core_public_email
+}
+
 output "agent_runtime_service_account" {
   value = module.iam.agent_runtime_email
 }
@@ -40,6 +44,10 @@ output "order_events_subscription_id" {
 
 output "enterprise_core_url" {
   value = module.cloud_run.enterprise_core_url
+}
+
+output "enterprise_core_public_url" {
+  value = module.cloud_run.enterprise_core_public_url
 }
 
 output "agent_runtime_url" {

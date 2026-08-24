@@ -9,8 +9,14 @@ variable "topic_id" {
 }
 
 variable "publisher_service_account_email" {
-  description = "Only service identity allowed to publish business events."
+  description = "Primary Enterprise Core service identity allowed to publish business events."
   type        = string
+}
+
+variable "additional_publisher_service_account_emails" {
+  description = "Additional Enterprise Core service identities allowed to publish business events."
+  type        = set(string)
+  default     = []
 }
 
 variable "agent_runtime_url" {

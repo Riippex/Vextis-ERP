@@ -44,4 +44,22 @@ Before promoting a commit:
 4. Run `terraform plan` and require zero destructive actions.
 5. Apply manually and run authenticated health checks.
 
+For the web/authentication boundary, promotion order is mandatory:
+
+1. Publish an Enterprise Core image that contains Firebase token validation.
+2. Point `enterprise_core_image_tag` at that immutable image.
+3. Apply Terraform to create `vextis-enterprise-core-public`; never create the
+   public service with an older image that lacks application authentication.
+4. Confirm anonymous `/graphql` requests receive `401` and `/internal/**`
+   receives `403` on the public service.
+5. Build Angular and deploy Firebase Hosting. Hosting rewrites only `/graphql`
+   to the public Core; all SPA routes fall back to `index.html`.
+
+Firebase CLI authentication is separate from Google Cloud CLI authentication.
+The one-time project setup must register `vextis-erp` with Firebase, create a
+web app/default Hosting site, enable email/password sign-in, disable public
+self-signup, and create the demo user through an authorized admin flow. Firebase
+web configuration is loaded at runtime from `/__/firebase/init.json`; it is not
+stored in environment files or secrets.
+
 Automated promotion must not be enabled until Terraform state is remote, locking is configured, and the GitHub `hackathon` environment requires approval.

@@ -2,10 +2,12 @@ packages:
   - apps/web
 
 allowBuilds:
+  '@firebase/util': false
   '@parcel/watcher': true
   esbuild: true
   lmdb: true
   msgpackr-extract: true
+  protobufjs: false
 minimumReleaseAgeExclude:
   - '@angular-devkit/architect@0.2201.5'
   - '@angular-devkit/core@22.1.5'

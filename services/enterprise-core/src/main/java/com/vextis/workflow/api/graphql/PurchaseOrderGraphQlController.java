@@ -22,6 +22,9 @@ import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.stereotype.Controller;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
@@ -35,30 +38,45 @@ class PurchaseOrderGraphQlController {
     private final FindExecutionUseCase findExecution;
     private final String demoTenantId;
     private final String demoActorId;
+    private final String exposure;
 
     PurchaseOrderGraphQlController(
             ReceivePurchaseOrderUseCase receivePurchaseOrder,
             FindExecutionUseCase findExecution,
             @Value("${vextis.demo.tenant-id:demo-tenant}") String demoTenantId,
-            @Value("${vextis.demo.actor-id:demo-user}") String demoActorId
+            @Value("${vextis.demo.actor-id:demo-user}") String demoActorId,
+            @Value("${vextis.exposure:INTERNAL}") String exposure
     ) {
         this.receivePurchaseOrder = receivePurchaseOrder;
         this.findExecution = findExecution;
         this.demoTenantId = demoTenantId;
         this.demoActorId = demoActorId;
+        this.exposure = exposure;
     }
 
     @MutationMapping
     PurchaseOrderReceiptView receivePurchaseOrder(@Argument @Valid ReceivePurchaseOrderInput input) {
         PurchaseOrderReceipt receipt = receivePurchaseOrder.receive(new ReceivePurchaseOrderCommand(
                 demoTenantId,
-                new Actor(Actor.Type.USER, demoActorId),
+                new Actor(Actor.Type.USER, currentActorId()),
                 input.purchaseOrderNumber(),
                 input.customerName(),
                 input.documentUri(),
                 input.idempotencyKey()
         ));
         return PurchaseOrderReceiptView.from(receipt);
+    }
+
+    private String currentActorId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication != null && authentication.isAuthenticated()
+                && !"anonymousUser".equals(authentication.getPrincipal())) {
+            return authentication.getName();
+        }
+        if ("LOCAL".equalsIgnoreCase(exposure)) {
+            return demoActorId;
+        }
+        throw new AccessDeniedException("An authenticated user is required.");
     }
 
     @QueryMapping
