@@ -4,16 +4,24 @@
 }
 
 .shell__toolbar {
-  align-items: center;
   background: var(--vxt-surface);
   border-bottom: 1px solid var(--vxt-border);
   color: var(--vxt-text-primary);
-  display: flex;
-  justify-content: space-between;
+  padding: 0;
   position: sticky;
   top: 0;
   transition: background-color 0.2s ease, border-color 0.2s ease;
   z-index: 10;
+}
+
+.shell__toolbar-inner {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin: 0 auto;
+  max-width: 90rem;
+  padding-inline: clamp(1.25rem, 3vw, 3rem);
+  width: 100%;
 }
 
 .brand {
@@ -55,10 +63,17 @@
 .shell__content {
   margin: 0 auto;
   max-width: 90rem;
-  padding: clamp(1.25rem, 3vw, 3rem);
+  padding: 0 clamp(1.25rem, 3vw, 3rem) clamp(1.25rem, 3vw, 3rem);
+  width: 100%;
 }
 
 .shell__content--bare {
   max-width: none;
   padding: 0;
+}
+
+@media (max-width: 40rem) {
+  .shell__environment {
+    display: none;
+  }
 }

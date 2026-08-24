@@ -1,5 +1,6 @@
 @if (!hideChrome()) {
   <mat-toolbar class="shell__toolbar">
+    <div class="shell__toolbar-inner">
     <div class="brand" aria-label="Vextis ERP">
       <span class="brand__mark">
         <svg width="26" height="26" viewBox="0 0 40 40" fill="none" aria-hidden="true">
@@ -34,6 +35,7 @@
       <button mat-icon-button type="button" aria-label="Cerrar sesiÃ³n" (click)="signOut()">
         <mat-icon>logout</mat-icon>
       </button>
+    </div>
     </div>
   </mat-toolbar>
 }
