@@ -3,6 +3,7 @@ package com.vextis.workflow.application;
 import com.vextis.billing.CreditLookup;
 import com.vextis.crm.CustomerLookup;
 import com.vextis.inventory.StockLookup;
+import com.vextis.inventory.StockReservation;
 import com.vextis.workflow.application.port.PurchaseOrderWorkflowRepository;
 import com.vextis.workflow.ExecutionOverview;
 import com.vextis.workflow.domain.Actor;
@@ -29,7 +30,7 @@ import java.util.UUID;
 @Service
 public class PurchaseOrderWorkflowService implements ReceivePurchaseOrderUseCase, FindExecutionUseCase,
         StartPlanningUseCase, RecordPlanUseCase, EvaluateReadinessUseCase,
-        RequestApprovalUseCase, DecideApprovalUseCase, ExecutionOverview {
+        RequestApprovalUseCase, DecideApprovalUseCase, ReserveApprovedStockUseCase, ExecutionOverview {
 
     static final String RECEIVE_OPERATION = "workflow.receive-purchase-order";
     static final String START_PLANNING_OPERATION = "workflow.start-planning";
@@ -43,19 +44,22 @@ public class PurchaseOrderWorkflowService implements ReceivePurchaseOrderUseCase
     private final CustomerLookup customers;
     private final StockLookup stock;
     private final CreditLookup credit;
+    private final StockReservation reservations;
 
     public PurchaseOrderWorkflowService(
             PurchaseOrderWorkflowRepository repository,
             Clock clock,
             CustomerLookup customers,
             StockLookup stock,
-            CreditLookup credit
+            CreditLookup credit,
+            StockReservation reservations
     ) {
         this.repository = repository;
         this.clock = clock;
         this.customers = customers;
         this.stock = stock;
         this.credit = credit;
+        this.reservations = reservations;
     }
 
     @Override
@@ -322,6 +326,35 @@ public class PurchaseOrderWorkflowService implements ReceivePurchaseOrderUseCase
         repository.saveApprovalDecided(
                 current, updated, command.actor(), DECIDE_APPROVAL_OPERATION, command.idempotencyKey());
         return updated;
+    }
+
+    @Override
+    @Transactional
+    public StockReservation.Reservation reserve(ReserveApprovedStockCommand command) {
+        if (command.actor().type() != Actor.Type.AGENT) {
+            throw new WorkflowConflictException("Only an authenticated agent can reserve stock");
+        }
+        WorkflowExecution execution = repository.findExecutionBySourceId(command.tenantId(), command.orderId())
+                .orElseThrow(() -> new WorkflowNotFoundException("Approved order execution was not found"));
+        if (!execution.correlationId().equals(command.correlationId())
+                || execution.approval() == null
+                || execution.approval().status() != com.vextis.workflow.domain.ApprovalStatus.APPROVED
+                || execution.state() != ExecutionState.RUNNING
+                || execution.plan() == null) {
+            throw new WorkflowConflictException("Order is not eligible for inventory reservation");
+        }
+        boolean exactApprovedLine = execution.plan().orderLines().stream().anyMatch(line ->
+                line.sku().equalsIgnoreCase(command.sku()) && line.quantity() == command.quantity());
+        if (!exactApprovedLine) {
+            throw new WorkflowConflictException("Reservation does not match an approved order line");
+        }
+        try {
+            return reservations.reserve(new StockReservation.Command(
+                    command.tenantId(), command.actor().id(), command.orderId(), command.sku(), command.quantity(),
+                    command.correlationId(), command.idempotencyKey()));
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            throw new WorkflowConflictException(exception.getMessage());
+        }
     }
 
     private WorkflowReadinessCheck billingCheck(

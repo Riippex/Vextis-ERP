@@ -1,3 +1,4 @@
+import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -14,6 +15,7 @@ import { MissionControlStore } from '../mission-control/mission-control.store';
 @Component({
   selector: 'vxt-inventory-operations-page',
   imports: [
+    DatePipe,
     MatButtonModule,
     MatFormFieldModule,
     MatIconModule,

@@ -13,6 +13,8 @@ channels:
         $ref: "#/components/messages/WorkflowApprovalRequestedV1"
       workflowApprovalDecided:
         $ref: "#/components/messages/WorkflowApprovalDecidedV1"
+      inventoryReservationCreated:
+        $ref: "#/components/messages/InventoryReservationCreatedV1"
 operations:
   receivePurchaseOrder:
     action: receive
@@ -32,6 +34,12 @@ operations:
       $ref: "#/channels/orderEvents"
     messages:
       - $ref: "#/channels/orderEvents/messages/workflowApprovalDecided"
+  publishInventoryReservationCreated:
+    action: send
+    channel:
+      $ref: "#/channels/orderEvents"
+    messages:
+      - $ref: "#/channels/orderEvents/messages/inventoryReservationCreated"
 components:
   messages:
     PurchaseOrderReceivedV2:
@@ -49,3 +57,8 @@ components:
       title: Workflow approval decided (v1)
       payload:
         $ref: "./schemas/workflow-approval-decided.v1.json"
+    InventoryReservationCreatedV1:
+      name: inventory.reservation.created
+      title: Inventory reservation created (v1)
+      payload:
+        $ref: "./schemas/inventory-reservation-created.v1.json"

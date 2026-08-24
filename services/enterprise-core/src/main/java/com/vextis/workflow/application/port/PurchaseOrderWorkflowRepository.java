@@ -18,6 +18,8 @@ public interface PurchaseOrderWorkflowRepository {
 
     Optional<WorkflowExecution> findExecution(String tenantId, UUID executionId);
 
+    Optional<WorkflowExecution> findExecutionBySourceId(String tenantId, UUID sourceId);
+
     List<ExecutionOverview.ExecutionSummary> findRecentExecutions(String tenantId, int limit);
 
     Optional<PurchaseOrderSource> findPurchaseOrder(String tenantId, UUID purchaseOrderId);

@@ -1,13 +1,17 @@
 from fastapi.testclient import TestClient
 
-from tests.unit.event_factory import pubsub_push_body
+from tests.unit.event_factory import approval_decided_event, pubsub_push_body
 from vextis_agents.app.config import Settings
 from vextis_agents.app.main import create_app
 from vextis_agents.tools.core_api.planning import (
     CoreToolUnavailableError,
     PlanningResult,
+    ReservationResult,
 )
-from vextis_agents.workflows.order_to_cash.events import PurchaseOrderReceivedV2
+from vextis_agents.workflows.order_to_cash.events import (
+    PurchaseOrderReceivedV2,
+    WorkflowApprovalDecidedV1,
+)
 from vextis_agents.workflows.order_to_cash.planning import (
     GeneratedPlan,
     PlanGenerationUnavailableError,
@@ -17,7 +21,10 @@ from vextis_agents.workflows.order_to_cash.planning import (
 
 class PlanningToolStub:
     def __init__(
-        self, unavailable: bool = False, state: str = "PLANNING", readiness_evaluated: bool = False,
+        self,
+        unavailable: bool = False,
+        state: str = "PLANNING",
+        readiness_evaluated: bool = False,
         approval_status: str | None = None,
     ) -> None:
         self.event: PurchaseOrderReceivedV2 | None = None
@@ -28,6 +35,7 @@ class PlanningToolStub:
         self.approval_status = approval_status
         self.readiness_calls = 0
         self.approval_calls = 0
+        self.reservations: list[tuple[str, int]] = []
 
     async def start_planning(self, event: PurchaseOrderReceivedV2) -> PlanningContext:
         self.event = event
@@ -51,7 +59,9 @@ class PlanningToolStub:
     ) -> PlanningResult:
         self.readiness_calls += 1
         return PlanningResult(
-            id=context.id, state="RUNNING", correlationId=context.correlation_id,
+            id=context.id,
+            state="RUNNING",
+            correlationId=context.correlation_id,
             updatedAt="2026-08-21T03:30:06Z",
         )
 
@@ -75,8 +85,23 @@ class PlanningToolStub:
     ) -> PlanningResult:
         self.approval_calls += 1
         return PlanningResult(
-            id=context.id, state="WAITING_APPROVAL", correlationId=context.correlation_id,
+            id=context.id,
+            state="WAITING_APPROVAL",
+            correlationId=context.correlation_id,
             updatedAt="2026-08-21T03:30:08Z",
+        )
+
+    async def reserve_stock(
+        self, event: WorkflowApprovalDecidedV1, sku: str, quantity: int
+    ) -> ReservationResult:
+        self.reservations.append((sku, quantity))
+        return ReservationResult(
+            id="f47c82aa-9739-4b55-9c7f-0950a9218e1d",
+            orderId=str(event.payload.order_id),
+            sku=sku,
+            quantity=quantity,
+            status="RESERVED",
+            createdAt="2026-08-24T20:00:01Z",
         )
 
 
@@ -245,3 +270,35 @@ def test_replayed_approval_request_skips_all_duplicate_work() -> None:
     assert generator.calls == 0
     assert tool.readiness_calls == 0
     assert tool.approval_calls == 0
+
+
+def test_approved_workflow_reserves_each_exact_order_line() -> None:
+    tool = PlanningToolStub()
+    app = create_app(
+        Settings(pubsub_push_enabled=True), planning_tool=tool, plan_generator=PlanGeneratorStub()
+    )
+
+    response = TestClient(app).post(
+        "/events/pubsub",
+        content=pubsub_push_body(approval_decided_event()),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 204
+    assert tool.reservations == [("VXT-CHAIR-01", 10)]
+
+
+def test_rejected_workflow_never_reserves_stock() -> None:
+    tool = PlanningToolStub()
+    app = create_app(
+        Settings(pubsub_push_enabled=True), planning_tool=tool, plan_generator=PlanGeneratorStub()
+    )
+
+    response = TestClient(app).post(
+        "/events/pubsub",
+        content=pubsub_push_body(approval_decided_event("REJECTED")),
+        headers={"Content-Type": "application/json"},
+    )
+
+    assert response.status_code == 204
+    assert tool.reservations == []

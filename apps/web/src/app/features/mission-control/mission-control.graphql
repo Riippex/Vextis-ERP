@@ -17,6 +17,14 @@ query MissionControl {
       sku
       availableQuantity
     }
+    stockReservations {
+      id
+      orderId
+      sku
+      quantity
+      status
+      createdAt
+    }
     creditProfiles {
       customerId
       customerName

@@ -4,14 +4,17 @@ import httpx
 import pytest
 from pydantic import SecretStr
 
-from tests.unit.event_factory import purchase_order_event
+from tests.unit.event_factory import approval_decided_event, purchase_order_event
 from vextis_agents.app.config import Settings
 from vextis_agents.tools.core_api.planning import (
     CoreToolRejectedError,
     CoreToolUnavailableError,
     EnterpriseCorePlanningClient,
 )
-from vextis_agents.workflows.order_to_cash.events import PurchaseOrderReceivedV2
+from vextis_agents.workflows.order_to_cash.events import (
+    PurchaseOrderReceivedV2,
+    WorkflowApprovalDecidedV1,
+)
 from vextis_agents.workflows.order_to_cash.planning import GeneratedPlan, PlanningContext
 
 
@@ -102,9 +105,7 @@ async def test_client_surfaces_identity_failure_as_transient() -> None:
     )
 
     with pytest.raises(CoreToolUnavailableError, match="identity token"):
-        await client.start_planning(
-            PurchaseOrderReceivedV2.model_validate(purchase_order_event())
-        )
+        await client.start_planning(PurchaseOrderReceivedV2.model_validate(purchase_order_event()))
 
 
 @pytest.mark.asyncio
@@ -189,8 +190,12 @@ async def test_client_evaluates_readiness_with_stable_idempotency_key() -> None:
     client = EnterpriseCorePlanningClient(settings(), httpx.MockTransport(respond))
     event = PurchaseOrderReceivedV2.model_validate(purchase_order_event())
     context = PlanningContext(
-        id=str(event.payload.execution_id), state="RUNNING", correlationId=event.correlation_id,
-        updatedAt="2026-08-21T03:30:04Z", goal="Process", purchaseOrderNumber="PO-2026-001",
+        id=str(event.payload.execution_id),
+        state="RUNNING",
+        correlationId=event.correlation_id,
+        updatedAt="2026-08-21T03:30:04Z",
+        goal="Process",
+        purchaseOrderNumber="PO-2026-001",
         customerName="Acme Colombia",
         documentUri=event.payload.document_uri,
         readinessEvaluated=False,
@@ -223,9 +228,14 @@ async def test_client_requests_human_approval_with_stable_idempotency_key() -> N
     client = EnterpriseCorePlanningClient(settings(), httpx.MockTransport(respond))
     event = PurchaseOrderReceivedV2.model_validate(purchase_order_event())
     context = PlanningContext(
-        id=str(event.payload.execution_id), state="RUNNING", correlationId=event.correlation_id,
-        updatedAt="2026-08-21T03:30:06Z", goal="Process", purchaseOrderNumber="PO-2026-001",
-        customerName="Acme Colombia", documentUri=event.payload.document_uri,
+        id=str(event.payload.execution_id),
+        state="RUNNING",
+        correlationId=event.correlation_id,
+        updatedAt="2026-08-21T03:30:06Z",
+        goal="Process",
+        purchaseOrderNumber="PO-2026-001",
+        customerName="Acme Colombia",
+        documentUri=event.payload.document_uri,
         readinessEvaluated=True,
     )
 
@@ -236,6 +246,42 @@ async def test_client_requests_human_approval_with_stable_idempotency_key() -> N
     assert captured.url.path.endswith("/approval")
     assert captured.headers["Idempotency-Key"].endswith(":request-approval")
     assert json.loads(captured.content) == {"recommendation": "Proceed after human review."}
+
+
+@pytest.mark.asyncio
+async def test_client_reserves_exact_approved_line_with_stable_context() -> None:
+    captured: httpx.Request | None = None
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal captured
+        captured = request
+        return httpx.Response(
+            201,
+            json={
+                "id": "f47c82aa-9739-4b55-9c7f-0950a9218e1d",
+                "orderId": "77cc63cc-3c91-4d80-a918-605b7f231cf8",
+                "sku": "VXT-CHAIR-01",
+                "quantity": 10,
+                "status": "RESERVED",
+                "createdAt": "2026-08-24T20:00:01Z",
+            },
+        )
+
+    client = EnterpriseCorePlanningClient(settings(), httpx.MockTransport(respond))
+    event = WorkflowApprovalDecidedV1.model_validate(approval_decided_event())
+
+    result = await client.reserve_stock(event, "VXT-CHAIR-01", 10)
+
+    assert result.status == "RESERVED"
+    assert captured is not None
+    assert captured.url.path.endswith("/inventory/reservations")
+    assert captured.headers["X-Correlation-Id"] == "corr-001"
+    assert captured.headers["Idempotency-Key"].endswith(":reserve:VXT-CHAIR-01")
+    assert json.loads(captured.content) == {
+        "orderId": "77cc63cc-3c91-4d80-a918-605b7f231cf8",
+        "sku": "VXT-CHAIR-01",
+        "quantity": 10,
+    }
 
 
 @pytest.mark.asyncio

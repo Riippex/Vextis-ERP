@@ -25,10 +25,39 @@
         <span class="metric-card__detail">Inventory-owned records</span>
       </article>
       <article class="metric-card">
+        <span class="metric-card__label">Active reservations</span>
+        <strong class="metric-card__value">{{ data.stockReservations.length }}</strong>
+        <span class="metric-card__detail">Approved agent actions</span>
+      </article>
+      <article class="metric-card">
         <span class="metric-card__label">Available units</span>
         <strong class="metric-card__value">{{ availableUnits() }}</strong>
         <span class="metric-card__detail">Before any reservation</span>
       </article>
+    </section>
+
+    <section class="panel">
+      <div class="panel__header">
+        <div><h2>Reservation evidence</h2><p>Durable actions created after human approval.</p></div>
+        <span class="data-row__meta">Agent identity + correlation preserved</span>
+      </div>
+      @if (data.stockReservations.length) {
+        <div class="data-list">
+          @for (reservation of data.stockReservations; track reservation.id) {
+            <div class="data-row">
+              <div>
+                <div class="data-row__primary">{{ reservation.sku }}</div>
+                <div class="data-row__secondary">Order {{ reservation.orderId }}</div>
+              </div>
+              <span class="status-pill status-pill--good">{{ reservation.status }}</span>
+              <span class="data-row__meta">{{ reservation.quantity }} units</span>
+              <span class="data-row__meta">{{ reservation.createdAt | date: 'medium' }}</span>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="state-panel"><mat-icon>verified_user</mat-icon>No approved reservations yet.</div>
+      }
     </section>
 
     <section class="panel command-panel">

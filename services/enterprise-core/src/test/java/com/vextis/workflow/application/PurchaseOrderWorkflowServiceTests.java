@@ -3,6 +3,7 @@ package com.vextis.workflow.application;
 import com.vextis.billing.CreditLookup;
 import com.vextis.crm.CustomerLookup;
 import com.vextis.inventory.StockLookup;
+import com.vextis.inventory.StockReservation;
 import com.vextis.workflow.application.port.PurchaseOrderWorkflowRepository;
 import com.vextis.workflow.ExecutionOverview;
 import com.vextis.workflow.domain.Actor;
@@ -32,6 +33,7 @@ class PurchaseOrderWorkflowServiceTests {
     private static final Instant NOW = Instant.parse("2026-08-21T03:30:00Z");
 
     private final InMemoryRepository repository = new InMemoryRepository();
+    private final StockReservation reservations = org.mockito.Mockito.mock(StockReservation.class);
     private final PurchaseOrderWorkflowService service = new PurchaseOrderWorkflowService(
             repository,
             Clock.fixed(NOW, ZoneOffset.UTC),
@@ -39,7 +41,8 @@ class PurchaseOrderWorkflowServiceTests {
                     UUID.fromString("11111111-1111-1111-1111-111111111111"), name, true)),
             (tenant, sku) -> Optional.of(new StockLookup.StockSnapshot(sku, 40)),
             (tenant, customerId) -> Optional.of(new CreditLookup.CreditSnapshot(
-                    CreditLookup.CreditStanding.GOOD, 30))
+                    CreditLookup.CreditStanding.GOOD, 30)),
+            reservations
     );
 
     @Test
@@ -209,6 +212,35 @@ class PurchaseOrderWorkflowServiceTests {
         assertThat(approved.approval().decidedBy()).isEqualTo("firebase-user");
         assertThat(repository.approvalRequestSaveCount).isEqualTo(1);
         assertThat(repository.approvalDecisionSaveCount).isEqualTo(1);
+
+        UUID reservationId = UUID.fromString("f47c82aa-9739-4b55-9c7f-0950a9218e1d");
+        org.mockito.Mockito.when(reservations.reserve(org.mockito.ArgumentMatchers.any())).thenReturn(
+                new StockReservation.Reservation(
+                        reservationId, received.purchaseOrder().id(), "VXT-CHAIR-01", 10,
+                        StockReservation.Status.RESERVED, NOW));
+        StockReservation.Reservation reservation = service.reserve(new ReserveApprovedStockCommand(
+                "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"),
+                received.purchaseOrder().id(), "VXT-CHAIR-01", 10,
+                received.execution().correlationId(), eventId + ":reserve:VXT-CHAIR-01"));
+
+        assertThat(reservation.id()).isEqualTo(reservationId);
+        org.mockito.Mockito.verify(reservations).reserve(org.mockito.ArgumentMatchers.argThat(command ->
+                command.orderId().equals(received.purchaseOrder().id())
+                        && command.quantity() == 10
+                        && command.actorId().equals("coordinator-agent")));
+    }
+
+    @Test
+    void rejectsReservationBeforeHumanApproval() {
+        PurchaseOrderReceipt received = service.receive(command("receive-po-001"));
+
+        assertThatThrownBy(() -> service.reserve(new ReserveApprovedStockCommand(
+                "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"),
+                received.purchaseOrder().id(), "VXT-CHAIR-01", 10,
+                received.execution().correlationId(), "approval-event:reserve:chair")))
+                .isInstanceOf(WorkflowConflictException.class)
+                .hasMessage("Order is not eligible for inventory reservation");
+        org.mockito.Mockito.verifyNoInteractions(reservations);
     }
 
     @Test
@@ -374,6 +406,13 @@ class PurchaseOrderWorkflowServiceTests {
             receipt = new PurchaseOrderReceipt(receipt.purchaseOrder(), updated);
             readinessIdempotencyKey = idempotencyKey;
             readinessSaveCount++;
+        }
+
+        @Override
+        public Optional<WorkflowExecution> findExecutionBySourceId(String tenantId, UUID sourceId) {
+            return Optional.ofNullable(receipt)
+                    .map(PurchaseOrderReceipt::execution)
+                    .filter(execution -> execution.sourceId().equals(sourceId));
         }
 
         @Override

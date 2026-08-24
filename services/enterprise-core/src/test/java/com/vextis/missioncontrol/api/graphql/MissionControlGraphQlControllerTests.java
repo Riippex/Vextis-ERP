@@ -3,6 +3,7 @@ package com.vextis.missioncontrol.api.graphql;
 import com.vextis.billing.CreditPortfolio;
 import com.vextis.crm.CustomerDirectory;
 import com.vextis.inventory.StockDirectory;
+import com.vextis.inventory.ReservationDirectory;
 import com.vextis.workflow.ExecutionOverview;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +36,9 @@ class MissionControlGraphQlControllerTests {
     private StockDirectory stock;
 
     @MockitoBean
+    private ReservationDirectory reservations;
+
+    @MockitoBean
     private CreditPortfolio credit;
 
     @Test
@@ -46,6 +50,7 @@ class MissionControlGraphQlControllerTests {
                 new CustomerDirectory.CustomerSummary(CUSTOMER_ID, "Acme Colombia", true)));
         when(stock.findAll("demo-tenant")).thenReturn(List.of(
                 new StockDirectory.StockSummary("VXT-CHAIR-01", 40)));
+        when(reservations.findAll("demo-tenant")).thenReturn(List.of());
         when(credit.findAll("demo-tenant")).thenReturn(List.of(
                 new CreditPortfolio.CreditProfileSummary(CUSTOMER_ID, "GOOD", 30)));
 
