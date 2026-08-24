@@ -12,5 +12,5 @@ export const authenticatedGuard: CanActivateFn = async () => {
 export const anonymousGuard: CanActivateFn = async () => {
   const auth = inject(FirebaseAuthService);
   const router = inject(Router);
-  return (await auth.currentUser()) ? router.createUrlTree(['/']) : true;
+  return (await auth.currentUser()) ? router.createUrlTree(['/app']) : true;
 };

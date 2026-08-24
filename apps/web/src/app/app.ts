@@ -39,8 +39,10 @@ export class App {
     { initialValue: this.router.url },
   );
 
-  /** The login screen has its own full-page "exotic" visual identity: no toolbar or shell padding. */
-  protected readonly hideChrome = computed(() => this.url().startsWith('/login'));
+  /** Public entry surfaces own their layout; authenticated routes use the application shell. */
+  protected readonly hideChrome = computed(
+    () => this.url() === '/' || this.url().startsWith('/login'),
+  );
 
   constructor() {
     effect(() => {

@@ -103,7 +103,7 @@ export class LoginPage {
     this.submitting.set(true);
     try {
       await this.auth.signIn(this.email().trim(), this.password());
-      await this.router.navigateByUrl('/');
+      await this.router.navigateByUrl('/app');
     } catch (cause) {
       this.error.set(this.loginError(cause));
     } finally {
