@@ -46,8 +46,28 @@ enum CreditStanding {
 
 type Mutation {
   receivePurchaseOrder(input: ReceivePurchaseOrderInput!): PurchaseOrderReceipt!
+  upsertCustomer(input: UpsertCustomerInput!): CustomerOverview!
+  setStockAvailability(input: SetStockAvailabilityInput!): StockItemOverview!
+  upsertCreditProfile(input: UpsertCreditProfileInput!): CreditProfileOverview!
   createLiveSession(input: CreateLiveSessionInput!): LiveSession!
   closeLiveSession(id: ID!): Boolean!
+}
+
+input UpsertCustomerInput {
+  id: ID
+  legalName: String!
+  active: Boolean!
+}
+
+input SetStockAvailabilityInput {
+  sku: String!
+  availableQuantity: Int!
+}
+
+input UpsertCreditProfileInput {
+  customerId: ID!
+  standing: CreditStanding!
+  maxPaymentTermsDays: Int!
 }
 
 type Health {

@@ -31,6 +31,47 @@
       </article>
     </section>
 
+    <section class="panel command-panel">
+      <div class="panel__header">
+        <div><p class="eyebrow">Authoritative command</p><h2>Set commercial credit</h2></div>
+        <span class="data-row__meta">Only CRM customers in this tenant are eligible</span>
+      </div>
+      <form class="command-form command-form--credit" [formGroup]="creditForm" (ngSubmit)="saveCreditProfile()">
+        <mat-form-field appearance="outline">
+          <mat-label>Customer</mat-label>
+          <mat-select formControlName="customerId">
+            @for (customer of data.customers; track customer.id) {
+              <mat-option [value]="customer.id">{{ customer.legalName }}</mat-option>
+            }
+          </mat-select>
+          @if (creditForm.controls.customerId.invalid) { <mat-error>Select a customer.</mat-error> }
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Standing</mat-label>
+          <mat-select formControlName="standing">
+            @for (standing of standings; track standing) { <mat-option [value]="standing">{{ standing }}</mat-option> }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Maximum payment terms</mat-label>
+          <input matInput type="number" min="0" max="365" formControlName="maxPaymentTermsDays" />
+          <span matTextSuffix>days</span>
+          @if (creditForm.controls.maxPaymentTermsDays.invalid) {
+            <mat-error>Terms must be between 0 and 365 days.</mat-error>
+          }
+        </mat-form-field>
+        <button mat-flat-button type="submit" [disabled]="saving() || !data.customers.length">
+          @if (saving()) { <mat-spinner diameter="18" /> } @else { <mat-icon>save</mat-icon> }
+          Save credit
+        </button>
+      </form>
+      @if (!data.customers.length) {
+        <p class="command-feedback command-feedback--error">Create a CRM customer before assigning credit.</p>
+      }
+      @if (saveMessage()) { <p class="command-feedback command-feedback--success">{{ saveMessage() }}</p> }
+      @if (saveError()) { <p class="command-feedback command-feedback--error" role="alert">{{ saveError() }}</p> }
+    </section>
+
     <section>
       <div class="section-heading">
         <div><h2>Commercial credit</h2><p>Standing and maximum approved payment terms.</p></div>
@@ -52,7 +93,10 @@
                 <p>Maximum payment terms</p>
               </div>
               <strong class="data-card__number">{{ profile.maxPaymentTermsDays }}d</strong>
-              <div class="data-card__footer">Approval and invoicing mutations are intentionally deferred.</div>
+              <div class="data-card__footer">
+                <span>Approval and invoicing mutations are intentionally deferred.</span>
+                <button mat-button type="button" (click)="editProfile(profile)"><mat-icon>edit</mat-icon>Edit</button>
+              </div>
             </article>
           }
         </div>

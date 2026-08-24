@@ -31,6 +31,35 @@
       </article>
     </section>
 
+    <section class="panel command-panel">
+      <div class="panel__header">
+        <div><p class="eyebrow">Authoritative command</p><h2>Set stock availability</h2></div>
+        <span class="data-row__meta">Creates the SKU when it does not exist</span>
+      </div>
+      <form class="command-form" [formGroup]="stockForm" (ngSubmit)="saveStock()">
+        <mat-form-field appearance="outline">
+          <mat-label>SKU</mat-label>
+          <input matInput formControlName="sku" maxlength="100" autocomplete="off" />
+          @if (stockForm.controls.sku.invalid) {
+            <mat-error>Use letters, numbers, dots, underscores or hyphens.</mat-error>
+          }
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Available quantity</mat-label>
+          <input matInput type="number" min="0" max="1000000" formControlName="availableQuantity" />
+          @if (stockForm.controls.availableQuantity.invalid) {
+            <mat-error>Quantity must be between 0 and 1,000,000.</mat-error>
+          }
+        </mat-form-field>
+        <button mat-flat-button type="submit" [disabled]="saving()">
+          @if (saving()) { <mat-spinner diameter="18" /> } @else { <mat-icon>save</mat-icon> }
+          Set availability
+        </button>
+      </form>
+      @if (saveMessage()) { <p class="command-feedback command-feedback--success">{{ saveMessage() }}</p> }
+      @if (saveError()) { <p class="command-feedback command-feedback--error" role="alert">{{ saveError() }}</p> }
+    </section>
+
     <section>
       <div class="section-heading">
         <div><h2>Stock availability</h2><p>Current quantity by exact SKU.</p></div>
@@ -50,7 +79,10 @@
                 <p>Available quantity</p>
               </div>
               <strong class="data-card__number">{{ item.availableQuantity }}</strong>
-              <div class="data-card__footer">No reservation has been inferred by the UI.</div>
+              <div class="data-card__footer">
+                <span>No reservation has been inferred by the UI.</span>
+                <button mat-button type="button" (click)="editStock(item)"><mat-icon>edit</mat-icon>Edit</button>
+              </div>
             </article>
           }
         </div>

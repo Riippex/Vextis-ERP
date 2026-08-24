@@ -33,6 +33,34 @@
       </article>
     </section>
 
+    <section class="panel command-panel">
+      <div class="panel__header">
+        <div>
+          <p class="eyebrow">Authoritative command</p>
+          <h2>{{ editingCustomerId() ? 'Edit customer' : 'Create customer' }}</h2>
+        </div>
+        @if (editingCustomerId()) {
+          <button mat-button type="button" (click)="cancelEdit()">Cancel edit</button>
+        }
+      </div>
+      <form class="command-form command-form--customer" [formGroup]="customerForm" (ngSubmit)="saveCustomer()">
+        <mat-form-field appearance="outline">
+          <mat-label>Legal name</mat-label>
+          <input matInput formControlName="legalName" maxlength="200" autocomplete="organization" />
+          @if (customerForm.controls.legalName.invalid) {
+            <mat-error>Enter a legal name with at most 200 characters.</mat-error>
+          }
+        </mat-form-field>
+        <mat-checkbox formControlName="active">Active for workflow matching</mat-checkbox>
+        <button mat-flat-button type="submit" [disabled]="saving()">
+          @if (saving()) { <mat-spinner diameter="18" /> } @else { <mat-icon>save</mat-icon> }
+          Save customer
+        </button>
+      </form>
+      @if (saveMessage()) { <p class="command-feedback command-feedback--success">{{ saveMessage() }}</p> }
+      @if (saveError()) { <p class="command-feedback command-feedback--error" role="alert">{{ saveError() }}</p> }
+    </section>
+
     <section class="panel">
       <div class="panel__header">
         <h2>Customer directory</h2>
@@ -50,7 +78,9 @@
                 {{ customer.active ? 'Active' : 'Inactive' }}
               </span>
               <span class="data-row__meta">Customer identity verified by Core</span>
-              <mat-icon aria-hidden="true">verified_user</mat-icon>
+              <button mat-icon-button type="button" aria-label="Edit customer" (click)="editCustomer(customer)">
+                <mat-icon>edit</mat-icon>
+              </button>
             </div>
           }
         </div>
