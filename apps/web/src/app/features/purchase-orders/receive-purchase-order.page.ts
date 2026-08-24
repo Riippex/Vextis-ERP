@@ -54,7 +54,7 @@ export class ReceivePurchaseOrderPage {
     purchaseOrderNumber: ['PO-2026-001', [Validators.required, Validators.maxLength(100)]],
     customerName: ['Acme Colombia', [Validators.required, Validators.maxLength(200)]],
     documentUri: [
-      'gs://vextis-demo/orders/po-2026-001.pdf',
+      'gs://vextis-erp-hackathon-assets/demo/purchase-orders/PO-2026-001.pdf',
       [Validators.required, Validators.pattern(/^gs:\/\/.+/), Validators.maxLength(1000)],
     ],
     idempotencyKey: [this.newIdempotencyKey(), [Validators.required, Validators.maxLength(200)]],

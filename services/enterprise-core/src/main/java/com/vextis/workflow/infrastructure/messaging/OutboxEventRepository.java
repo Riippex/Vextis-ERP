@@ -1,9 +1,13 @@
 package com.vextis.workflow.infrastructure.messaging;
 
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.stereotype.Repository;
 
+import java.sql.Types;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 
@@ -33,7 +37,7 @@ class OutboxEventRepository {
                         rs.getInt("event_version"),
                         rs.getString("correlation_id"),
                         rs.getString("payload"),
-                        rs.getObject("occurred_at", Instant.class)
+                        rs.getObject("occurred_at", OffsetDateTime.class).toInstant()
                 )
         );
     }
@@ -45,7 +49,9 @@ class OutboxEventRepository {
                 SET published_at = :publishedAt
                 WHERE event_id = :eventId AND published_at IS NULL
                 """,
-                Map.of("publishedAt", publishedAt, "eventId", eventId)
+                new MapSqlParameterSource()
+                        .addValue("publishedAt", publishedAt.atOffset(ZoneOffset.UTC), Types.TIMESTAMP_WITH_TIMEZONE)
+                        .addValue("eventId", eventId)
         );
         if (changed != 1) {
             throw new IllegalStateException("Outbox event was not available to mark as published");
