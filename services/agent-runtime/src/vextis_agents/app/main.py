@@ -5,7 +5,10 @@ from vextis_agents.app.config import Settings, get_settings
 from vextis_agents.app.pubsub import create_pubsub_router
 from vextis_agents.tools.core_api.planning import EnterpriseCorePlanningClient, PlanningTool
 from vextis_agents.workflows.order_to_cash.gemini_planner import AdkGeminiPlanGenerator
-from vextis_agents.workflows.order_to_cash.handler import PurchaseOrderReceivedHandler
+from vextis_agents.workflows.order_to_cash.handler import (
+    PurchaseOrderReceivedHandler,
+    WorkflowApprovalDecidedHandler,
+)
 from vextis_agents.workflows.order_to_cash.planning import PlanGenerator
 
 
@@ -40,7 +43,10 @@ def create_app(
         tool = planning_tool or EnterpriseCorePlanningClient(settings)
         generator = plan_generator or AdkGeminiPlanGenerator(settings)
         application.include_router(
-            create_pubsub_router(PurchaseOrderReceivedHandler(tool, generator))
+            create_pubsub_router(
+                PurchaseOrderReceivedHandler(tool, generator),
+                WorkflowApprovalDecidedHandler(tool),
+            )
         )
 
     return application

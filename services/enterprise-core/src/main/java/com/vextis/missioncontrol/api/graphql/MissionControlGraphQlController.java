@@ -3,6 +3,8 @@ package com.vextis.missioncontrol.api.graphql;
 import com.vextis.billing.CreditPortfolio;
 import com.vextis.crm.CustomerDirectory;
 import com.vextis.inventory.StockDirectory;
+import com.vextis.inventory.ReservationDirectory;
+import com.vextis.inventory.StockReservation;
 import com.vextis.workflow.ExecutionOverview;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
@@ -22,6 +24,7 @@ class MissionControlGraphQlController {
     private final ExecutionOverview executions;
     private final CustomerDirectory customers;
     private final StockDirectory stock;
+    private final ReservationDirectory reservations;
     private final CreditPortfolio credit;
     private final String demoTenantId;
 
@@ -29,12 +32,14 @@ class MissionControlGraphQlController {
             ExecutionOverview executions,
             CustomerDirectory customers,
             StockDirectory stock,
+            ReservationDirectory reservations,
             CreditPortfolio credit,
             @Value("${vextis.demo.tenant-id:demo-tenant}") String demoTenantId
     ) {
         this.executions = executions;
         this.customers = customers;
         this.stock = stock;
+        this.reservations = reservations;
         this.credit = credit;
         this.demoTenantId = demoTenantId;
     }
@@ -50,6 +55,7 @@ class MissionControlGraphQlController {
                         .map(MissionControlExecutionView::from).toList(),
                 customerSnapshots.stream().map(CustomerOverviewView::from).toList(),
                 stock.findAll(demoTenantId).stream().map(StockItemOverviewView::from).toList(),
+                reservations.findAll(demoTenantId).stream().map(StockReservationOverviewView::from).toList(),
                 credit.findAll(demoTenantId).stream()
                         .map(profile -> CreditProfileOverviewView.from(profile, customersById.get(profile.customerId())))
                         .toList()
@@ -60,6 +66,7 @@ class MissionControlGraphQlController {
             List<MissionControlExecutionView> executions,
             List<CustomerOverviewView> customers,
             List<StockItemOverviewView> stockItems,
+            List<StockReservationOverviewView> stockReservations,
             List<CreditProfileOverviewView> creditProfiles
     ) {
     }
@@ -88,6 +95,16 @@ class MissionControlGraphQlController {
     record StockItemOverviewView(String sku, int availableQuantity) {
         static StockItemOverviewView from(StockDirectory.StockSummary item) {
             return new StockItemOverviewView(item.sku(), item.availableQuantity());
+        }
+    }
+
+    record StockReservationOverviewView(
+            UUID id, UUID orderId, String sku, int quantity, String status, String createdAt
+    ) {
+        static StockReservationOverviewView from(StockReservation.Reservation reservation) {
+            return new StockReservationOverviewView(
+                    reservation.id(), reservation.orderId(), reservation.sku(), reservation.quantity(),
+                    reservation.status().name(), reservation.createdAt().toString());
         }
     }
 

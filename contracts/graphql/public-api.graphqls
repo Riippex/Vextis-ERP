@@ -8,6 +8,7 @@ type MissionControl {
   executions: [MissionControlExecution!]!
   customers: [CustomerOverview!]!
   stockItems: [StockItemOverview!]!
+  stockReservations: [StockReservationOverview!]!
   creditProfiles: [CreditProfileOverview!]!
 }
 
@@ -90,6 +91,21 @@ type Execution {
   plan: ExecutionPlan
   readiness: ExecutionReadiness
   approval: WorkflowApproval
+}
+
+type StockReservationOverview {
+  id: ID!
+  orderId: ID!
+  sku: String!
+  quantity: Int!
+  status: StockReservationStatus!
+  createdAt: String!
+}
+
+enum StockReservationStatus {
+  RESERVED
+  RELEASED
+  FULFILLED
 }
 
 type WorkflowApproval {

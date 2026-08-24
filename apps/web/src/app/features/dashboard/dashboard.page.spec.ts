@@ -25,6 +25,7 @@ describe('DashboardPage', () => {
         { sku: 'VXT-CHAIR-01', availableQuantity: 40 },
         { sku: 'VXT-DESK-01', availableQuantity: 12 },
       ],
+      stockReservations: [],
       creditProfiles: [
         {
           customerId: '11111111-1111-1111-1111-111111111111',

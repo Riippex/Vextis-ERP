@@ -12,7 +12,7 @@ describe('CrmSalesPage', () => {
     of({ data: { upsertCustomer: { id: 'customer-1', legalName: 'Globex', active: true } } }),
   );
   const store = {
-    data: signal({ executions: [], customers: [], stockItems: [], creditProfiles: [] }),
+    data: signal({ executions: [], customers: [], stockItems: [], stockReservations: [], creditProfiles: [] }),
     loading: signal(false),
     error: signal<string | null>(null),
     refresh: vi.fn(),

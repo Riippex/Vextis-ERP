@@ -59,6 +59,11 @@ export type SetStockAvailabilityInput = {
   sku: string;
 };
 
+export type StockReservationStatus =
+  | 'FULFILLED'
+  | 'RELEASED'
+  | 'RESERVED';
+
 export type TimelineEntryType =
   | 'APPROVAL_DECIDED'
   | 'APPROVAL_REQUESTED'
@@ -108,7 +113,7 @@ export type SetStockAvailabilityMutation = { setStockAvailability: { sku: string
 export type MissionControlQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type MissionControlQuery = { missionControl: { executions: Array<{ id: string, purchaseOrderNumber: string, customerName: string, state: ExecutionState, correlationId: string, updatedAt: string }>, customers: Array<{ id: string, legalName: string, active: boolean }>, stockItems: Array<{ sku: string, availableQuantity: number }>, creditProfiles: Array<{ customerId: string, customerName: string, standing: CreditStanding, maxPaymentTermsDays: number }> } };
+export type MissionControlQuery = { missionControl: { executions: Array<{ id: string, purchaseOrderNumber: string, customerName: string, state: ExecutionState, correlationId: string, updatedAt: string }>, customers: Array<{ id: string, legalName: string, active: boolean }>, stockItems: Array<{ sku: string, availableQuantity: number }>, stockReservations: Array<{ id: string, orderId: string, sku: string, quantity: number, status: StockReservationStatus, createdAt: string }>, creditProfiles: Array<{ customerId: string, customerName: string, standing: CreditStanding, maxPaymentTermsDays: number }> } };
 
 export type DecideApprovalMutationVariables = Exact<{
   input: DecideApprovalInput;
@@ -228,6 +233,14 @@ export const MissionControlDocument = gql`
     stockItems {
       sku
       availableQuantity
+    }
+    stockReservations {
+      id
+      orderId
+      sku
+      quantity
+      status
+      createdAt
     }
     creditProfiles {
       customerId
