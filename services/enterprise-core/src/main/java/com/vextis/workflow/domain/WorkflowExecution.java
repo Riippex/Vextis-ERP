@@ -16,7 +16,8 @@ public record WorkflowExecution(
         Instant updatedAt,
         List<ExecutionTimelineEntry> timeline,
         WorkflowPlan plan,
-        WorkflowReadiness readiness
+        WorkflowReadiness readiness,
+        WorkflowApproval approval
 ) {
 
     public WorkflowExecution(
@@ -30,7 +31,7 @@ public record WorkflowExecution(
             Instant updatedAt,
             List<ExecutionTimelineEntry> timeline
     ) {
-        this(id, tenantId, sourceId, goal, state, correlationId, createdAt, updatedAt, timeline, null, null);
+        this(id, tenantId, sourceId, goal, state, correlationId, createdAt, updatedAt, timeline, null, null, null);
     }
 
     public WorkflowExecution(
@@ -38,7 +39,16 @@ public record WorkflowExecution(
             String correlationId, Instant createdAt, Instant updatedAt,
             List<ExecutionTimelineEntry> timeline, WorkflowPlan plan
     ) {
-        this(id, tenantId, sourceId, goal, state, correlationId, createdAt, updatedAt, timeline, plan, null);
+        this(id, tenantId, sourceId, goal, state, correlationId, createdAt, updatedAt, timeline, plan, null, null);
+    }
+
+    public WorkflowExecution(
+            UUID id, String tenantId, UUID sourceId, String goal, ExecutionState state,
+            String correlationId, Instant createdAt, Instant updatedAt,
+            List<ExecutionTimelineEntry> timeline, WorkflowPlan plan, WorkflowReadiness readiness
+    ) {
+        this(id, tenantId, sourceId, goal, state, correlationId, createdAt, updatedAt,
+                timeline, plan, readiness, null);
     }
 
     public WorkflowExecution {
@@ -75,7 +85,8 @@ public record WorkflowExecution(
                 now,
                 updatedTimeline,
                 plan,
-                readiness
+                readiness,
+                approval
         );
     }
 
@@ -105,7 +116,8 @@ public record WorkflowExecution(
                 now,
                 updatedTimeline,
                 structuredPlan,
-                readiness
+                readiness,
+                approval
         );
     }
 
@@ -126,7 +138,44 @@ public record WorkflowExecution(
         ));
         return new WorkflowExecution(
                 id, tenantId, sourceId, goal, state, correlationId, createdAt, now,
-                updatedTimeline, plan, evaluation
+                updatedTimeline, plan, evaluation, approval
         );
+    }
+
+    public WorkflowExecution requestApproval(String recommendation, String requestedBy, Instant now, Instant expiresAt) {
+        if (state != ExecutionState.RUNNING || readiness == null || approval != null) {
+            throw new IllegalStateException("Only a ready running execution can request approval once");
+        }
+        String normalizedRecommendation = recommendation == null ? null : recommendation.trim();
+        WorkflowApproval requested = new WorkflowApproval(
+                UUID.randomUUID(), normalizedRecommendation, ApprovalStatus.PENDING,
+                requestedBy, now, expiresAt, null, null, null);
+        ArrayList<ExecutionTimelineEntry> updatedTimeline = new ArrayList<>(timeline);
+        updatedTimeline.add(new ExecutionTimelineEntry(
+                timeline.size() + 1, TimelineEntryType.APPROVAL_REQUESTED,
+                "Human approval requested",
+                "The agent recommendation and authoritative readiness evidence are awaiting a user decision.", now));
+        return new WorkflowExecution(
+                id, tenantId, sourceId, goal, ExecutionState.WAITING_APPROVAL, correlationId,
+                createdAt, now, updatedTimeline, plan, readiness, requested);
+    }
+
+    public WorkflowExecution decideApproval(
+            UUID approvalId, ApprovalDecision decision, String actorId, String reason, Instant now
+    ) {
+        if (state != ExecutionState.WAITING_APPROVAL || approval == null || !approval.id().equals(approvalId)) {
+            throw new IllegalStateException("Execution is not waiting for this approval");
+        }
+        WorkflowApproval decided = approval.decide(decision, actorId, reason, now);
+        ExecutionState nextState = decision == ApprovalDecision.APPROVE
+                ? ExecutionState.RUNNING : ExecutionState.FAILED;
+        ArrayList<ExecutionTimelineEntry> updatedTimeline = new ArrayList<>(timeline);
+        updatedTimeline.add(new ExecutionTimelineEntry(
+                timeline.size() + 1, TimelineEntryType.APPROVAL_DECIDED,
+                decision == ApprovalDecision.APPROVE ? "Recommendation approved" : "Recommendation rejected",
+                reason == null || reason.isBlank() ? "Decision recorded by an authenticated user." : reason.trim(), now));
+        return new WorkflowExecution(
+                id, tenantId, sourceId, goal, nextState, correlationId,
+                createdAt, now, updatedTimeline, plan, readiness, decided);
     }
 }

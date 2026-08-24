@@ -204,6 +204,41 @@ async def test_client_evaluates_readiness_with_stable_idempotency_key() -> None:
 
 
 @pytest.mark.asyncio
+async def test_client_requests_human_approval_with_stable_idempotency_key() -> None:
+    captured: httpx.Request | None = None
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal captured
+        captured = request
+        return httpx.Response(
+            200,
+            json={
+                "id": "8d3f290d-1322-44a2-8bd7-3b325f170e07",
+                "state": "WAITING_APPROVAL",
+                "correlationId": "corr-001",
+                "updatedAt": "2026-08-21T03:30:08Z",
+            },
+        )
+
+    client = EnterpriseCorePlanningClient(settings(), httpx.MockTransport(respond))
+    event = PurchaseOrderReceivedV2.model_validate(purchase_order_event())
+    context = PlanningContext(
+        id=str(event.payload.execution_id), state="RUNNING", correlationId=event.correlation_id,
+        updatedAt="2026-08-21T03:30:06Z", goal="Process", purchaseOrderNumber="PO-2026-001",
+        customerName="Acme Colombia", documentUri=event.payload.document_uri,
+        readinessEvaluated=True,
+    )
+
+    result = await client.request_approval(event, context, "Proceed after human review.")
+
+    assert result.state == "WAITING_APPROVAL"
+    assert captured is not None
+    assert captured.url.path.endswith("/approval")
+    assert captured.headers["Idempotency-Key"].endswith(":request-approval")
+    assert json.loads(captured.content) == {"recommendation": "Proceed after human review."}
+
+
+@pytest.mark.asyncio
 async def test_client_does_not_retry_deterministic_rejection() -> None:
     transport = httpx.MockTransport(lambda request: httpx.Response(409))
     client = EnterpriseCorePlanningClient(settings(), transport)

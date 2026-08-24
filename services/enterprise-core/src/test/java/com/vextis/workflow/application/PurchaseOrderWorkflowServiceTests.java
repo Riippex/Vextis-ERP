@@ -6,6 +6,8 @@ import com.vextis.inventory.StockLookup;
 import com.vextis.workflow.application.port.PurchaseOrderWorkflowRepository;
 import com.vextis.workflow.ExecutionOverview;
 import com.vextis.workflow.domain.Actor;
+import com.vextis.workflow.domain.ApprovalDecision;
+import com.vextis.workflow.domain.ApprovalStatus;
 import com.vextis.workflow.domain.ExecutionState;
 import com.vextis.workflow.domain.ExtractedOrderLine;
 import com.vextis.workflow.domain.PlanningDepartment;
@@ -179,6 +181,37 @@ class PurchaseOrderWorkflowServiceTests {
     }
 
     @Test
+    void requestsAndDecidesHumanApprovalWithDurableIdentity() {
+        PurchaseOrderReceipt received = service.receive(command("receive-po-001"));
+        UUID eventId = UUID.fromString("8b962f0a-1850-4fcc-a6f5-97e45c67a16e");
+        PlanningContext planning = service.startPlanning(new StartPlanningCommand(
+                "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"), received.execution().id(),
+                eventId, received.execution().correlationId(), received.purchaseOrder().documentUri(), eventId.toString()));
+        service.recordPlan(new RecordPlanCommand(
+                "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"), planning.execution().id(),
+                planning.execution().correlationId(), "gemini-3.5-flash", "Validate readiness.",
+                List.of(new WorkflowPlanStep(1, PlanningDepartment.FINANCE_BILLING, "Validate.", true)),
+                List.of(new ExtractedOrderLine("VXT-CHAIR-01", 10)), 30, eventId + ":record-plan"));
+        service.evaluateReadiness(new EvaluateReadinessCommand(
+                "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"), received.execution().id(),
+                received.execution().correlationId(), eventId + ":evaluate-readiness"));
+
+        WorkflowExecution waiting = service.requestApproval(new RequestApprovalCommand(
+                "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"), received.execution().id(),
+                received.execution().correlationId(), "Proceed after human review.", eventId + ":request-approval"));
+        WorkflowExecution approved = service.decideApproval(new DecideApprovalCommand(
+                "demo-tenant", new Actor(Actor.Type.USER, "firebase-user"), received.execution().id(),
+                waiting.approval().id(), ApprovalDecision.APPROVE, "Evidence reviewed",
+                "decide-approval-0001"));
+
+        assertThat(waiting.state()).isEqualTo(ExecutionState.WAITING_APPROVAL);
+        assertThat(approved.approval().status()).isEqualTo(ApprovalStatus.APPROVED);
+        assertThat(approved.approval().decidedBy()).isEqualTo("firebase-user");
+        assertThat(repository.approvalRequestSaveCount).isEqualTo(1);
+        assertThat(repository.approvalDecisionSaveCount).isEqualTo(1);
+    }
+
+    @Test
     void rejectsPlanningWhenCorrelationDoesNotMatch() {
         PurchaseOrderReceipt received = service.receive(command("receive-po-001"));
 
@@ -222,6 +255,10 @@ class PurchaseOrderWorkflowServiceTests {
         private int planSaveCount;
         private String readinessIdempotencyKey;
         private int readinessSaveCount;
+        private String approvalRequestIdempotencyKey;
+        private int approvalRequestSaveCount;
+        private String approvalDecisionIdempotencyKey;
+        private int approvalDecisionSaveCount;
 
         @Override
         public void acquireIdempotencyLock(String tenantId, String operation, String idempotencyKey) {
@@ -282,6 +319,10 @@ class PurchaseOrderWorkflowServiceTests {
             if (idempotencyKey.equals(readinessIdempotencyKey)) {
                 return Optional.ofNullable(receipt).map(PurchaseOrderReceipt::execution);
             }
+            if (idempotencyKey.equals(approvalRequestIdempotencyKey)
+                    || idempotencyKey.equals(approvalDecisionIdempotencyKey)) {
+                return Optional.ofNullable(receipt).map(PurchaseOrderReceipt::execution);
+            }
             return Optional.empty();
         }
 
@@ -333,6 +374,26 @@ class PurchaseOrderWorkflowServiceTests {
             receipt = new PurchaseOrderReceipt(receipt.purchaseOrder(), updated);
             readinessIdempotencyKey = idempotencyKey;
             readinessSaveCount++;
+        }
+
+        @Override
+        public void saveApprovalRequested(
+                WorkflowExecution previous, WorkflowExecution updated, Actor actor,
+                String operation, String idempotencyKey
+        ) {
+            receipt = new PurchaseOrderReceipt(receipt.purchaseOrder(), updated);
+            approvalRequestIdempotencyKey = idempotencyKey;
+            approvalRequestSaveCount++;
+        }
+
+        @Override
+        public void saveApprovalDecided(
+                WorkflowExecution previous, WorkflowExecution updated, Actor actor,
+                String operation, String idempotencyKey
+        ) {
+            receipt = new PurchaseOrderReceipt(receipt.purchaseOrder(), updated);
+            approvalDecisionIdempotencyKey = idempotencyKey;
+            approvalDecisionSaveCount++;
         }
     }
 }

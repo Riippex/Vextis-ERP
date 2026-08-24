@@ -6,6 +6,8 @@ import com.vextis.workflow.application.RecordPlanCommand;
 import com.vextis.workflow.application.RecordPlanUseCase;
 import com.vextis.workflow.application.StartPlanningCommand;
 import com.vextis.workflow.application.StartPlanningUseCase;
+import com.vextis.workflow.application.RequestApprovalUseCase;
+import com.vextis.workflow.application.RequestApprovalCommand;
 import com.vextis.workflow.domain.ExecutionState;
 import com.vextis.workflow.domain.ExecutionTimelineEntry;
 import com.vextis.workflow.domain.ExtractedOrderLine;
@@ -54,6 +56,9 @@ class AgentWorkflowToolControllerTests {
     @MockitoBean
     private EvaluateReadinessUseCase evaluateReadiness;
 
+    @MockitoBean
+    private RequestApprovalUseCase requestApproval;
+
     @Test
     void authenticatedCoordinatorCanStartPlanning() throws Exception {
         when(startPlanning.startPlanning(any(StartPlanningCommand.class))).thenReturn(planningContext());
@@ -73,7 +78,7 @@ class AgentWorkflowToolControllerTests {
         mockMvc.perform(validRequest("Bearer wrong-token", "demo-tenant"))
                 .andExpect(status().isUnauthorized());
 
-        verifyNoInteractions(startPlanning, recordPlan, evaluateReadiness);
+        verifyNoInteractions(startPlanning, recordPlan, evaluateReadiness, requestApproval);
     }
 
     @Test
@@ -81,7 +86,7 @@ class AgentWorkflowToolControllerTests {
         mockMvc.perform(validRequest("Bearer test-service-token", "other-tenant"))
                 .andExpect(status().isForbidden());
 
-        verifyNoInteractions(startPlanning, recordPlan, evaluateReadiness);
+        verifyNoInteractions(startPlanning, recordPlan, evaluateReadiness, requestApproval);
     }
 
     @Test
@@ -115,6 +120,25 @@ class AgentWorkflowToolControllerTests {
                 .andExpect(jsonPath("$.state").value("RUNNING"));
 
         verify(recordPlan).recordPlan(any(RecordPlanCommand.class));
+    }
+
+    @Test
+    void authenticatedCoordinatorCanRequestHumanApproval() throws Exception {
+        when(requestApproval.requestApproval(any(RequestApprovalCommand.class))).thenReturn(runningExecution());
+
+        mockMvc.perform(post("/internal/agent-tools/v1/workflows/{executionId}/approval", EXECUTION_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer test-service-token")
+                        .header("X-Tenant-Id", "demo-tenant")
+                        .header("X-Agent-Id", "coordinator-agent")
+                        .header("X-Correlation-Id", "corr-001")
+                        .header("Idempotency-Key", "8b962f0a-1850-4fcc-a6f5-97e45c67a16e:approval")
+                        .content("""
+                                {"recommendation":"Proceed only after a human reviews Core evidence."}
+                                """))
+                .andExpect(status().isOk());
+
+        verify(requestApproval).requestApproval(any(RequestApprovalCommand.class));
     }
 
     private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder validRequest(

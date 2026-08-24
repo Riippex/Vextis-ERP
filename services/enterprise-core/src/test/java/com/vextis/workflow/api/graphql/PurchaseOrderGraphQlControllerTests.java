@@ -3,6 +3,8 @@ package com.vextis.workflow.api.graphql;
 import com.vextis.workflow.application.FindExecutionUseCase;
 import com.vextis.workflow.application.ReceivePurchaseOrderCommand;
 import com.vextis.workflow.application.ReceivePurchaseOrderUseCase;
+import com.vextis.workflow.application.DecideApprovalUseCase;
+import com.vextis.shared.security.CurrentActorProvider;
 import com.vextis.workflow.domain.ExecutionState;
 import com.vextis.workflow.domain.ExecutionTimelineEntry;
 import com.vextis.workflow.domain.ExtractedOrderLine;
@@ -54,9 +56,16 @@ class PurchaseOrderGraphQlControllerTests {
     @MockitoBean
     private FindExecutionUseCase findExecution;
 
+    @MockitoBean
+    private DecideApprovalUseCase decideApproval;
+
+    @MockitoBean
+    private CurrentActorProvider currentActor;
+
     @Test
     @WithMockUser(username = "firebase-user-123")
     void receivesPurchaseOrderAndReturnsExecutionEvidence() {
+        when(currentActor.currentActorId()).thenReturn("firebase-user-123");
         when(receivePurchaseOrder.receive(any(ReceivePurchaseOrderCommand.class))).thenReturn(receipt());
 
         graphQlTester.documentName("receive-purchase-order")

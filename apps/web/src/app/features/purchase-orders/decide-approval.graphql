@@ -1,5 +1,5 @@
-query FindExecution($id: ID!) {
-  execution(id: $id) {
+mutation DecideApproval($input: DecideApprovalInput!) {
+  decideApproval(input: $input) {
     id
     goal
     state
@@ -18,24 +18,12 @@ query FindExecution($id: ID!) {
       modelId
       generatedAt
       requestedPaymentTermsDays
-      orderLines {
-        sku
-        quantity
-      }
-      steps {
-        sequence
-        department
-        objective
-        requiresApproval
-      }
+      orderLines { sku quantity }
+      steps { sequence department objective requiresApproval }
     }
     readiness {
       evaluatedAt
-      checks {
-        department
-        status
-        detail
-      }
+      checks { department status detail }
     }
     approval {
       id
