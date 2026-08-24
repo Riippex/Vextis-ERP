@@ -1,6 +1,6 @@
 @if (!hideChrome()) {
-  <mat-toolbar class="shell__toolbar">
-    <div class="shell__toolbar-inner">
+  <div class="app-shell" [class.app-shell--collapsed]="sidebarCollapsed()">
+    <aside class="shell__sidebar" aria-label="Workspace navigation">
       <a class="brand" routerLink="/app" aria-label="Vextis Mission Control">
         <span class="brand__mark">
           <svg width="26" height="26" viewBox="0 0 40 40" fill="none" aria-hidden="true">
@@ -22,33 +22,77 @@
         <span class="brand__word">Vextis</span>
       </a>
 
-      <nav class="shell__nav" aria-label="Workspace navigation">
-        <a mat-button routerLink="/app" routerLinkActive="shell__nav-link--active" [routerLinkActiveOptions]="{ exact: true }">
-          Mission Control
+      <nav class="shell__nav">
+        <span class="shell__nav-section">General</span>
+        <a routerLink="/app" routerLinkActive="shell__nav-link--active" [routerLinkActiveOptions]="{ exact: true }" title="Overview">
+          <mat-icon>dashboard</mat-icon>
+          <span>Overview</span>
         </a>
-        <a mat-button routerLink="/app/crm" routerLinkActive="shell__nav-link--active">CRM</a>
-        <a mat-button routerLink="/app/inventory" routerLinkActive="shell__nav-link--active">Inventory</a>
-        <a mat-button routerLink="/app/finance" routerLinkActive="shell__nav-link--active">Finance</a>
+        <a routerLink="/app/purchase-orders/new" routerLinkActive="shell__nav-link--active" title="Order intake">
+          <mat-icon>move_to_inbox</mat-icon>
+          <span>Order intake</span>
+        </a>
+
+        <span class="shell__nav-section">Departments</span>
+        <a routerLink="/app/crm" routerLinkActive="shell__nav-link--active" title="CRM & Sales">
+          <mat-icon>handshake</mat-icon>
+          <span>CRM & Sales</span>
+        </a>
+        <a routerLink="/app/inventory" routerLinkActive="shell__nav-link--active" title="Inventory">
+          <mat-icon>inventory_2</mat-icon>
+          <span>Inventory</span>
+        </a>
+        <a routerLink="/app/finance" routerLinkActive="shell__nav-link--active" title="Finance & Billing">
+          <mat-icon>account_balance</mat-icon>
+          <span>Finance & Billing</span>
+        </a>
       </nav>
+
+      <div class="shell__agent-status" title="Gemini agent layer active">
+        <mat-icon>smart_toy</mat-icon>
+        <span><strong>Gemini</strong>Agent layer active</span>
+        <i aria-hidden="true"></i>
+      </div>
+    </aside>
+
+    <mat-toolbar class="shell__toolbar">
+      <button
+        mat-icon-button
+        type="button"
+        [attr.aria-label]="sidebarCollapsed() ? 'Expand navigation' : 'Collapse navigation'"
+        [attr.aria-expanded]="!sidebarCollapsed()"
+        (click)="toggleSidebar()"
+      >
+        <mat-icon>{{ sidebarCollapsed() ? 'menu_open' : 'menu' }}</mat-icon>
+      </button>
+
+      <div class="shell__page-context">
+        <strong>{{ routeContext().title }}</strong>
+        <span>{{ routeContext().subtitle }}</span>
+      </div>
 
       <div class="shell__actions">
         <span class="shell__environment">Hackathon workspace</span>
         <button
           mat-icon-button
           type="button"
-          [attr.aria-label]="isDark() ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'"
+          [attr.aria-label]="isDark() ? 'Switch to light mode' : 'Switch to dark mode'"
           (click)="toggleTheme()"
         >
           <mat-icon>{{ isDark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
         </button>
-        <button mat-icon-button type="button" aria-label="Cerrar sesión" (click)="signOut()">
+        <button mat-icon-button type="button" aria-label="Sign out" (click)="signOut()">
           <mat-icon>logout</mat-icon>
         </button>
       </div>
-    </div>
-  </mat-toolbar>
-}
+    </mat-toolbar>
 
-<main class="shell__content" [class.shell__content--bare]="hideChrome()">
-  <router-outlet />
-</main>
+    <main class="shell__content">
+      <router-outlet />
+    </main>
+  </div>
+} @else {
+  <main class="shell__content shell__content--bare">
+    <router-outlet />
+  </main>
+}
