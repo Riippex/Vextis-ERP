@@ -49,8 +49,8 @@ resource "google_service_account" "pubsub_push" {
 resource "google_service_account" "cloud_build" {
   project      = var.project_id
   account_id   = "vextis-build-${var.environment}"
-  display_name = "Vextis Cloud Build (${var.environment})"
-  description  = "Least-privilege identity for building Vextis container images."
+  display_name = "Vextis Delivery (${var.environment})"
+  description  = "Federated identity for selective Vextis builds and deployments."
 
   lifecycle {
     prevent_destroy = true
@@ -99,8 +99,44 @@ resource "google_project_iam_member" "cloud_build_submitter" {
   member  = "serviceAccount:${google_service_account.cloud_build.email}"
 }
 
+resource "google_project_iam_member" "cloud_build_cloud_run_developer" {
+  project = var.project_id
+  role    = "roles/run.developer"
+  member  = "serviceAccount:${google_service_account.cloud_build.email}"
+}
+
+resource "google_project_iam_member" "cloud_build_firebase_hosting_admin" {
+  project = var.project_id
+  role    = "roles/firebasehosting.admin"
+  member  = "serviceAccount:${google_service_account.cloud_build.email}"
+}
+
+resource "google_project_iam_member" "cloud_build_service_usage_consumer" {
+  project = var.project_id
+  role    = "roles/serviceusage.serviceUsageConsumer"
+  member  = "serviceAccount:${google_service_account.cloud_build.email}"
+}
+
 resource "google_service_account_iam_member" "cloud_build_can_use_itself" {
   service_account_id = google_service_account.cloud_build.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.cloud_build.email}"
+}
+
+resource "google_service_account_iam_member" "cloud_build_can_use_enterprise_core" {
+  service_account_id = google_service_account.enterprise_core.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.cloud_build.email}"
+}
+
+resource "google_service_account_iam_member" "cloud_build_can_use_enterprise_core_public" {
+  service_account_id = google_service_account.enterprise_core_public.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.cloud_build.email}"
+}
+
+resource "google_service_account_iam_member" "cloud_build_can_use_agent_runtime" {
+  service_account_id = google_service_account.agent_runtime.name
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${google_service_account.cloud_build.email}"
 }

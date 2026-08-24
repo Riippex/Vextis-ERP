@@ -19,7 +19,7 @@ output "pubsub_push_email" {
 }
 
 output "cloud_build_email" {
-  description = "Least-privilege service identity for Cloud Build."
+  description = "Federated service identity for selective builds and deployments."
   value       = google_service_account.cloud_build.email
 }
 
