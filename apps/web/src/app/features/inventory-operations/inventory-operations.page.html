@@ -1,0 +1,62 @@
+<div class="workspace-page">
+  <header class="page-header">
+    <div class="page-header__copy">
+      <p class="eyebrow">Inventory & Operations</p>
+      <h1>Availability before commitment.</h1>
+      <p class="page-lead">
+        Agents can inspect stock evidence, but reservations will remain an explicit Core mutation.
+      </p>
+    </div>
+    <div class="page-actions">
+      <a mat-stroked-button routerLink="/app"><mat-icon>arrow_back</mat-icon> Mission Control</a>
+      <button mat-flat-button type="button" (click)="store.refresh()"><mat-icon>refresh</mat-icon> Refresh</button>
+    </div>
+  </header>
+
+  @if (store.loading() && !store.data()) {
+    <section class="panel state-panel"><mat-spinner diameter="28" /> Loading inventory…</section>
+  } @else if (store.error()) {
+    <section class="panel state-panel" role="alert"><mat-icon>cloud_off</mat-icon>{{ store.error() }}</section>
+  } @else if (store.data(); as data) {
+    <section class="metric-grid">
+      <article class="metric-card">
+        <span class="metric-card__label">Tracked SKUs</span>
+        <strong class="metric-card__value">{{ data.stockItems.length }}</strong>
+        <span class="metric-card__detail">Inventory-owned records</span>
+      </article>
+      <article class="metric-card">
+        <span class="metric-card__label">Available units</span>
+        <strong class="metric-card__value">{{ availableUnits() }}</strong>
+        <span class="metric-card__detail">Before any reservation</span>
+      </article>
+    </section>
+
+    <section>
+      <div class="section-heading">
+        <div><h2>Stock availability</h2><p>Current quantity by exact SKU.</p></div>
+      </div>
+      @if (data.stockItems.length) {
+        <div class="card-grid">
+          @for (item of data.stockItems; track item.sku) {
+            <article class="data-card">
+              <div class="data-card__topline">
+                <span class="department-card__icon"><mat-icon>inventory_2</mat-icon></span>
+                <span class="status-pill" [class.status-pill--good]="item.availableQuantity > 0">
+                  {{ item.availableQuantity > 0 ? 'Available' : 'Depleted' }}
+                </span>
+              </div>
+              <div>
+                <h2>{{ item.sku }}</h2>
+                <p>Available quantity</p>
+              </div>
+              <strong class="data-card__number">{{ item.availableQuantity }}</strong>
+              <div class="data-card__footer">No reservation has been inferred by the UI.</div>
+            </article>
+          }
+        </div>
+      } @else {
+        <section class="panel state-panel"><mat-icon>inventory</mat-icon>No stock records available.</section>
+      }
+    </section>
+  }
+</div>

@@ -1,0 +1,62 @@
+<div class="workspace-page">
+  <header class="page-header">
+    <div class="page-header__copy">
+      <p class="eyebrow">CRM & Sales</p>
+      <h1>Customer context agents can trust.</h1>
+      <p class="page-lead">
+        Customer identity and commercial status remain authoritative in Enterprise Core.
+      </p>
+    </div>
+    <div class="page-actions">
+      <a mat-stroked-button routerLink="/app"><mat-icon>arrow_back</mat-icon> Mission Control</a>
+      <button mat-flat-button type="button" (click)="store.refresh()">
+        <mat-icon>refresh</mat-icon> Refresh
+      </button>
+    </div>
+  </header>
+
+  @if (store.loading() && !store.data()) {
+    <section class="panel state-panel"><mat-spinner diameter="28" /> Loading customers…</section>
+  } @else if (store.error()) {
+    <section class="panel state-panel" role="alert"><mat-icon>cloud_off</mat-icon>{{ store.error() }}</section>
+  } @else if (store.data(); as data) {
+    <section class="metric-grid">
+      <article class="metric-card">
+        <span class="metric-card__label">Customer records</span>
+        <strong class="metric-card__value">{{ data.customers.length }}</strong>
+        <span class="metric-card__detail">Tenant-scoped directory</span>
+      </article>
+      <article class="metric-card">
+        <span class="metric-card__label">Active customers</span>
+        <strong class="metric-card__value">{{ activeCustomers() }}</strong>
+        <span class="metric-card__detail">Eligible for workflow matching</span>
+      </article>
+    </section>
+
+    <section class="panel">
+      <div class="panel__header">
+        <h2>Customer directory</h2>
+        <span class="data-row__meta">CRM-owned data</span>
+      </div>
+      @if (data.customers.length) {
+        <div class="data-list">
+          @for (customer of data.customers; track customer.id) {
+            <div class="data-row">
+              <div>
+                <div class="data-row__primary">{{ customer.legalName }}</div>
+                <div class="data-row__secondary">{{ customer.id }}</div>
+              </div>
+              <span class="status-pill" [class.status-pill--good]="customer.active">
+                {{ customer.active ? 'Active' : 'Inactive' }}
+              </span>
+              <span class="data-row__meta">Customer identity verified by Core</span>
+              <mat-icon aria-hidden="true">verified_user</mat-icon>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="state-panel"><mat-icon>person_search</mat-icon>No customer records available.</div>
+      }
+    </section>
+  }
+</div>
