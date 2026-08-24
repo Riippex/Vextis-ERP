@@ -3,13 +3,14 @@
 ## Environments and branches
 
 - Local development remains the default developer environment.
-- `develop` integrates changes and publishes versioned images for the shared `hackathon` environment.
+- `develop` integrates changes and runs the complete validation suite.
+- `main` publishes versioned images for the shared `hackathon` environment after validation succeeds.
 - Pull requests never receive Google Cloud credentials.
 - Production and a separate Google Cloud `dev` environment are intentionally out of scope for the hackathon.
 
 ## Continuous integration
 
-`.github/workflows/ci.yml` runs on every pull request and on `develop`:
+`.github/workflows/ci.yml` runs on every pull request and on pushes to `develop` and `main`:
 
 - Enterprise Core Gradle tests, including architecture and integration tests;
 - Agent Runtime tests/evals, Ruff, and strict mypy;
@@ -20,7 +21,7 @@ The workflow has read-only repository permissions and no Google Cloud identity.
 
 ## Continuous delivery
 
-After all four CI jobs pass on `develop`, the delivery job checks whether deployable sources changed. Only then does GitHub exchange its short-lived OIDC token for the `vextis-build-hackathon` service identity. No service-account key or GitHub secret is stored.
+After all four CI jobs pass on `main`, the delivery job checks whether deployable sources changed. Only then does GitHub exchange its short-lived OIDC token for the `vextis-build-hackathon` service identity. No service-account key or GitHub secret is stored. Pushes to `develop` validate the code but never receive a Google Cloud identity.
 
 Cloud Build publishes all three images using the immutable Git commit SHA as the tag. Publishing an artifact does not deploy it. Promotion to Cloud Run remains a deliberate Terraform operation until remote state and protected GitHub environments are in place.
 
@@ -30,7 +31,7 @@ The Workload Identity Provider accepts tokens only when all of these claims matc
 
 - repository ID `1338929025` (`Riippex/Vextis-ERP`);
 - repository owner ID `221794453` (`Riippex`);
-- ref `refs/heads/develop`.
+- ref `refs/heads/main`.
 
 The federated service account can create Cloud Builds, stage source archives, write build logs, and publish images. It cannot deploy Cloud Run, modify Terraform-managed infrastructure, access runtime secrets, query Cloud SQL, or call Vertex AI.
 

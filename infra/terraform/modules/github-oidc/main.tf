@@ -14,7 +14,7 @@ resource "google_iam_workload_identity_pool_provider" "github" {
   workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
   workload_identity_pool_provider_id = "github"
   display_name                       = "Vextis GitHub"
-  description                        = "Trust only Vextis develop workflow identities."
+  description                        = "Trust only Vextis delivery-branch workflow identities."
 
   attribute_mapping = {
     "google.subject"                = "assertion.sub"
