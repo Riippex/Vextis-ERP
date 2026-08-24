@@ -28,12 +28,15 @@ import java.util.UUID;
 
 @Service
 public class PurchaseOrderWorkflowService implements ReceivePurchaseOrderUseCase, FindExecutionUseCase,
-        StartPlanningUseCase, RecordPlanUseCase, EvaluateReadinessUseCase, ExecutionOverview {
+        StartPlanningUseCase, RecordPlanUseCase, EvaluateReadinessUseCase,
+        RequestApprovalUseCase, DecideApprovalUseCase, ExecutionOverview {
 
     static final String RECEIVE_OPERATION = "workflow.receive-purchase-order";
     static final String START_PLANNING_OPERATION = "workflow.start-planning";
     static final String RECORD_PLAN_OPERATION = "workflow.record-plan";
     static final String EVALUATE_READINESS_OPERATION = "workflow.evaluate-readiness";
+    static final String REQUEST_APPROVAL_OPERATION = "workflow.request-approval";
+    static final String DECIDE_APPROVAL_OPERATION = "workflow.decide-approval";
 
     private final PurchaseOrderWorkflowRepository repository;
     private final Clock clock;
@@ -262,6 +265,62 @@ public class PurchaseOrderWorkflowService implements ReceivePurchaseOrderUseCase
         }
         repository.saveReadinessRecorded(
                 current, updated, command.actor(), EVALUATE_READINESS_OPERATION, command.idempotencyKey());
+        return updated;
+    }
+
+    @Override
+    @Transactional
+    public WorkflowExecution requestApproval(RequestApprovalCommand command) {
+        if (command.actor().type() != Actor.Type.AGENT) {
+            throw new WorkflowConflictException("Only an authenticated agent can request approval");
+        }
+        repository.acquireIdempotencyLock(command.tenantId(), REQUEST_APPROVAL_OPERATION, command.idempotencyKey());
+        Optional<WorkflowExecution> previousResult = repository.findExecutionResult(
+                command.tenantId(), REQUEST_APPROVAL_OPERATION, command.idempotencyKey());
+        if (previousResult.isPresent()) {
+            return previousResult.get();
+        }
+        WorkflowExecution current = repository.findExecution(command.tenantId(), command.executionId())
+                .orElseThrow(() -> new WorkflowNotFoundException("Execution was not found for tenant"));
+        if (!current.correlationId().equals(command.correlationId())) {
+            throw new WorkflowConflictException("Correlation id does not match the execution");
+        }
+        Instant now = clock.instant();
+        WorkflowExecution updated;
+        try {
+            updated = current.requestApproval(
+                    command.recommendation(), command.actor().id(), now, now.plusSeconds(86_400));
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            throw new WorkflowConflictException(exception.getMessage());
+        }
+        repository.saveApprovalRequested(
+                current, updated, command.actor(), REQUEST_APPROVAL_OPERATION, command.idempotencyKey());
+        return updated;
+    }
+
+    @Override
+    @Transactional
+    public WorkflowExecution decideApproval(DecideApprovalCommand command) {
+        if (command.actor().type() != Actor.Type.USER) {
+            throw new WorkflowConflictException("Only an authenticated user can decide approval");
+        }
+        repository.acquireIdempotencyLock(command.tenantId(), DECIDE_APPROVAL_OPERATION, command.idempotencyKey());
+        Optional<WorkflowExecution> previousResult = repository.findExecutionResult(
+                command.tenantId(), DECIDE_APPROVAL_OPERATION, command.idempotencyKey());
+        if (previousResult.isPresent()) {
+            return previousResult.get();
+        }
+        WorkflowExecution current = repository.findExecution(command.tenantId(), command.executionId())
+                .orElseThrow(() -> new WorkflowNotFoundException("Execution was not found for tenant"));
+        WorkflowExecution updated;
+        try {
+            updated = current.decideApproval(
+                    command.approvalId(), command.decision(), command.actor().id(), command.reason(), clock.instant());
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            throw new WorkflowConflictException(exception.getMessage());
+        }
+        repository.saveApprovalDecided(
+                current, updated, command.actor(), DECIDE_APPROVAL_OPERATION, command.idempotencyKey());
         return updated;
     }
 

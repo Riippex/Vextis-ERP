@@ -59,4 +59,14 @@ public interface PurchaseOrderWorkflowRepository {
             String operation,
             String idempotencyKey
     );
+
+    void saveApprovalRequested(
+            WorkflowExecution previous, WorkflowExecution updated, Actor actor,
+            String operation, String idempotencyKey
+    );
+
+    void saveApprovalDecided(
+            WorkflowExecution previous, WorkflowExecution updated, Actor actor,
+            String operation, String idempotencyKey
+    );
 }

@@ -45,6 +45,17 @@ mutation ReceivePurchaseOrder($input: ReceivePurchaseOrderInput!) {
           detail
         }
       }
+      approval {
+        id
+        recommendation
+        status
+        requestedBy
+        requestedAt
+        expiresAt
+        decidedBy
+        decidedAt
+        reason
+      }
     }
   }
 }

@@ -13,6 +13,7 @@ import { Subscription, switchMap, takeWhile, timer } from 'rxjs';
 
 import {
   FindExecutionGQL,
+  DecideApprovalGQL,
   ReceivePurchaseOrderGQL,
   type FindExecutionQuery,
   type ReceivePurchaseOrderMutation,
@@ -42,11 +43,13 @@ export class ReceivePurchaseOrderPage {
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly receivePurchaseOrder = inject(ReceivePurchaseOrderGQL);
   private readonly findExecution = inject(FindExecutionGQL);
+  private readonly decideApprovalMutation = inject(DecideApprovalGQL);
   private readonly destroyRef = inject(DestroyRef);
   private monitoringSubscription?: Subscription;
 
   protected readonly submitting = signal(false);
   protected readonly monitoring = signal(false);
+  protected readonly deciding = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly receipt = signal<PurchaseOrderReceipt | null>(null);
 
@@ -58,6 +61,10 @@ export class ReceivePurchaseOrderPage {
       [Validators.required, Validators.pattern(/^gs:\/\/.+/), Validators.maxLength(1000)],
     ],
     idempotencyKey: [this.newIdempotencyKey(), [Validators.required, Validators.maxLength(200)]],
+  });
+
+  protected readonly decisionForm = this.formBuilder.group({
+    reason: ['', [Validators.maxLength(500)]],
   });
 
   protected submit(): void {
@@ -98,6 +105,37 @@ export class ReceivePurchaseOrderPage {
       customerName: '',
       documentUri: '',
       idempotencyKey: this.newIdempotencyKey(),
+    });
+  }
+
+  protected decideApproval(decision: 'APPROVE' | 'REJECT'): void {
+    const execution = this.receipt()?.execution;
+    if (!execution?.approval || execution.approval.status !== 'PENDING' || this.deciding()) {
+      return;
+    }
+    this.deciding.set(true);
+    this.errorMessage.set(null);
+    this.decideApprovalMutation.mutate({
+      variables: {
+        input: {
+          executionId: execution.id,
+          approvalId: execution.approval.id,
+          decision,
+          reason: this.decisionForm.controls.reason.value.trim() || null,
+          idempotencyKey: `decide-approval-${globalThis.crypto.randomUUID()}`,
+        },
+      },
+    }).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: ({ data }) => {
+        this.deciding.set(false);
+        if (data?.decideApproval) {
+          this.updateExecution(data.decideApproval);
+        }
+      },
+      error: (error: unknown) => {
+        this.deciding.set(false);
+        this.errorMessage.set(this.toActionableMessage(error));
+      },
     });
   }
 
@@ -150,6 +188,7 @@ export class ReceivePurchaseOrderPage {
       execution?.state === 'RECEIVED' ||
       execution?.state === 'PLANNING' ||
       (execution?.state === 'RUNNING' && !execution.readiness)
+      || (execution?.state === 'RUNNING' && execution.readiness != null && !execution.approval)
     );
   }
 

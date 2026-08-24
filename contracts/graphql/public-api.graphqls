@@ -46,6 +46,7 @@ enum CreditStanding {
 
 type Mutation {
   receivePurchaseOrder(input: ReceivePurchaseOrderInput!): PurchaseOrderReceipt!
+  decideApproval(input: DecideApprovalInput!): Execution!
   upsertCustomer(input: UpsertCustomerInput!): CustomerOverview!
   setStockAvailability(input: SetStockAvailabilityInput!): StockItemOverview!
   upsertCreditProfile(input: UpsertCreditProfileInput!): CreditProfileOverview!
@@ -88,6 +89,38 @@ type Execution {
   timeline: [ExecutionTimelineEntry!]!
   plan: ExecutionPlan
   readiness: ExecutionReadiness
+  approval: WorkflowApproval
+}
+
+type WorkflowApproval {
+  id: ID!
+  recommendation: String!
+  status: ApprovalStatus!
+  requestedBy: String!
+  requestedAt: String!
+  expiresAt: String!
+  decidedBy: String
+  decidedAt: String
+  reason: String
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ApprovalDecision {
+  APPROVE
+  REJECT
+}
+
+input DecideApprovalInput {
+  executionId: ID!
+  approvalId: ID!
+  decision: ApprovalDecision!
+  reason: String
+  idempotencyKey: String!
 }
 
 type ExecutionPlan {

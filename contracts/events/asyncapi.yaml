@@ -9,6 +9,10 @@ channels:
     messages:
       purchaseOrderReceived:
         $ref: "#/components/messages/PurchaseOrderReceivedV2"
+      workflowApprovalRequested:
+        $ref: "#/components/messages/WorkflowApprovalRequestedV1"
+      workflowApprovalDecided:
+        $ref: "#/components/messages/WorkflowApprovalDecidedV1"
 operations:
   receivePurchaseOrder:
     action: receive
@@ -16,6 +20,18 @@ operations:
       $ref: "#/channels/orderEvents"
     messages:
       - $ref: "#/channels/orderEvents/messages/purchaseOrderReceived"
+  publishWorkflowApprovalRequested:
+    action: send
+    channel:
+      $ref: "#/channels/orderEvents"
+    messages:
+      - $ref: "#/channels/orderEvents/messages/workflowApprovalRequested"
+  publishWorkflowApprovalDecided:
+    action: send
+    channel:
+      $ref: "#/channels/orderEvents"
+    messages:
+      - $ref: "#/channels/orderEvents/messages/workflowApprovalDecided"
 components:
   messages:
     PurchaseOrderReceivedV2:
@@ -23,3 +39,13 @@ components:
       title: Purchase order received (v2)
       payload:
         $ref: "./schemas/purchase-order-received.v2.json"
+    WorkflowApprovalRequestedV1:
+      name: workflow.approval.requested
+      title: Workflow approval requested (v1)
+      payload:
+        $ref: "./schemas/workflow-approval-requested.v1.json"
+    WorkflowApprovalDecidedV1:
+      name: workflow.approval.decided
+      title: Workflow approval decided (v1)
+      payload:
+        $ref: "./schemas/workflow-approval-decided.v1.json"

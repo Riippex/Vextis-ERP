@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vextis.dev/schemas/events/workflow-approval-requested.v1.json",
+  "title": "WorkflowApprovalRequestedV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_type", "event_version", "occurred_at", "producer", "tenant_id", "correlation_id", "causation_id", "actor", "payload"],
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_type": { "const": "workflow.approval.requested" },
+    "event_version": { "const": 1 },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "producer": { "const": "enterprise-core" },
+    "tenant_id": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "correlation_id": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "causation_id": { "type": "string", "format": "uuid" },
+    "actor": { "$ref": "#/$defs/actor" },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approval_id", "execution_id", "status", "recommendation", "evidence"],
+      "properties": {
+        "approval_id": { "type": "string", "format": "uuid" },
+        "execution_id": { "type": "string", "format": "uuid" },
+        "status": { "const": "PENDING" },
+        "recommendation": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "evidence": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "$ref": "#/$defs/evidence" } }
+      }
+    }
+  },
+  "$defs": {
+    "actor": {
+      "type": "object", "additionalProperties": false, "required": ["type", "id"],
+      "properties": { "type": { "const": "AGENT" }, "id": { "type": "string", "minLength": 1, "maxLength": 150 } }
+    },
+    "evidence": {
+      "type": "object", "additionalProperties": false, "required": ["department", "status", "detail"],
+      "properties": {
+        "department": { "enum": ["CRM_SALES", "INVENTORY_OPERATIONS", "FINANCE_BILLING"] },
+        "status": { "enum": ["READY", "REVIEW_REQUIRED"] },
+        "detail": { "type": "string", "minLength": 1, "maxLength": 500 }
+      }
+    }
+  }
+}

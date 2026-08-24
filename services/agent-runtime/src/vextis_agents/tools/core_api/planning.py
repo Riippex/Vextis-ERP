@@ -37,6 +37,10 @@ class PlanningTool(Protocol):
         self, event: PurchaseOrderReceivedV2, context: PlanningContext
     ) -> PlanningResult: ...
 
+    async def request_approval(
+        self, event: PurchaseOrderReceivedV2, context: PlanningContext, recommendation: str
+    ) -> PlanningResult: ...
+
 
 class CoreToolRejectedError(RuntimeError):
     """Enterprise Core deterministically rejected the requested transition."""
@@ -224,4 +228,33 @@ class EnterpriseCorePlanningClient:
             raise CoreToolUnavailableError("Enterprise Core returned a transient failure")
         raise CoreToolRejectedError(
             f"Enterprise Core rejected readiness evaluation with {response.status_code}"
+        )
+
+    async def request_approval(
+        self, event: PurchaseOrderReceivedV2, context: PlanningContext, recommendation: str
+    ) -> PlanningResult:
+        headers = await self._headers(
+            event,
+            context.correlation_id,
+            f"{event.event_id}:request-approval",
+        )
+        try:
+            async with httpx.AsyncClient(
+                base_url=self._base_url,
+                timeout=httpx.Timeout(10.0, connect=3.0),
+                transport=self._transport,
+            ) as client:
+                response = await client.post(
+                    f"/internal/agent-tools/v1/workflows/{context.id}/approval",
+                    headers=headers,
+                    json={"recommendation": recommendation},
+                )
+        except httpx.HTTPError as exception:
+            raise CoreToolUnavailableError("Enterprise Core could not be reached") from exception
+        if 200 <= response.status_code < 300:
+            return PlanningResult.model_validate(response.json())
+        if response.status_code >= 500:
+            raise CoreToolUnavailableError("Enterprise Core returned a transient failure")
+        raise CoreToolRejectedError(
+            f"Enterprise Core rejected approval request with {response.status_code}"
         )

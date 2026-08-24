@@ -105,6 +105,41 @@ paths:
           description: Agent is not authorized for this tenant
         "409":
           description: The execution has no structured order facts or cannot be evaluated
+  /workflows/{executionId}/approval:
+    post:
+      operationId: requestWorkflowApproval
+      security:
+        - serviceBearer: []
+      parameters:
+        - name: executionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestApprovalRequest"
+      responses:
+        "200":
+          description: Recommendation was bound to Core evidence and is waiting for human approval
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowExecution"
+        "401":
+          description: Missing or invalid service credential
+        "403":
+          description: Agent is not authorized for this tenant
+        "409":
+          description: Readiness is missing or the execution is not eligible for approval
   /inventory/reservations:
     post:
       operationId: reserveStock
@@ -232,6 +267,18 @@ components:
           maxLength: 1000
         readinessEvaluated:
           type: boolean
+        approvalStatus:
+          type: [string, "null"]
+          enum: [PENDING, APPROVED, REJECTED, null]
+    RequestApprovalRequest:
+      type: object
+      additionalProperties: false
+      required: [recommendation]
+      properties:
+        recommendation:
+          type: string
+          minLength: 1
+          maxLength: 500
     RecordPlanRequest:
       type: object
       additionalProperties: false
