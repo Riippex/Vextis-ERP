@@ -23,5 +23,8 @@ describe('App', () => {
     expect(isApplicationRoute('/login?next=%2Fapp')).toBe(false);
     expect(isApplicationRoute('/app')).toBe(true);
     expect(isApplicationRoute('/app/purchase-orders/new')).toBe(true);
+    expect(isApplicationRoute('/app/crm')).toBe(true);
+    expect(isApplicationRoute('/app/inventory')).toBe(true);
+    expect(isApplicationRoute('/app/finance')).toBe(true);
   });
 });

@@ -292,6 +292,30 @@ h1 {
   padding: 1rem;
 }
 
+.approval {
+  background: color-mix(in srgb, var(--vxt-brand-violet) 8%, var(--vxt-surface));
+  border: 1px solid color-mix(in srgb, var(--vxt-brand-violet) 35%, var(--vxt-border));
+  border-radius: 0.75rem;
+  margin: 1.5rem 0 2rem;
+  padding: 1rem;
+}
+
+.approval > small {
+  color: var(--vxt-muted);
+}
+
+.approval__decision {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.approval__actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+}
+
 .readiness ul {
   display: grid;
   gap: 0.75rem;

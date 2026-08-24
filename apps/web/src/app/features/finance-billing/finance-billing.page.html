@@ -1,0 +1,108 @@
+<div class="workspace-page">
+  <header class="page-header">
+    <div class="page-header__copy">
+      <p class="eyebrow">Finance & Billing</p>
+      <h1>Credit evidence with human control.</h1>
+      <p class="page-lead">
+        Commercial terms come from Finance-owned records; approval remains the next controlled action.
+      </p>
+    </div>
+    <div class="page-actions">
+      <a mat-stroked-button routerLink="/app"><mat-icon>arrow_back</mat-icon> Mission Control</a>
+      <button mat-flat-button type="button" (click)="store.refresh()"><mat-icon>refresh</mat-icon> Refresh</button>
+    </div>
+  </header>
+
+  @if (store.loading() && !store.data()) {
+    <section class="panel state-panel"><mat-spinner diameter="28" /> Loading credit profiles…</section>
+  } @else if (store.error()) {
+    <section class="panel state-panel" role="alert"><mat-icon>cloud_off</mat-icon>{{ store.error() }}</section>
+  } @else if (store.data(); as data) {
+    <section class="metric-grid">
+      <article class="metric-card">
+        <span class="metric-card__label">Credit profiles</span>
+        <strong class="metric-card__value">{{ data.creditProfiles.length }}</strong>
+        <span class="metric-card__detail">Finance-owned records</span>
+      </article>
+      <article class="metric-card">
+        <span class="metric-card__label">Good standing</span>
+        <strong class="metric-card__value">{{ goodStanding() }}</strong>
+        <span class="metric-card__detail">Within configured terms</span>
+      </article>
+    </section>
+
+    <section class="panel command-panel">
+      <div class="panel__header">
+        <div><p class="eyebrow">Authoritative command</p><h2>Set commercial credit</h2></div>
+        <span class="data-row__meta">Only CRM customers in this tenant are eligible</span>
+      </div>
+      <form class="command-form command-form--credit" [formGroup]="creditForm" (ngSubmit)="saveCreditProfile()">
+        <mat-form-field appearance="outline">
+          <mat-label>Customer</mat-label>
+          <mat-select formControlName="customerId">
+            @for (customer of data.customers; track customer.id) {
+              <mat-option [value]="customer.id">{{ customer.legalName }}</mat-option>
+            }
+          </mat-select>
+          @if (creditForm.controls.customerId.invalid) { <mat-error>Select a customer.</mat-error> }
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Standing</mat-label>
+          <mat-select formControlName="standing">
+            @for (standing of standings; track standing) { <mat-option [value]="standing">{{ standing }}</mat-option> }
+          </mat-select>
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Maximum payment terms</mat-label>
+          <input matInput type="number" min="0" max="365" formControlName="maxPaymentTermsDays" />
+          <span matTextSuffix>days</span>
+          @if (creditForm.controls.maxPaymentTermsDays.invalid) {
+            <mat-error>Terms must be between 0 and 365 days.</mat-error>
+          }
+        </mat-form-field>
+        <button mat-flat-button type="submit" [disabled]="saving() || !data.customers.length">
+          @if (saving()) { <mat-spinner diameter="18" /> } @else { <mat-icon>save</mat-icon> }
+          Save credit
+        </button>
+      </form>
+      @if (!data.customers.length) {
+        <p class="command-feedback command-feedback--error">Create a CRM customer before assigning credit.</p>
+      }
+      @if (saveMessage()) { <p class="command-feedback command-feedback--success">{{ saveMessage() }}</p> }
+      @if (saveError()) { <p class="command-feedback command-feedback--error" role="alert">{{ saveError() }}</p> }
+    </section>
+
+    <section>
+      <div class="section-heading">
+        <div><h2>Commercial credit</h2><p>Standing and maximum approved payment terms.</p></div>
+      </div>
+      @if (data.creditProfiles.length) {
+        <div class="card-grid">
+          @for (profile of data.creditProfiles; track profile.customerId) {
+            <article class="data-card">
+              <div class="data-card__topline">
+                <span class="department-card__icon"><mat-icon>account_balance</mat-icon></span>
+                <span
+                  class="status-pill"
+                  [class.status-pill--good]="profile.standing === 'GOOD'"
+                  [class.status-pill--review]="profile.standing !== 'GOOD'"
+                >{{ profile.standing }}</span>
+              </div>
+              <div>
+                <h2>{{ profile.customerName }}</h2>
+                <p>Maximum payment terms</p>
+              </div>
+              <strong class="data-card__number">{{ profile.maxPaymentTermsDays }}d</strong>
+              <div class="data-card__footer">
+                <span>Approval and invoicing mutations are intentionally deferred.</span>
+                <button mat-button type="button" (click)="editProfile(profile)"><mat-icon>edit</mat-icon>Edit</button>
+              </div>
+            </article>
+          }
+        </div>
+      } @else {
+        <section class="panel state-panel"><mat-icon>credit_score</mat-icon>No credit profiles available.</section>
+      }
+    </section>
+  }
+</div>

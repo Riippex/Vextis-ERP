@@ -1,0 +1,25 @@
+mutation CreateDemoCustomer {
+  upsertCustomer(input: { legalName: "Acme Colombia", active: true }) {
+    id
+    legalName
+    active
+  }
+}
+
+mutation SetDemoStock {
+  setStockAvailability(input: { sku: "VXT-CHAIR-01", availableQuantity: 40 }) {
+    sku
+    availableQuantity
+  }
+}
+
+mutation SetDemoCredit($customerId: ID!) {
+  upsertCreditProfile(
+    input: { customerId: $customerId, standing: GOOD, maxPaymentTermsDays: 30 }
+  ) {
+    customerId
+    customerName
+    standing
+    maxPaymentTermsDays
+  }
+}

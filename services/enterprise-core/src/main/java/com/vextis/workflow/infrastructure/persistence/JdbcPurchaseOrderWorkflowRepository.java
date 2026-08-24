@@ -1,7 +1,9 @@
 package com.vextis.workflow.infrastructure.persistence;
 
 import com.vextis.workflow.application.port.PurchaseOrderWorkflowRepository;
+import com.vextis.workflow.ExecutionOverview;
 import com.vextis.workflow.domain.Actor;
+import com.vextis.workflow.domain.ApprovalStatus;
 import com.vextis.workflow.domain.ExecutionState;
 import com.vextis.workflow.domain.ExecutionTimelineEntry;
 import com.vextis.workflow.domain.ExtractedOrderLine;
@@ -10,6 +12,7 @@ import com.vextis.workflow.domain.PurchaseOrderReceipt;
 import com.vextis.workflow.domain.PurchaseOrderSource;
 import com.vextis.workflow.domain.TimelineEntryType;
 import com.vextis.workflow.domain.WorkflowExecution;
+import com.vextis.workflow.domain.WorkflowApproval;
 import com.vextis.workflow.domain.WorkflowPlan;
 import com.vextis.workflow.domain.WorkflowPlanStep;
 import com.vextis.workflow.domain.ReadinessStatus;
@@ -27,6 +30,7 @@ import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -98,9 +102,34 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                 Map.of("tenantId", tenantId, "executionId", executionId),
                 (rs, rowNumber) -> mapExecution(
                         rs, findTimeline(executionId), findPlan(executionId).orElse(null),
-                        findReadiness(executionId).orElse(null))
+                        findReadiness(executionId).orElse(null), findApproval(executionId).orElse(null))
         );
         return executions.stream().findFirst();
+    }
+
+    @Override
+    public List<ExecutionOverview.ExecutionSummary> findRecentExecutions(String tenantId, int limit) {
+        return jdbc.query(
+                """
+                SELECT execution.id, purchase_order.purchase_order_number, purchase_order.customer_name,
+                       execution.state, execution.correlation_id, execution.updated_at
+                FROM workflow_executions execution
+                JOIN workflow_purchase_orders purchase_order
+                  ON purchase_order.id = execution.source_id
+                 AND purchase_order.tenant_id = execution.tenant_id
+                WHERE execution.tenant_id = :tenantId
+                ORDER BY execution.updated_at DESC
+                LIMIT :limit
+                """,
+                Map.of("tenantId", tenantId, "limit", limit),
+                (rs, row) -> new ExecutionOverview.ExecutionSummary(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("purchase_order_number"),
+                        rs.getString("customer_name"),
+                        rs.getString("state"),
+                        rs.getString("correlation_id"),
+                        readInstant(rs, "updated_at"))
+        );
     }
 
     @Override
@@ -570,6 +599,156 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
         );
     }
 
+    @Override
+    public void saveApprovalRequested(
+            WorkflowExecution previous, WorkflowExecution updated, Actor actor,
+            String operation, String idempotencyKey
+    ) {
+        WorkflowApproval approval = updated.approval();
+        if (approval == null || approval.status() != ApprovalStatus.PENDING) {
+            throw new IllegalArgumentException("Requested execution must contain a pending approval");
+        }
+        updateExecutionState(previous, updated);
+        jdbc.update(
+                """
+                INSERT INTO workflow_approvals
+                    (id, execution_id, recommendation, status, requested_by, requested_at, expires_at)
+                VALUES (:id, :executionId, :recommendation, :status, :requestedBy, :requestedAt, :expiresAt)
+                """,
+                new MapSqlParameterSource().addValue("id", approval.id()).addValue("executionId", updated.id())
+                        .addValue("recommendation", approval.recommendation()).addValue("status", approval.status().name())
+                        .addValue("requestedBy", approval.requestedBy())
+                        .addValue("requestedAt", sqlTimestamp(approval.requestedAt()), Types.TIMESTAMP_WITH_TIMEZONE)
+                        .addValue("expiresAt", sqlTimestamp(approval.expiresAt()), Types.TIMESTAMP_WITH_TIMEZONE));
+        saveTransitionEvidence(
+                updated, actor, "REQUEST_WORKFLOW_APPROVAL", "workflow.approval.requested", operation, idempotencyKey);
+    }
+
+    @Override
+    public void saveApprovalDecided(
+            WorkflowExecution previous, WorkflowExecution updated, Actor actor,
+            String operation, String idempotencyKey
+    ) {
+        WorkflowApproval approval = updated.approval();
+        int approvalChanged = jdbc.update(
+                """
+                UPDATE workflow_approvals
+                SET status = :status, decided_by = :decidedBy, decided_at = :decidedAt, decision_reason = :reason
+                WHERE id = :id AND execution_id = :executionId AND status = 'PENDING'
+                """,
+                new MapSqlParameterSource().addValue("status", approval.status().name())
+                        .addValue("decidedBy", approval.decidedBy())
+                        .addValue("decidedAt", sqlTimestamp(approval.decidedAt()), Types.TIMESTAMP_WITH_TIMEZONE)
+                        .addValue("reason", approval.reason()).addValue("id", approval.id())
+                        .addValue("executionId", updated.id()));
+        if (approvalChanged != 1) {
+            throw new IllegalStateException("Approval changed concurrently");
+        }
+        updateExecutionState(previous, updated);
+        saveTransitionEvidence(
+                updated, actor, "DECIDE_WORKFLOW_APPROVAL", "workflow.approval.decided", operation, idempotencyKey);
+    }
+
+    private void updateExecutionState(WorkflowExecution previous, WorkflowExecution updated) {
+        int changed = jdbc.update(
+                """
+                UPDATE workflow_executions SET state = :newState, updated_at = :updatedAt
+                WHERE tenant_id = :tenantId AND id = :executionId AND state = :previousState
+                """,
+                new MapSqlParameterSource().addValue("newState", updated.state().name())
+                        .addValue("updatedAt", sqlTimestamp(updated.updatedAt()), Types.TIMESTAMP_WITH_TIMEZONE)
+                        .addValue("tenantId", updated.tenantId()).addValue("executionId", updated.id())
+                        .addValue("previousState", previous.state().name()));
+        if (changed != 1) {
+            throw new IllegalStateException("Execution state changed concurrently");
+        }
+    }
+
+    private void saveTransitionEvidence(
+            WorkflowExecution updated, Actor actor, String action, String eventType,
+            String operation, String idempotencyKey
+    ) {
+        ExecutionTimelineEntry entry = updated.timeline().getLast();
+        UUID auditId = UUID.randomUUID();
+        jdbc.update(
+                """
+                INSERT INTO workflow_timeline_entries
+                    (id, execution_id, sequence_number, entry_type, title, detail, occurred_at)
+                VALUES (:id, :executionId, :sequence, :type, :title, :detail, :occurredAt)
+                """,
+                new MapSqlParameterSource().addValue("id", UUID.randomUUID()).addValue("executionId", updated.id())
+                        .addValue("sequence", entry.sequence()).addValue("type", entry.type().name())
+                        .addValue("title", entry.title()).addValue("detail", entry.detail())
+                        .addValue("occurredAt", sqlTimestamp(entry.occurredAt()), Types.TIMESTAMP_WITH_TIMEZONE));
+        jdbc.update(
+                """
+                INSERT INTO audit_records
+                    (id, tenant_id, correlation_id, actor_type, actor_id, action,
+                     resource_type, resource_id, result, occurred_at)
+                VALUES (:id, :tenantId, :correlationId, :actorType, :actorId, :action,
+                        'WORKFLOW_EXECUTION', :resourceId, 'SUCCEEDED', :occurredAt)
+                """,
+                new MapSqlParameterSource().addValue("id", auditId)
+                        .addValue("tenantId", updated.tenantId()).addValue("correlationId", updated.correlationId())
+                        .addValue("actorType", actor.type().name()).addValue("actorId", actor.id())
+                        .addValue("action", action).addValue("resourceId", updated.id())
+                        .addValue("occurredAt", sqlTimestamp(updated.updatedAt()), Types.TIMESTAMP_WITH_TIMEZONE));
+        saveApprovalOutboxEvent(updated, actor, auditId, eventType);
+        jdbc.update(
+                """
+                INSERT INTO idempotency_records
+                    (id, tenant_id, operation, idempotency_key, response_code, response_body)
+                VALUES (:id, :tenantId, :operation, :idempotencyKey, 200, CAST(:body AS JSONB))
+                """,
+                new MapSqlParameterSource().addValue("id", UUID.randomUUID()).addValue("tenantId", updated.tenantId())
+                        .addValue("operation", operation).addValue("idempotencyKey", idempotencyKey)
+                        .addValue("body", toJson(Map.of("executionId", updated.id().toString()))));
+    }
+
+    private void saveApprovalOutboxEvent(
+            WorkflowExecution execution, Actor actor, UUID causationId, String eventType
+    ) {
+        WorkflowApproval approval = execution.approval();
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("approval_id", approval.id().toString());
+        payload.put("execution_id", execution.id().toString());
+        payload.put("status", approval.status().name());
+        payload.put("recommendation", approval.recommendation());
+        payload.put("evidence", execution.readiness().checks().stream().map(check -> Map.of(
+                "department", check.department().name(),
+                "status", check.status().name(),
+                "detail", check.detail())).toList());
+        if (approval.decidedBy() != null) {
+            payload.put("decided_by", approval.decidedBy());
+            payload.put("reason", approval.reason());
+        }
+        String eventId = UUID.randomUUID().toString();
+        String envelope = toJson(Map.of(
+                "event_id", eventId,
+                "event_type", eventType,
+                "event_version", 1,
+                "occurred_at", execution.updatedAt().toString(),
+                "producer", "enterprise-core",
+                "tenant_id", execution.tenantId(),
+                "correlation_id", execution.correlationId(),
+                "causation_id", causationId.toString(),
+                "actor", Map.of("type", actor.type().name(), "id", actor.id()),
+                "payload", payload));
+        jdbc.update(
+                """
+                INSERT INTO outbox_events
+                    (event_id, event_type, event_version, aggregate_type, aggregate_id, tenant_id,
+                     correlation_id, causation_id, payload, occurred_at)
+                VALUES (:eventId, :eventType, 1, 'WORKFLOW_APPROVAL', :aggregateId, :tenantId,
+                        :correlationId, :causationId, CAST(:payload AS JSONB), :occurredAt)
+                """,
+                new MapSqlParameterSource().addValue("eventId", eventId).addValue("eventType", eventType)
+                        .addValue("aggregateId", approval.id().toString()).addValue("tenantId", execution.tenantId())
+                        .addValue("correlationId", execution.correlationId())
+                        .addValue("causationId", causationId.toString()).addValue("payload", envelope)
+                        .addValue("occurredAt", sqlTimestamp(execution.updatedAt()), Types.TIMESTAMP_WITH_TIMEZONE));
+    }
+
     private List<ExecutionTimelineEntry> findTimeline(UUID executionId) {
         return jdbc.query(
                 """
@@ -629,6 +808,24 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
         ).stream().findFirst();
     }
 
+    private Optional<WorkflowApproval> findApproval(UUID executionId) {
+        return jdbc.query(
+                """
+                SELECT id, recommendation, status, requested_by, requested_at, expires_at,
+                       decided_by, decided_at, decision_reason
+                FROM workflow_approvals WHERE execution_id = :executionId
+                """,
+                Map.of("executionId", executionId),
+                (rs, row) -> new WorkflowApproval(
+                        rs.getObject("id", UUID.class), rs.getString("recommendation"),
+                        ApprovalStatus.valueOf(rs.getString("status")), rs.getString("requested_by"),
+                        readInstant(rs, "requested_at"), readInstant(rs, "expires_at"),
+                        rs.getString("decided_by"),
+                        rs.getObject("decided_at") == null ? null : readInstant(rs, "decided_at"),
+                        rs.getString("decision_reason")))
+                .stream().findFirst();
+    }
+
     private List<WorkflowReadinessCheck> findReadinessChecks(UUID executionId) {
         return jdbc.query(
                 """
@@ -664,7 +861,8 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
             ResultSet rs,
             List<ExecutionTimelineEntry> timeline,
             WorkflowPlan plan,
-            WorkflowReadiness readiness
+            WorkflowReadiness readiness,
+            WorkflowApproval approval
     ) throws SQLException {
         return new WorkflowExecution(
                 rs.getObject("id", UUID.class),
@@ -677,7 +875,8 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                 readInstant(rs, "updated_at"),
                 timeline,
                 plan,
-                readiness
+                readiness,
+                approval
         );
     }
 

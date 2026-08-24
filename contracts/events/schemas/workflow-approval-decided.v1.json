@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vextis.dev/schemas/events/workflow-approval-decided.v1.json",
+  "title": "WorkflowApprovalDecidedV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_type", "event_version", "occurred_at", "producer", "tenant_id", "correlation_id", "causation_id", "actor", "payload"],
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_type": { "const": "workflow.approval.decided" },
+    "event_version": { "const": 1 },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "producer": { "const": "enterprise-core" },
+    "tenant_id": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "correlation_id": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "causation_id": { "type": "string", "format": "uuid" },
+    "actor": {
+      "type": "object", "additionalProperties": false, "required": ["type", "id"],
+      "properties": { "type": { "const": "USER" }, "id": { "type": "string", "minLength": 1, "maxLength": 150 } }
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["approval_id", "execution_id", "status", "recommendation", "evidence", "decided_by", "reason"],
+      "properties": {
+        "approval_id": { "type": "string", "format": "uuid" },
+        "execution_id": { "type": "string", "format": "uuid" },
+        "status": { "enum": ["APPROVED", "REJECTED"] },
+        "recommendation": { "type": "string", "minLength": 1, "maxLength": 500 },
+        "decided_by": { "type": "string", "minLength": 1, "maxLength": 150 },
+        "reason": { "type": ["string", "null"], "maxLength": 500 },
+        "evidence": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "$ref": "workflow-approval-requested.v1.json#/$defs/evidence" } }
+      }
+    }
+  }
+}

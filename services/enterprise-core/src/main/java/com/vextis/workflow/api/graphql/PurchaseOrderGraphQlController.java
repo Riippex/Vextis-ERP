@@ -3,6 +3,11 @@ package com.vextis.workflow.api.graphql;
 import com.vextis.workflow.application.FindExecutionUseCase;
 import com.vextis.workflow.application.ReceivePurchaseOrderCommand;
 import com.vextis.workflow.application.ReceivePurchaseOrderUseCase;
+import com.vextis.workflow.application.DecideApprovalCommand;
+import com.vextis.workflow.application.DecideApprovalUseCase;
+import com.vextis.shared.security.CurrentActorProvider;
+import com.vextis.workflow.domain.ApprovalDecision;
+import com.vextis.workflow.domain.WorkflowApproval;
 import com.vextis.workflow.domain.Actor;
 import com.vextis.workflow.domain.ExecutionTimelineEntry;
 import com.vextis.workflow.domain.ExtractedOrderLine;
@@ -17,14 +22,10 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.graphql.data.method.annotation.Argument;
 import org.springframework.graphql.data.method.annotation.MutationMapping;
 import org.springframework.graphql.data.method.annotation.QueryMapping;
 import org.springframework.stereotype.Controller;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.validation.annotation.Validated;
 
 import java.util.List;
@@ -36,29 +37,29 @@ class PurchaseOrderGraphQlController {
 
     private final ReceivePurchaseOrderUseCase receivePurchaseOrder;
     private final FindExecutionUseCase findExecution;
+    private final DecideApprovalUseCase decideApproval;
+    private final CurrentActorProvider currentActor;
     private final String demoTenantId;
-    private final String demoActorId;
-    private final String exposure;
 
     PurchaseOrderGraphQlController(
             ReceivePurchaseOrderUseCase receivePurchaseOrder,
             FindExecutionUseCase findExecution,
-            @Value("${vextis.demo.tenant-id:demo-tenant}") String demoTenantId,
-            @Value("${vextis.demo.actor-id:demo-user}") String demoActorId,
-            @Value("${vextis.exposure:INTERNAL}") String exposure
+            DecideApprovalUseCase decideApproval,
+            CurrentActorProvider currentActor,
+            @org.springframework.beans.factory.annotation.Value("${vextis.demo.tenant-id:demo-tenant}") String demoTenantId
     ) {
         this.receivePurchaseOrder = receivePurchaseOrder;
         this.findExecution = findExecution;
+        this.decideApproval = decideApproval;
+        this.currentActor = currentActor;
         this.demoTenantId = demoTenantId;
-        this.demoActorId = demoActorId;
-        this.exposure = exposure;
     }
 
     @MutationMapping
     PurchaseOrderReceiptView receivePurchaseOrder(@Argument @Valid ReceivePurchaseOrderInput input) {
         PurchaseOrderReceipt receipt = receivePurchaseOrder.receive(new ReceivePurchaseOrderCommand(
                 demoTenantId,
-                new Actor(Actor.Type.USER, currentActorId()),
+                new Actor(Actor.Type.USER, currentActor.currentActorId()),
                 input.purchaseOrderNumber(),
                 input.customerName(),
                 input.documentUri(),
@@ -67,21 +68,26 @@ class PurchaseOrderGraphQlController {
         return PurchaseOrderReceiptView.from(receipt);
     }
 
-    private String currentActorId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated()
-                && !"anonymousUser".equals(authentication.getPrincipal())) {
-            return authentication.getName();
-        }
-        if ("LOCAL".equalsIgnoreCase(exposure)) {
-            return demoActorId;
-        }
-        throw new AccessDeniedException("An authenticated user is required.");
-    }
-
     @QueryMapping
     ExecutionView execution(@Argument UUID id) {
         return findExecution.findById(demoTenantId, id).map(ExecutionView::from).orElse(null);
+    }
+
+    @MutationMapping
+    ExecutionView decideApproval(@Argument @Valid DecideApprovalInput input) {
+        WorkflowExecution execution = decideApproval.decideApproval(new DecideApprovalCommand(
+                demoTenantId, new Actor(Actor.Type.USER, currentActor.currentActorId()),
+                input.executionId(), input.approvalId(), input.decision(), input.reason(), input.idempotencyKey()));
+        return ExecutionView.from(execution);
+    }
+
+    record DecideApprovalInput(
+            UUID executionId,
+            UUID approvalId,
+            ApprovalDecision decision,
+            @Size(max = 500) String reason,
+            @NotBlank @Size(min = 16, max = 200) String idempotencyKey
+    ) {
     }
 
     record ReceivePurchaseOrderInput(
@@ -130,7 +136,8 @@ class PurchaseOrderGraphQlController {
             String updatedAt,
             List<TimelineEntryView> timeline,
             PlanView plan,
-            ReadinessView readiness
+            ReadinessView readiness,
+            ApprovalView approval
     ) {
 
         static ExecutionView from(WorkflowExecution execution) {
@@ -143,8 +150,21 @@ class PurchaseOrderGraphQlController {
                     execution.updatedAt().toString(),
                     execution.timeline().stream().map(TimelineEntryView::from).toList(),
                     execution.plan() == null ? null : PlanView.from(execution.plan()),
-                    execution.readiness() == null ? null : ReadinessView.from(execution.readiness())
+                    execution.readiness() == null ? null : ReadinessView.from(execution.readiness()),
+                    execution.approval() == null ? null : ApprovalView.from(execution.approval())
             );
+        }
+    }
+
+    record ApprovalView(
+            UUID id, String recommendation, String status, String requestedBy,
+            String requestedAt, String expiresAt, String decidedBy, String decidedAt, String reason
+    ) {
+        static ApprovalView from(WorkflowApproval approval) {
+            return new ApprovalView(
+                    approval.id(), approval.recommendation(), approval.status().name(), approval.requestedBy(),
+                    approval.requestedAt().toString(), approval.expiresAt().toString(), approval.decidedBy(),
+                    approval.decidedAt() == null ? null : approval.decidedAt().toString(), approval.reason());
         }
     }
 

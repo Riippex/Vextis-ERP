@@ -174,6 +174,51 @@
         </section>
       }
 
+      @if (currentReceipt.execution.approval; as approval) {
+        <section class="approval" aria-labelledby="approval-title">
+          <div class="plan__heading">
+            <div>
+              <p class="evidence__eyebrow">Human control point</p>
+              <h3 id="approval-title">Agent recommendation</h3>
+            </div>
+            <span class="status">{{ approval.status }}</span>
+          </div>
+          <p>{{ approval.recommendation }}</p>
+          <small>
+            Requested {{ approval.requestedAt | date: 'medium' }} · expires
+            {{ approval.expiresAt | date: 'medium' }}
+          </small>
+
+          @if (approval.status === 'PENDING') {
+            <form [formGroup]="decisionForm" class="approval__decision">
+              <mat-form-field appearance="outline">
+                <mat-label>Decision note (optional)</mat-label>
+                <textarea matInput rows="3" formControlName="reason"></textarea>
+                <mat-hint>Stored with the authenticated reviewer and audit timeline.</mat-hint>
+              </mat-form-field>
+              <div class="approval__actions">
+                <button mat-stroked-button type="button" [disabled]="deciding()"
+                        (click)="decideApproval('REJECT')">
+                  <mat-icon>close</mat-icon> Reject
+                </button>
+                <button mat-flat-button type="button" [disabled]="deciding()"
+                        (click)="decideApproval('APPROVE')">
+                  <mat-icon>verified_user</mat-icon> Approve
+                </button>
+              </div>
+            </form>
+          } @else {
+            <div class="feedback" role="status">
+              <mat-icon>{{ approval.status === 'APPROVED' ? 'check_circle' : 'cancel' }}</mat-icon>
+              <span>
+                {{ approval.status }} by {{ approval.decidedBy }}
+                @if (approval.reason) { · {{ approval.reason }} }
+              </span>
+            </div>
+          }
+        </section>
+      }
+
       <h3>Execution timeline</h3>
       <ol class="timeline">
         @for (entry of currentReceipt.execution.timeline; track entry.sequence) {

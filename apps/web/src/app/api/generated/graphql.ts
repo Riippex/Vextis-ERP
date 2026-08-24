@@ -5,6 +5,28 @@ export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' |
 import { gql } from 'apollo-angular';
 import { Injectable } from '@angular/core';
 import * as Apollo from 'apollo-angular';
+export type ApprovalDecision =
+  | 'APPROVE'
+  | 'REJECT';
+
+export type ApprovalStatus =
+  | 'APPROVED'
+  | 'PENDING'
+  | 'REJECTED';
+
+export type CreditStanding =
+  | 'BLOCKED'
+  | 'GOOD'
+  | 'REVIEW';
+
+export type DecideApprovalInput = {
+  approvalId: string | number;
+  decision: ApprovalDecision;
+  executionId: string | number;
+  idempotencyKey: string;
+  reason?: string | null | undefined;
+};
+
 export type ExecutionState =
   | 'COMPLETED'
   | 'FAILED'
@@ -32,6 +54,11 @@ export type ReceivePurchaseOrderInput = {
 export type ServiceStatus =
   | 'UP';
 
+export type SetStockAvailabilityInput = {
+  availableQuantity: number;
+  sku: string;
+};
+
 export type TimelineEntryType =
   | 'APPROVAL_DECIDED'
   | 'APPROVAL_REQUESTED'
@@ -40,24 +67,69 @@ export type TimelineEntryType =
   | 'RECEIVED'
   | 'STATUS_CHANGED';
 
+export type UpsertCreditProfileInput = {
+  customerId: string | number;
+  maxPaymentTermsDays: number;
+  standing: CreditStanding;
+};
+
+export type UpsertCustomerInput = {
+  active: boolean;
+  id?: string | number | null | undefined;
+  legalName: string;
+};
+
 export type HealthQueryVariables = Exact<{ [key: string]: never; }>;
 
 
 export type HealthQuery = { health: { status: ServiceStatus } };
+
+export type UpsertCustomerMutationVariables = Exact<{
+  input: UpsertCustomerInput;
+}>;
+
+
+export type UpsertCustomerMutation = { upsertCustomer: { id: string, legalName: string, active: boolean } };
+
+export type UpsertCreditProfileMutationVariables = Exact<{
+  input: UpsertCreditProfileInput;
+}>;
+
+
+export type UpsertCreditProfileMutation = { upsertCreditProfile: { customerId: string, customerName: string, standing: CreditStanding, maxPaymentTermsDays: number } };
+
+export type SetStockAvailabilityMutationVariables = Exact<{
+  input: SetStockAvailabilityInput;
+}>;
+
+
+export type SetStockAvailabilityMutation = { setStockAvailability: { sku: string, availableQuantity: number } };
+
+export type MissionControlQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type MissionControlQuery = { missionControl: { executions: Array<{ id: string, purchaseOrderNumber: string, customerName: string, state: ExecutionState, correlationId: string, updatedAt: string }>, customers: Array<{ id: string, legalName: string, active: boolean }>, stockItems: Array<{ sku: string, availableQuantity: number }>, creditProfiles: Array<{ customerId: string, customerName: string, standing: CreditStanding, maxPaymentTermsDays: number }> } };
+
+export type DecideApprovalMutationVariables = Exact<{
+  input: DecideApprovalInput;
+}>;
+
+
+export type DecideApprovalMutation = { decideApproval: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, orderLines: Array<{ sku: string, quantity: number }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null, approval: { id: string, recommendation: string, status: ApprovalStatus, requestedBy: string, requestedAt: string, expiresAt: string, decidedBy: string | null, decidedAt: string | null, reason: string | null } | null } };
 
 export type FindExecutionQueryVariables = Exact<{
   id: string | number;
 }>;
 
 
-export type FindExecutionQuery = { execution: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, orderLines: Array<{ sku: string, quantity: number }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null } | null };
+export type FindExecutionQuery = { execution: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, orderLines: Array<{ sku: string, quantity: number }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null, approval: { id: string, recommendation: string, status: ApprovalStatus, requestedBy: string, requestedAt: string, expiresAt: string, decidedBy: string | null, decidedAt: string | null, reason: string | null } | null } | null };
 
 export type ReceivePurchaseOrderMutationVariables = Exact<{
   input: ReceivePurchaseOrderInput;
 }>;
 
 
-export type ReceivePurchaseOrderMutation = { receivePurchaseOrder: { purchaseOrder: { id: string, purchaseOrderNumber: string, customerName: string, documentUri: string, receivedAt: string }, execution: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, orderLines: Array<{ sku: string, quantity: number }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null } } };
+export type ReceivePurchaseOrderMutation = { receivePurchaseOrder: { purchaseOrder: { id: string, purchaseOrderNumber: string, customerName: string, documentUri: string, receivedAt: string }, execution: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, orderLines: Array<{ sku: string, quantity: number }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null, approval: { id: string, recommendation: string, status: ApprovalStatus, requestedBy: string, requestedAt: string, expiresAt: string, decidedBy: string | null, decidedAt: string | null, reason: string | null } | null } } };
 
 export const HealthDocument = gql`
     query Health {
@@ -72,6 +144,171 @@ export const HealthDocument = gql`
   })
   export class HealthGQL extends Apollo.Query<HealthQuery, HealthQueryVariables> {
     document = HealthDocument;
+
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const UpsertCustomerDocument = gql`
+    mutation UpsertCustomer($input: UpsertCustomerInput!) {
+  upsertCustomer(input: $input) {
+    id
+    legalName
+    active
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class UpsertCustomerGQL extends Apollo.Mutation<UpsertCustomerMutation, UpsertCustomerMutationVariables> {
+    document = UpsertCustomerDocument;
+
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const UpsertCreditProfileDocument = gql`
+    mutation UpsertCreditProfile($input: UpsertCreditProfileInput!) {
+  upsertCreditProfile(input: $input) {
+    customerId
+    customerName
+    standing
+    maxPaymentTermsDays
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class UpsertCreditProfileGQL extends Apollo.Mutation<UpsertCreditProfileMutation, UpsertCreditProfileMutationVariables> {
+    document = UpsertCreditProfileDocument;
+
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const SetStockAvailabilityDocument = gql`
+    mutation SetStockAvailability($input: SetStockAvailabilityInput!) {
+  setStockAvailability(input: $input) {
+    sku
+    availableQuantity
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class SetStockAvailabilityGQL extends Apollo.Mutation<SetStockAvailabilityMutation, SetStockAvailabilityMutationVariables> {
+    document = SetStockAvailabilityDocument;
+
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const MissionControlDocument = gql`
+    query MissionControl {
+  missionControl {
+    executions {
+      id
+      purchaseOrderNumber
+      customerName
+      state
+      correlationId
+      updatedAt
+    }
+    customers {
+      id
+      legalName
+      active
+    }
+    stockItems {
+      sku
+      availableQuantity
+    }
+    creditProfiles {
+      customerId
+      customerName
+      standing
+      maxPaymentTermsDays
+    }
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class MissionControlGQL extends Apollo.Query<MissionControlQuery, MissionControlQueryVariables> {
+    document = MissionControlDocument;
+
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const DecideApprovalDocument = gql`
+    mutation DecideApproval($input: DecideApprovalInput!) {
+  decideApproval(input: $input) {
+    id
+    goal
+    state
+    correlationId
+    createdAt
+    updatedAt
+    timeline {
+      sequence
+      type
+      title
+      detail
+      occurredAt
+    }
+    plan {
+      summary
+      modelId
+      generatedAt
+      requestedPaymentTermsDays
+      orderLines {
+        sku
+        quantity
+      }
+      steps {
+        sequence
+        department
+        objective
+        requiresApproval
+      }
+    }
+    readiness {
+      evaluatedAt
+      checks {
+        department
+        status
+        detail
+      }
+    }
+    approval {
+      id
+      recommendation
+      status
+      requestedBy
+      requestedAt
+      expiresAt
+      decidedBy
+      decidedAt
+      reason
+    }
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class DecideApprovalGQL extends Apollo.Mutation<DecideApprovalMutation, DecideApprovalMutationVariables> {
+    document = DecideApprovalDocument;
 
     constructor(apollo: Apollo.Apollo) {
       super(apollo);
@@ -116,6 +353,17 @@ export const FindExecutionDocument = gql`
         status
         detail
       }
+    }
+    approval {
+      id
+      recommendation
+      status
+      requestedBy
+      requestedAt
+      expiresAt
+      decidedBy
+      decidedAt
+      reason
     }
   }
 }
@@ -178,6 +426,17 @@ export const ReceivePurchaseOrderDocument = gql`
           status
           detail
         }
+      }
+      approval {
+        id
+        recommendation
+        status
+        requestedBy
+        requestedAt
+        expiresAt
+        decidedBy
+        decidedAt
+        reason
       }
     }
   }

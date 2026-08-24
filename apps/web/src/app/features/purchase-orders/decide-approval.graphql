@@ -1,0 +1,40 @@
+mutation DecideApproval($input: DecideApprovalInput!) {
+  decideApproval(input: $input) {
+    id
+    goal
+    state
+    correlationId
+    createdAt
+    updatedAt
+    timeline {
+      sequence
+      type
+      title
+      detail
+      occurredAt
+    }
+    plan {
+      summary
+      modelId
+      generatedAt
+      requestedPaymentTermsDays
+      orderLines { sku quantity }
+      steps { sequence department objective requiresApproval }
+    }
+    readiness {
+      evaluatedAt
+      checks { department status detail }
+    }
+    approval {
+      id
+      recommendation
+      status
+      requestedBy
+      requestedAt
+      expiresAt
+      decidedBy
+      decidedAt
+      reason
+    }
+  }
+}

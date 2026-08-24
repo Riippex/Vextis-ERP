@@ -1,12 +1,74 @@
 type Query {
   health: Health!
   execution(id: ID!): Execution
+  missionControl: MissionControl!
+}
+
+type MissionControl {
+  executions: [MissionControlExecution!]!
+  customers: [CustomerOverview!]!
+  stockItems: [StockItemOverview!]!
+  creditProfiles: [CreditProfileOverview!]!
+}
+
+type MissionControlExecution {
+  id: ID!
+  purchaseOrderNumber: String!
+  customerName: String!
+  state: ExecutionState!
+  correlationId: String!
+  updatedAt: String!
+}
+
+type CustomerOverview {
+  id: ID!
+  legalName: String!
+  active: Boolean!
+}
+
+type StockItemOverview {
+  sku: String!
+  availableQuantity: Int!
+}
+
+type CreditProfileOverview {
+  customerId: ID!
+  customerName: String!
+  standing: CreditStanding!
+  maxPaymentTermsDays: Int!
+}
+
+enum CreditStanding {
+  GOOD
+  REVIEW
+  BLOCKED
 }
 
 type Mutation {
   receivePurchaseOrder(input: ReceivePurchaseOrderInput!): PurchaseOrderReceipt!
+  decideApproval(input: DecideApprovalInput!): Execution!
+  upsertCustomer(input: UpsertCustomerInput!): CustomerOverview!
+  setStockAvailability(input: SetStockAvailabilityInput!): StockItemOverview!
+  upsertCreditProfile(input: UpsertCreditProfileInput!): CreditProfileOverview!
   createLiveSession(input: CreateLiveSessionInput!): LiveSession!
   closeLiveSession(id: ID!): Boolean!
+}
+
+input UpsertCustomerInput {
+  id: ID
+  legalName: String!
+  active: Boolean!
+}
+
+input SetStockAvailabilityInput {
+  sku: String!
+  availableQuantity: Int!
+}
+
+input UpsertCreditProfileInput {
+  customerId: ID!
+  standing: CreditStanding!
+  maxPaymentTermsDays: Int!
 }
 
 type Health {
@@ -27,6 +89,38 @@ type Execution {
   timeline: [ExecutionTimelineEntry!]!
   plan: ExecutionPlan
   readiness: ExecutionReadiness
+  approval: WorkflowApproval
+}
+
+type WorkflowApproval {
+  id: ID!
+  recommendation: String!
+  status: ApprovalStatus!
+  requestedBy: String!
+  requestedAt: String!
+  expiresAt: String!
+  decidedBy: String
+  decidedAt: String
+  reason: String
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ApprovalDecision {
+  APPROVE
+  REJECT
+}
+
+input DecideApprovalInput {
+  executionId: ID!
+  approvalId: ID!
+  decision: ApprovalDecision!
+  reason: String
+  idempotencyKey: String!
 }
 
 type ExecutionPlan {

@@ -37,5 +37,16 @@ query FindExecution($id: ID!) {
         detail
       }
     }
+    approval {
+      id
+      recommendation
+      status
+      requestedBy
+      requestedAt
+      expiresAt
+      decidedBy
+      decidedAt
+      reason
+    }
   }
 }

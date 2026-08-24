@@ -56,6 +56,7 @@ class PlanningContext(BaseModel):
     customer_name: str = Field(alias="customerName")
     document_uri: str = Field(alias="documentUri", pattern=r"^gs://")
     readiness_evaluated: bool = Field(alias="readinessEvaluated")
+    approval_status: str | None = Field(default=None, alias="approvalStatus")
 
 
 class PlanGenerator(Protocol):

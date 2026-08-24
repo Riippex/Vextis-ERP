@@ -1,0 +1,94 @@
+<div class="workspace-page">
+  <header class="page-header">
+    <div class="page-header__copy">
+      <p class="eyebrow">Inventory & Operations</p>
+      <h1>Availability before commitment.</h1>
+      <p class="page-lead">
+        Agents can inspect stock evidence, but reservations will remain an explicit Core mutation.
+      </p>
+    </div>
+    <div class="page-actions">
+      <a mat-stroked-button routerLink="/app"><mat-icon>arrow_back</mat-icon> Mission Control</a>
+      <button mat-flat-button type="button" (click)="store.refresh()"><mat-icon>refresh</mat-icon> Refresh</button>
+    </div>
+  </header>
+
+  @if (store.loading() && !store.data()) {
+    <section class="panel state-panel"><mat-spinner diameter="28" /> Loading inventory…</section>
+  } @else if (store.error()) {
+    <section class="panel state-panel" role="alert"><mat-icon>cloud_off</mat-icon>{{ store.error() }}</section>
+  } @else if (store.data(); as data) {
+    <section class="metric-grid">
+      <article class="metric-card">
+        <span class="metric-card__label">Tracked SKUs</span>
+        <strong class="metric-card__value">{{ data.stockItems.length }}</strong>
+        <span class="metric-card__detail">Inventory-owned records</span>
+      </article>
+      <article class="metric-card">
+        <span class="metric-card__label">Available units</span>
+        <strong class="metric-card__value">{{ availableUnits() }}</strong>
+        <span class="metric-card__detail">Before any reservation</span>
+      </article>
+    </section>
+
+    <section class="panel command-panel">
+      <div class="panel__header">
+        <div><p class="eyebrow">Authoritative command</p><h2>Set stock availability</h2></div>
+        <span class="data-row__meta">Creates the SKU when it does not exist</span>
+      </div>
+      <form class="command-form" [formGroup]="stockForm" (ngSubmit)="saveStock()">
+        <mat-form-field appearance="outline">
+          <mat-label>SKU</mat-label>
+          <input matInput formControlName="sku" maxlength="100" autocomplete="off" />
+          @if (stockForm.controls.sku.invalid) {
+            <mat-error>Use letters, numbers, dots, underscores or hyphens.</mat-error>
+          }
+        </mat-form-field>
+        <mat-form-field appearance="outline">
+          <mat-label>Available quantity</mat-label>
+          <input matInput type="number" min="0" max="1000000" formControlName="availableQuantity" />
+          @if (stockForm.controls.availableQuantity.invalid) {
+            <mat-error>Quantity must be between 0 and 1,000,000.</mat-error>
+          }
+        </mat-form-field>
+        <button mat-flat-button type="submit" [disabled]="saving()">
+          @if (saving()) { <mat-spinner diameter="18" /> } @else { <mat-icon>save</mat-icon> }
+          Set availability
+        </button>
+      </form>
+      @if (saveMessage()) { <p class="command-feedback command-feedback--success">{{ saveMessage() }}</p> }
+      @if (saveError()) { <p class="command-feedback command-feedback--error" role="alert">{{ saveError() }}</p> }
+    </section>
+
+    <section>
+      <div class="section-heading">
+        <div><h2>Stock availability</h2><p>Current quantity by exact SKU.</p></div>
+      </div>
+      @if (data.stockItems.length) {
+        <div class="card-grid">
+          @for (item of data.stockItems; track item.sku) {
+            <article class="data-card">
+              <div class="data-card__topline">
+                <span class="department-card__icon"><mat-icon>inventory_2</mat-icon></span>
+                <span class="status-pill" [class.status-pill--good]="item.availableQuantity > 0">
+                  {{ item.availableQuantity > 0 ? 'Available' : 'Depleted' }}
+                </span>
+              </div>
+              <div>
+                <h2>{{ item.sku }}</h2>
+                <p>Available quantity</p>
+              </div>
+              <strong class="data-card__number">{{ item.availableQuantity }}</strong>
+              <div class="data-card__footer">
+                <span>No reservation has been inferred by the UI.</span>
+                <button mat-button type="button" (click)="editStock(item)"><mat-icon>edit</mat-icon>Edit</button>
+              </div>
+            </article>
+          }
+        </div>
+      } @else {
+        <section class="panel state-panel"><mat-icon>inventory</mat-icon>No stock records available.</section>
+      }
+    </section>
+  }
+</div>

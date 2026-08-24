@@ -5,6 +5,8 @@ import com.vextis.workflow.application.EvaluateReadinessCommand;
 import com.vextis.workflow.application.EvaluateReadinessUseCase;
 import com.vextis.workflow.application.RecordPlanCommand;
 import com.vextis.workflow.application.RecordPlanUseCase;
+import com.vextis.workflow.application.RequestApprovalCommand;
+import com.vextis.workflow.application.RequestApprovalUseCase;
 import com.vextis.workflow.application.StartPlanningCommand;
 import com.vextis.workflow.application.StartPlanningUseCase;
 import com.vextis.workflow.application.WorkflowConflictException;
@@ -43,17 +45,20 @@ class AgentWorkflowToolController {
     private final StartPlanningUseCase startPlanning;
     private final RecordPlanUseCase recordPlan;
     private final EvaluateReadinessUseCase evaluateReadiness;
+    private final RequestApprovalUseCase requestApproval;
     private final AgentToolAuthorizer authorizer;
 
     AgentWorkflowToolController(
             StartPlanningUseCase startPlanning,
             RecordPlanUseCase recordPlan,
             EvaluateReadinessUseCase evaluateReadiness,
+            RequestApprovalUseCase requestApproval,
             AgentToolAuthorizer authorizer
     ) {
         this.startPlanning = startPlanning;
         this.recordPlan = recordPlan;
         this.evaluateReadiness = evaluateReadiness;
+        this.requestApproval = requestApproval;
         this.authorizer = authorizer;
     }
 
@@ -141,6 +146,28 @@ class AgentWorkflowToolController {
         }
     }
 
+    @PostMapping("/{executionId}/approval")
+    ExecutionResponse requestApproval(
+            @PathVariable UUID executionId,
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization,
+            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 100) String tenantId,
+            @RequestHeader("X-Agent-Id") @NotBlank @Size(max = 150) String agentId,
+            @RequestHeader("X-Correlation-Id") @NotBlank @Size(max = 100) String correlationId,
+            @RequestHeader("Idempotency-Key") @NotBlank @Size(min = 16, max = 200) String idempotencyKey,
+            @RequestBody @Valid RequestApprovalRequest request
+    ) {
+        authorizer.authorize(authorization, agentId, tenantId);
+        try {
+            return ExecutionResponse.from(requestApproval.requestApproval(new RequestApprovalCommand(
+                    tenantId, new Actor(Actor.Type.AGENT, agentId), executionId, correlationId,
+                    request.recommendation(), idempotencyKey)));
+        } catch (WorkflowNotFoundException exception) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, exception.getMessage(), exception);
+        } catch (WorkflowConflictException | IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, exception.getMessage(), exception);
+        }
+    }
+
     record StartPlanningRequest(
             @NotNull UUID eventId,
             @NotBlank @Size(max = 1000) @Pattern(regexp = "^gs://.+") String documentUri
@@ -154,6 +181,9 @@ class AgentWorkflowToolController {
             @NotNull @Size(min = 1, max = 20) List<@Valid ExtractedOrderLineRequest> orderLines,
             @Min(0) @Max(365) int requestedPaymentTermsDays
     ) {
+    }
+
+    record RequestApprovalRequest(@NotBlank @Size(max = 500) String recommendation) {
     }
 
     record ExtractedOrderLineRequest(
@@ -186,7 +216,8 @@ class AgentWorkflowToolController {
             String purchaseOrderNumber,
             String customerName,
             String documentUri,
-            boolean readinessEvaluated
+            boolean readinessEvaluated,
+            String approvalStatus
     ) {
 
         static PlanningContextResponse from(PlanningContext context) {
@@ -199,7 +230,8 @@ class AgentWorkflowToolController {
                     context.purchaseOrder().purchaseOrderNumber(),
                     context.purchaseOrder().customerName(),
                     context.purchaseOrder().documentUri(),
-                    context.execution().readiness() != null
+                    context.execution().readiness() != null,
+                    context.execution().approval() == null ? null : context.execution().approval().status().name()
             );
         }
     }
