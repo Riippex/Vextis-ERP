@@ -2,19 +2,20 @@ import {
   ChangeDetectionStrategy,
   Component,
   computed,
-  effect,
   inject,
-  signal,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { DOCUMENT } from '@angular/common';
 import { MatIconModule } from '@angular/material/icon';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { FirebaseAuthService } from './core/auth/firebase-auth.service';
+import { ThemeService } from './core/theme/theme.service';
 
-const THEME_STORAGE_KEY = 'vxt-theme';
+export function isApplicationRoute(url: string): boolean {
+  const primaryPath = url.split(/[?#]/, 1)[0] ?? '';
+  return primaryPath === '/app' || primaryPath.startsWith('/app/');
+}
 
 @Component({
   selector: 'vxt-root',
@@ -24,12 +25,11 @@ const THEME_STORAGE_KEY = 'vxt-theme';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class App {
-  private readonly document = inject(DOCUMENT);
   private readonly router = inject(Router);
   private readonly auth = inject(FirebaseAuthService);
+  private readonly theme = inject(ThemeService);
 
-  /** Active theme. Persisted in localStorage; falls back to `prefers-color-scheme` if nothing is stored. */
-  protected readonly isDark = signal(this.readInitialTheme());
+  protected readonly isDark = this.theme.isDark;
 
   private readonly url = toSignal(
     this.router.events.pipe(
@@ -39,43 +39,15 @@ export class App {
     { initialValue: this.router.url },
   );
 
-  /** Public entry surfaces own their layout; authenticated routes use the application shell. */
-  protected readonly hideChrome = computed(
-    () => this.url() === '/' || this.url().startsWith('/login'),
-  );
-
-  constructor() {
-    effect(() => {
-      const root = this.document.documentElement;
-      root.classList.toggle('dark', this.isDark());
-      try {
-        this.document.defaultView?.localStorage.setItem(
-          THEME_STORAGE_KEY,
-          this.isDark() ? 'dark' : 'light',
-        );
-      } catch {
-        // Storage may be unavailable (private mode); the theme still applies in memory.
-      }
-    });
-  }
+  /** Only authenticated application routes use the workspace shell. */
+  protected readonly hideChrome = computed(() => !isApplicationRoute(this.url()));
 
   protected toggleTheme(): void {
-    this.isDark.update((value) => !value);
+    this.theme.toggle();
   }
 
   protected async signOut(): Promise<void> {
     await this.auth.signOut();
     await this.router.navigateByUrl('/login');
-  }
-
-  private readInitialTheme(): boolean {
-    if (typeof window === 'undefined') return false;
-    try {
-      const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-      if (stored) return stored === 'dark';
-    } catch {
-      // Ignore storage errors and fall back to the OS preference.
-    }
-    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false;
   }
 }

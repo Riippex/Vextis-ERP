@@ -21,6 +21,15 @@
     <nav class="nav__links" aria-label="Primary navigation">
       <a href="#platform">Platform</a>
       <a href="#architecture">Architecture</a>
+      <button
+        class="nav__theme"
+        mat-icon-button
+        type="button"
+        [attr.aria-label]="isDark() ? 'Switch to light mode' : 'Switch to dark mode'"
+        (click)="toggleTheme()"
+      >
+        <mat-icon>{{ isDark() ? 'light_mode' : 'dark_mode' }}</mat-icon>
+      </button>
       <a mat-stroked-button routerLink="/login">Sign in</a>
     </nav>
   </header>

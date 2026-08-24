@@ -19,5 +19,6 @@ describe('LandingPage', () => {
     expect(content).toContain('Your business,');
     expect(content).toContain('Fortified enterprise fleet');
     expect(content).toContain('Open the workspace');
+    expect(fixture.nativeElement.querySelector('.nav__theme')).toBeTruthy();
   });
 });
