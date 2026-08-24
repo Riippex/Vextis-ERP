@@ -1,0 +1,116 @@
+name: Deploy Enterprise Core
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-enterprise-core-hackathon
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Detect Enterprise Core changes
+    if: >-
+      (github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main') ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-latest
+    outputs:
+      required: ${{ steps.filter.outputs.required }}
+      sha: ${{ steps.filter.outputs.sha }}
+    steps:
+      - name: Check out validated revision
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || 'main' }}
+          fetch-depth: 2
+
+      - name: Detect deployable Enterprise Core changes
+        id: filter
+        shell: bash
+        run: |
+          set -euo pipefail
+          deploy_sha="$(git rev-parse HEAD)"
+          echo "sha=${deploy_sha}" >> "${GITHUB_OUTPUT}"
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            echo "required=true" >> "${GITHUB_OUTPUT}"
+          elif git diff --quiet "${deploy_sha}^1" "${deploy_sha}" -- \
+            services/enterprise-core contracts .dockerignore LICENSE NOTICE \
+            infra/cloudbuild/build-enterprise-core.yaml \
+            .github/workflows/deploy-enterprise-core.yml; then
+            echo "required=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "required=true" >> "${GITHUB_OUTPUT}"
+          fi
+
+  deploy:
+    name: Build and deploy Enterprise Core
+    needs: changes
+    if: needs.changes.outputs.required == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment:
+      name: hackathon
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out validated revision
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.changes.outputs.sha }}
+
+      - name: Authenticate to Google Cloud without keys
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: vextis-erp
+          workload_identity_provider: projects/797183513325/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: vextis-build-hackathon@vextis-erp.iam.gserviceaccount.com
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Build and publish Enterprise Core image
+        env:
+          DEPLOY_SHA: ${{ needs.changes.outputs.sha }}
+        run: >-
+          gcloud builds submit .
+          --project=vextis-erp
+          --region=us-central1
+          --config=infra/cloudbuild/build-enterprise-core.yaml
+          --substitutions=_TAG=${DEPLOY_SHA}
+          --service-account=projects/vextis-erp/serviceAccounts/vextis-build-hackathon@vextis-erp.iam.gserviceaccount.com
+          --gcs-source-staging-dir=gs://vextis-erp-hackathon-build-source/source
+
+      - name: Deploy internal Enterprise Core revision
+        env:
+          DEPLOY_SHA: ${{ needs.changes.outputs.sha }}
+        run: >-
+          gcloud run deploy vextis-enterprise-core
+          --image=us-central1-docker.pkg.dev/vextis-erp/vextis/enterprise-core:${DEPLOY_SHA}
+          --project=vextis-erp
+          --region=us-central1
+          --quiet
+
+      - name: Deploy public Enterprise Core revision
+        env:
+          DEPLOY_SHA: ${{ needs.changes.outputs.sha }}
+        run: >-
+          gcloud run deploy vextis-enterprise-core-public
+          --image=us-central1-docker.pkg.dev/vextis-erp/vextis/enterprise-core:${DEPLOY_SHA}
+          --project=vextis-erp
+          --region=us-central1
+          --quiet
+
+      - name: Report ready revisions
+        run: |
+          gcloud run services describe vextis-enterprise-core --project=vextis-erp --region=us-central1 --format='value(status.latestReadyRevisionName)'
+          gcloud run services describe vextis-enterprise-core-public --project=vextis-erp --region=us-central1 --format='value(status.latestReadyRevisionName)'
