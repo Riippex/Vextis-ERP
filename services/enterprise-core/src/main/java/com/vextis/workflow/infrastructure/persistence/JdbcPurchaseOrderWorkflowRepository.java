@@ -22,7 +22,10 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -146,7 +149,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                         .addValue("purchaseOrderNumber", purchaseOrder.purchaseOrderNumber())
                         .addValue("customerName", purchaseOrder.customerName())
                         .addValue("documentUri", purchaseOrder.documentUri())
-                        .addValue("receivedAt", purchaseOrder.receivedAt())
+                        .addValue("receivedAt", sqlTimestamp(purchaseOrder.receivedAt()), Types.TIMESTAMP_WITH_TIMEZONE)
         );
         jdbc.update(
                 """
@@ -162,8 +165,8 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                         .addValue("goal", execution.goal())
                         .addValue("state", execution.state().name())
                         .addValue("correlationId", execution.correlationId())
-                        .addValue("createdAt", execution.createdAt())
-                        .addValue("updatedAt", execution.updatedAt())
+                        .addValue("createdAt", sqlTimestamp(execution.createdAt()), Types.TIMESTAMP_WITH_TIMEZONE)
+                        .addValue("updatedAt", sqlTimestamp(execution.updatedAt()), Types.TIMESTAMP_WITH_TIMEZONE)
         );
         for (ExecutionTimelineEntry entry : execution.timeline()) {
             jdbc.update(
@@ -180,7 +183,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                             .addValue("entryType", entry.type().name())
                             .addValue("title", entry.title())
                             .addValue("detail", entry.detail())
-                            .addValue("occurredAt", entry.occurredAt())
+                            .addValue("occurredAt", sqlTimestamp(entry.occurredAt()), Types.TIMESTAMP_WITH_TIMEZONE)
             );
         }
 
@@ -200,7 +203,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                         .addValue("actorType", actor.type().name())
                         .addValue("actorId", actor.id())
                         .addValue("resourceId", purchaseOrder.id())
-                        .addValue("occurredAt", execution.createdAt())
+                        .addValue("occurredAt", sqlTimestamp(execution.createdAt()), Types.TIMESTAMP_WITH_TIMEZONE)
         );
 
         String eventId = UUID.randomUUID().toString();
@@ -236,7 +239,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                         .addValue("correlationId", execution.correlationId())
                         .addValue("causationId", auditId.toString())
                         .addValue("payload", eventEnvelope)
-                        .addValue("occurredAt", execution.createdAt())
+                        .addValue("occurredAt", sqlTimestamp(execution.createdAt()), Types.TIMESTAMP_WITH_TIMEZONE)
         );
 
         jdbc.update(
@@ -273,7 +276,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                         rs.getString("purchase_order_number"),
                         rs.getString("customer_name"),
                         rs.getString("document_uri"),
-                        rs.getObject("received_at", Instant.class)
+                        readInstant(rs, "received_at")
                 )
         ).stream().findFirst();
     }
@@ -295,7 +298,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                 """,
                 new MapSqlParameterSource()
                         .addValue("newState", updated.state().name())
-                        .addValue("updatedAt", updated.updatedAt())
+                        .addValue("updatedAt", sqlTimestamp(updated.updatedAt()), Types.TIMESTAMP_WITH_TIMEZONE)
                         .addValue("tenantId", updated.tenantId())
                         .addValue("executionId", updated.id())
                         .addValue("previousState", previous.state().name())
@@ -319,7 +322,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                         .addValue("entryType", entry.type().name())
                         .addValue("title", entry.title())
                         .addValue("detail", entry.detail())
-                        .addValue("occurredAt", entry.occurredAt())
+                        .addValue("occurredAt", sqlTimestamp(entry.occurredAt()), Types.TIMESTAMP_WITH_TIMEZONE)
         );
 
         jdbc.update(
@@ -337,7 +340,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                         .addValue("actorType", actor.type().name())
                         .addValue("actorId", actor.id())
                         .addValue("resourceId", updated.id())
-                        .addValue("occurredAt", updated.updatedAt())
+                        .addValue("occurredAt", sqlTimestamp(updated.updatedAt()), Types.TIMESTAMP_WITH_TIMEZONE)
         );
 
         jdbc.update(
@@ -375,7 +378,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                 """,
                 new MapSqlParameterSource()
                         .addValue("newState", updated.state().name())
-                        .addValue("updatedAt", updated.updatedAt())
+                        .addValue("updatedAt", sqlTimestamp(updated.updatedAt()), Types.TIMESTAMP_WITH_TIMEZONE)
                         .addValue("tenantId", updated.tenantId())
                         .addValue("executionId", updated.id())
                         .addValue("previousState", previous.state().name())
@@ -398,7 +401,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                         .addValue("executionId", updated.id())
                         .addValue("summary", plan.summary())
                         .addValue("modelId", plan.modelId())
-                        .addValue("generatedAt", plan.generatedAt())
+                        .addValue("generatedAt", sqlTimestamp(plan.generatedAt()), Types.TIMESTAMP_WITH_TIMEZONE)
                         .addValue("requestedPaymentTermsDays", plan.requestedPaymentTermsDays())
         );
         for (int index = 0; index < plan.orderLines().size(); index++) {
@@ -450,7 +453,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                         .addValue("entryType", entry.type().name())
                         .addValue("title", entry.title())
                         .addValue("detail", entry.detail())
-                        .addValue("occurredAt", entry.occurredAt())
+                        .addValue("occurredAt", sqlTimestamp(entry.occurredAt()), Types.TIMESTAMP_WITH_TIMEZONE)
         );
 
         jdbc.update(
@@ -468,7 +471,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                         .addValue("actorType", actor.type().name())
                         .addValue("actorId", actor.id())
                         .addValue("resourceId", updated.id())
-                        .addValue("occurredAt", updated.updatedAt())
+                        .addValue("occurredAt", sqlTimestamp(updated.updatedAt()), Types.TIMESTAMP_WITH_TIMEZONE)
         );
 
         jdbc.update(
@@ -501,7 +504,9 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
         }
         jdbc.update(
                 "INSERT INTO workflow_execution_readiness (execution_id, evaluated_at) VALUES (:id, :evaluatedAt)",
-                Map.of("id", updated.id(), "evaluatedAt", readiness.evaluatedAt())
+                new MapSqlParameterSource()
+                        .addValue("id", updated.id())
+                        .addValue("evaluatedAt", sqlTimestamp(readiness.evaluatedAt()), Types.TIMESTAMP_WITH_TIMEZONE)
         );
         for (WorkflowReadinessCheck check : readiness.checks()) {
             jdbc.update(
@@ -520,7 +525,10 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
         }
         jdbc.update(
                 "UPDATE workflow_executions SET updated_at = :updatedAt WHERE tenant_id = :tenantId AND id = :id",
-                Map.of("updatedAt", updated.updatedAt(), "tenantId", updated.tenantId(), "id", updated.id())
+                new MapSqlParameterSource()
+                        .addValue("updatedAt", sqlTimestamp(updated.updatedAt()), Types.TIMESTAMP_WITH_TIMEZONE)
+                        .addValue("tenantId", updated.tenantId())
+                        .addValue("id", updated.id())
         );
         ExecutionTimelineEntry entry = updated.timeline().getLast();
         jdbc.update(
@@ -533,7 +541,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                         .addValue("id", UUID.randomUUID()).addValue("executionId", updated.id())
                         .addValue("sequence", entry.sequence()).addValue("type", entry.type().name())
                         .addValue("title", entry.title()).addValue("detail", entry.detail())
-                        .addValue("occurredAt", entry.occurredAt())
+                        .addValue("occurredAt", sqlTimestamp(entry.occurredAt()), Types.TIMESTAMP_WITH_TIMEZONE)
         );
         jdbc.update(
                 """
@@ -546,7 +554,8 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                 new MapSqlParameterSource().addValue("id", UUID.randomUUID())
                         .addValue("tenantId", updated.tenantId()).addValue("correlationId", updated.correlationId())
                         .addValue("actorType", actor.type().name()).addValue("actorId", actor.id())
-                        .addValue("resourceId", updated.id()).addValue("occurredAt", updated.updatedAt())
+                        .addValue("resourceId", updated.id())
+                        .addValue("occurredAt", sqlTimestamp(updated.updatedAt()), Types.TIMESTAMP_WITH_TIMEZONE)
         );
         jdbc.update(
                 """
@@ -575,7 +584,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                         TimelineEntryType.valueOf(rs.getString("entry_type")),
                         rs.getString("title"),
                         rs.getString("detail"),
-                        rs.getObject("occurred_at", Instant.class)
+                        readInstant(rs, "occurred_at")
                 )
         );
     }
@@ -591,7 +600,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                 (rs, rowNumber) -> new WorkflowPlan(
                         rs.getString("summary"),
                         rs.getString("model_id"),
-                        rs.getObject("generated_at", Instant.class),
+                        readInstant(rs, "generated_at"),
                         findPlanSteps(executionId),
                         findOrderLines(executionId),
                         rs.getInt("requested_payment_terms_days")
@@ -616,7 +625,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                 "SELECT evaluated_at FROM workflow_execution_readiness WHERE execution_id = :executionId",
                 Map.of("executionId", executionId),
                 (rs, row) -> new WorkflowReadiness(
-                        rs.getObject("evaluated_at", Instant.class), findReadinessChecks(executionId))
+                        readInstant(rs, "evaluated_at"), findReadinessChecks(executionId))
         ).stream().findFirst();
     }
 
@@ -664,8 +673,8 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                 rs.getString("goal"),
                 ExecutionState.valueOf(rs.getString("state")),
                 rs.getString("correlation_id"),
-                rs.getObject("created_at", Instant.class),
-                rs.getObject("updated_at", Instant.class),
+                readInstant(rs, "created_at"),
+                readInstant(rs, "updated_at"),
                 timeline,
                 plan,
                 readiness
@@ -678,6 +687,14 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
         } catch (Exception exception) {
             throw new IllegalStateException("Could not serialize workflow persistence payload", exception);
         }
+    }
+
+    static OffsetDateTime sqlTimestamp(Instant instant) {
+        return instant.atOffset(ZoneOffset.UTC);
+    }
+
+    static Instant readInstant(ResultSet resultSet, String column) throws SQLException {
+        return resultSet.getObject(column, OffsetDateTime.class).toInstant();
     }
 
     private record ReceiptIds(UUID purchaseOrderId, UUID executionId) {
