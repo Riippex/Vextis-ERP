@@ -5,6 +5,11 @@ export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' |
 import { gql } from 'apollo-angular';
 import { Injectable } from '@angular/core';
 import * as Apollo from 'apollo-angular';
+export type CreditStanding =
+  | 'BLOCKED'
+  | 'GOOD'
+  | 'REVIEW';
+
 export type ExecutionState =
   | 'COMPLETED'
   | 'FAILED'
@@ -45,6 +50,11 @@ export type HealthQueryVariables = Exact<{ [key: string]: never; }>;
 
 export type HealthQuery = { health: { status: ServiceStatus } };
 
+export type MissionControlQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type MissionControlQuery = { missionControl: { executions: Array<{ id: string, purchaseOrderNumber: string, customerName: string, state: ExecutionState, correlationId: string, updatedAt: string }>, customers: Array<{ id: string, legalName: string, active: boolean }>, stockItems: Array<{ sku: string, availableQuantity: number }>, creditProfiles: Array<{ customerId: string, customerName: string, standing: CreditStanding, maxPaymentTermsDays: number }> } };
+
 export type FindExecutionQueryVariables = Exact<{
   id: string | number;
 }>;
@@ -72,6 +82,46 @@ export const HealthDocument = gql`
   })
   export class HealthGQL extends Apollo.Query<HealthQuery, HealthQueryVariables> {
     document = HealthDocument;
+
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const MissionControlDocument = gql`
+    query MissionControl {
+  missionControl {
+    executions {
+      id
+      purchaseOrderNumber
+      customerName
+      state
+      correlationId
+      updatedAt
+    }
+    customers {
+      id
+      legalName
+      active
+    }
+    stockItems {
+      sku
+      availableQuantity
+    }
+    creditProfiles {
+      customerId
+      customerName
+      standing
+      maxPaymentTermsDays
+    }
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class MissionControlGQL extends Apollo.Query<MissionControlQuery, MissionControlQueryVariables> {
+    document = MissionControlDocument;
 
     constructor(apollo: Apollo.Apollo) {
       super(apollo);

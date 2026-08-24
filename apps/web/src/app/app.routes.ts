@@ -22,6 +22,28 @@ export const routes: Routes = [
       ),
   },
   {
+    path: 'app/crm',
+    canActivate: [authenticatedGuard],
+    loadComponent: () =>
+      import('./features/crm-sales/crm-sales.page').then((module) => module.CrmSalesPage),
+  },
+  {
+    path: 'app/inventory',
+    canActivate: [authenticatedGuard],
+    loadComponent: () =>
+      import('./features/inventory-operations/inventory-operations.page').then(
+        (module) => module.InventoryOperationsPage,
+      ),
+  },
+  {
+    path: 'app/finance',
+    canActivate: [authenticatedGuard],
+    loadComponent: () =>
+      import('./features/finance-billing/finance-billing.page').then(
+        (module) => module.FinanceBillingPage,
+      ),
+  },
+  {
     path: 'app',
     canActivate: [authenticatedGuard],
     loadComponent: () =>

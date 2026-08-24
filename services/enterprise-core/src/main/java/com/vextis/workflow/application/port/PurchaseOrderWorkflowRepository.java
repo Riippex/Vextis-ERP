@@ -4,7 +4,9 @@ import com.vextis.workflow.domain.Actor;
 import com.vextis.workflow.domain.PurchaseOrderReceipt;
 import com.vextis.workflow.domain.PurchaseOrderSource;
 import com.vextis.workflow.domain.WorkflowExecution;
+import com.vextis.workflow.ExecutionOverview;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,6 +17,8 @@ public interface PurchaseOrderWorkflowRepository {
     Optional<PurchaseOrderReceipt> findReceipt(String tenantId, String operation, String idempotencyKey);
 
     Optional<WorkflowExecution> findExecution(String tenantId, UUID executionId);
+
+    List<ExecutionOverview.ExecutionSummary> findRecentExecutions(String tenantId, int limit);
 
     Optional<PurchaseOrderSource> findPurchaseOrder(String tenantId, UUID purchaseOrderId);
 

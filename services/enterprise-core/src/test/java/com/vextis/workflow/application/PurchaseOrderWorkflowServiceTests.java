@@ -4,6 +4,7 @@ import com.vextis.billing.CreditLookup;
 import com.vextis.crm.CustomerLookup;
 import com.vextis.inventory.StockLookup;
 import com.vextis.workflow.application.port.PurchaseOrderWorkflowRepository;
+import com.vextis.workflow.ExecutionOverview;
 import com.vextis.workflow.domain.Actor;
 import com.vextis.workflow.domain.ExecutionState;
 import com.vextis.workflow.domain.ExtractedOrderLine;
@@ -244,6 +245,19 @@ class PurchaseOrderWorkflowServiceTests {
             return Optional.ofNullable(receipt)
                     .map(PurchaseOrderReceipt::execution)
                     .filter(execution -> execution.id().equals(executionId));
+        }
+
+        @Override
+        public List<ExecutionOverview.ExecutionSummary> findRecentExecutions(String tenantId, int limit) {
+            return Optional.ofNullable(receipt)
+                    .map(value -> List.of(new ExecutionOverview.ExecutionSummary(
+                            value.execution().id(),
+                            value.purchaseOrder().purchaseOrderNumber(),
+                            value.purchaseOrder().customerName(),
+                            value.execution().state().name(),
+                            value.execution().correlationId(),
+                            value.execution().updatedAt())))
+                    .orElseGet(List::of);
         }
 
         @Override

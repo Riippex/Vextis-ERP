@@ -17,6 +17,7 @@
 .shell__toolbar-inner {
   align-items: center;
   display: flex;
+  gap: 1rem;
   justify-content: space-between;
   margin: 0 auto;
   max-width: 90rem;
@@ -30,6 +31,24 @@
   font-weight: 700;
   gap: 0.65rem;
   letter-spacing: -0.03em;
+  text-decoration: none;
+}
+
+.shell__nav {
+  align-items: center;
+  display: flex;
+  gap: 0.15rem;
+  margin-right: auto;
+}
+
+.shell__nav a {
+  color: var(--vxt-text-secondary);
+  font-size: 0.82rem;
+}
+
+.shell__nav .shell__nav-link--active {
+  background: var(--vxt-brand-violet-tint);
+  color: var(--vxt-brand-violet);
 }
 
 .brand__mark {
@@ -75,5 +94,23 @@
 @media (max-width: 40rem) {
   .shell__environment {
     display: none;
+  }
+}
+
+@media (max-width: 58rem) {
+  .shell__toolbar-inner {
+    align-items: stretch;
+    flex-wrap: wrap;
+    padding-block: 0.55rem;
+  }
+
+  .shell__actions {
+    margin-left: auto;
+  }
+
+  .shell__nav {
+    order: 3;
+    overflow-x: auto;
+    width: 100%;
   }
 }

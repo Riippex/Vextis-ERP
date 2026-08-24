@@ -1,0 +1,27 @@
+query MissionControl {
+  missionControl {
+    executions {
+      id
+      purchaseOrderNumber
+      customerName
+      state
+      correlationId
+      updatedAt
+    }
+    customers {
+      id
+      legalName
+      active
+    }
+    stockItems {
+      sku
+      availableQuantity
+    }
+    creditProfiles {
+      customerId
+      customerName
+      standing
+      maxPaymentTermsDays
+    }
+  }
+}

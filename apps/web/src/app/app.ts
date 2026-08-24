@@ -6,8 +6,9 @@ import {
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
 import { MatToolbarModule } from '@angular/material/toolbar';
-import { NavigationEnd, Router, RouterOutlet } from '@angular/router';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { FirebaseAuthService } from './core/auth/firebase-auth.service';
 import { ThemeService } from './core/theme/theme.service';
@@ -19,7 +20,7 @@ export function isApplicationRoute(url: string): boolean {
 
 @Component({
   selector: 'vxt-root',
-  imports: [MatIconModule, MatToolbarModule, RouterOutlet],
+  imports: [MatButtonModule, MatIconModule, MatToolbarModule, RouterLink, RouterLinkActive, RouterOutlet],
   templateUrl: './app.html',
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -1,27 +1,41 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
 
-interface BusinessArea {
-  readonly icon: string;
-  readonly name: string;
-  readonly description: string;
-}
+import { MissionControlStore } from '../mission-control/mission-control.store';
 
 @Component({
   selector: 'vxt-dashboard-page',
-  imports: [MatButtonModule, MatCardModule, MatChipsModule, MatIconModule, RouterLink],
+  imports: [DatePipe, MatButtonModule, MatIconModule, MatProgressSpinnerModule, RouterLink],
   templateUrl: './dashboard.page.html',
-  styleUrl: './dashboard.page.scss',
+  styleUrls: ['./dashboard.page.scss', '../mission-control/workspace-page.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardPage {
-  protected readonly areas: readonly BusinessArea[] = [
-    { icon: 'handshake', name: 'CRM & Sales', description: 'Customers, opportunities, and quotes.' },
-    { icon: 'inventory_2', name: 'Inventory', description: 'Availability, reservations, and exceptions.' },
-    { icon: 'receipt_long', name: 'Finance', description: 'Credit, billing, and traceability.' },
-  ];
+  protected readonly store = inject(MissionControlStore);
+
+  protected readonly activeExecutions = computed(
+    () =>
+      this.store
+        .data()
+        ?.executions.filter(({ state }) => state !== 'COMPLETED' && state !== 'FAILED').length ?? 0,
+  );
+  protected readonly waitingApprovals = computed(
+    () =>
+      this.store.data()?.executions.filter(({ state }) => state === 'WAITING_APPROVAL').length ?? 0,
+  );
+  protected readonly activeCustomers = computed(
+    () => this.store.data()?.customers.filter(({ active }) => active).length ?? 0,
+  );
+  protected readonly availableUnits = computed(
+    () =>
+      this.store.data()?.stockItems.reduce((total, item) => total + item.availableQuantity, 0) ?? 0,
+  );
+
+  protected isHealthyState(state: string): boolean {
+    return state === 'RUNNING' || state === 'COMPLETED';
+  }
 }

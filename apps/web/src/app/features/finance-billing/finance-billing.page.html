@@ -1,0 +1,64 @@
+<div class="workspace-page">
+  <header class="page-header">
+    <div class="page-header__copy">
+      <p class="eyebrow">Finance & Billing</p>
+      <h1>Credit evidence with human control.</h1>
+      <p class="page-lead">
+        Commercial terms come from Finance-owned records; approval remains the next controlled action.
+      </p>
+    </div>
+    <div class="page-actions">
+      <a mat-stroked-button routerLink="/app"><mat-icon>arrow_back</mat-icon> Mission Control</a>
+      <button mat-flat-button type="button" (click)="store.refresh()"><mat-icon>refresh</mat-icon> Refresh</button>
+    </div>
+  </header>
+
+  @if (store.loading() && !store.data()) {
+    <section class="panel state-panel"><mat-spinner diameter="28" /> Loading credit profiles…</section>
+  } @else if (store.error()) {
+    <section class="panel state-panel" role="alert"><mat-icon>cloud_off</mat-icon>{{ store.error() }}</section>
+  } @else if (store.data(); as data) {
+    <section class="metric-grid">
+      <article class="metric-card">
+        <span class="metric-card__label">Credit profiles</span>
+        <strong class="metric-card__value">{{ data.creditProfiles.length }}</strong>
+        <span class="metric-card__detail">Finance-owned records</span>
+      </article>
+      <article class="metric-card">
+        <span class="metric-card__label">Good standing</span>
+        <strong class="metric-card__value">{{ goodStanding() }}</strong>
+        <span class="metric-card__detail">Within configured terms</span>
+      </article>
+    </section>
+
+    <section>
+      <div class="section-heading">
+        <div><h2>Commercial credit</h2><p>Standing and maximum approved payment terms.</p></div>
+      </div>
+      @if (data.creditProfiles.length) {
+        <div class="card-grid">
+          @for (profile of data.creditProfiles; track profile.customerId) {
+            <article class="data-card">
+              <div class="data-card__topline">
+                <span class="department-card__icon"><mat-icon>account_balance</mat-icon></span>
+                <span
+                  class="status-pill"
+                  [class.status-pill--good]="profile.standing === 'GOOD'"
+                  [class.status-pill--review]="profile.standing !== 'GOOD'"
+                >{{ profile.standing }}</span>
+              </div>
+              <div>
+                <h2>{{ profile.customerName }}</h2>
+                <p>Maximum payment terms</p>
+              </div>
+              <strong class="data-card__number">{{ profile.maxPaymentTermsDays }}d</strong>
+              <div class="data-card__footer">Approval and invoicing mutations are intentionally deferred.</div>
+            </article>
+          }
+        </div>
+      } @else {
+        <section class="panel state-panel"><mat-icon>credit_score</mat-icon>No credit profiles available.</section>
+      }
+    </section>
+  }
+</div>

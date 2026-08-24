@@ -1,6 +1,7 @@
 package com.vextis.workflow.infrastructure.persistence;
 
 import com.vextis.workflow.application.port.PurchaseOrderWorkflowRepository;
+import com.vextis.workflow.ExecutionOverview;
 import com.vextis.workflow.domain.Actor;
 import com.vextis.workflow.domain.ExecutionState;
 import com.vextis.workflow.domain.ExecutionTimelineEntry;
@@ -101,6 +102,31 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                         findReadiness(executionId).orElse(null))
         );
         return executions.stream().findFirst();
+    }
+
+    @Override
+    public List<ExecutionOverview.ExecutionSummary> findRecentExecutions(String tenantId, int limit) {
+        return jdbc.query(
+                """
+                SELECT execution.id, purchase_order.purchase_order_number, purchase_order.customer_name,
+                       execution.state, execution.correlation_id, execution.updated_at
+                FROM workflow_executions execution
+                JOIN workflow_purchase_orders purchase_order
+                  ON purchase_order.id = execution.source_id
+                 AND purchase_order.tenant_id = execution.tenant_id
+                WHERE execution.tenant_id = :tenantId
+                ORDER BY execution.updated_at DESC
+                LIMIT :limit
+                """,
+                Map.of("tenantId", tenantId, "limit", limit),
+                (rs, row) -> new ExecutionOverview.ExecutionSummary(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("purchase_order_number"),
+                        rs.getString("customer_name"),
+                        rs.getString("state"),
+                        rs.getString("correlation_id"),
+                        readInstant(rs, "updated_at"))
+        );
     }
 
     @Override

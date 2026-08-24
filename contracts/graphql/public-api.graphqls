@@ -1,6 +1,47 @@
 type Query {
   health: Health!
   execution(id: ID!): Execution
+  missionControl: MissionControl!
+}
+
+type MissionControl {
+  executions: [MissionControlExecution!]!
+  customers: [CustomerOverview!]!
+  stockItems: [StockItemOverview!]!
+  creditProfiles: [CreditProfileOverview!]!
+}
+
+type MissionControlExecution {
+  id: ID!
+  purchaseOrderNumber: String!
+  customerName: String!
+  state: ExecutionState!
+  correlationId: String!
+  updatedAt: String!
+}
+
+type CustomerOverview {
+  id: ID!
+  legalName: String!
+  active: Boolean!
+}
+
+type StockItemOverview {
+  sku: String!
+  availableQuantity: Int!
+}
+
+type CreditProfileOverview {
+  customerId: ID!
+  customerName: String!
+  standing: CreditStanding!
+  maxPaymentTermsDays: Int!
+}
+
+enum CreditStanding {
+  GOOD
+  REVIEW
+  BLOCKED
 }
 
 type Mutation {

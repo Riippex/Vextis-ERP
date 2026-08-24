@@ -1,26 +1,130 @@
-<section class="hero">
-  <mat-chip>Enterprise agent fleet</mat-chip>
-  <p class="hero__eyebrow">Mission Control</p>
-  <h1>Enterprise operations coordinated by trustworthy agents.</h1>
-  <p class="hero__lead">
-    One experience to plan, approve, and audit processes across sales, inventory, and finance.
-  </p>
-  <a mat-flat-button routerLink="/app/purchase-orders/new">
-    <mat-icon>upload_file</mat-icon>
-    Receive purchase order
-  </a>
-</section>
+<div class="workspace-page">
+  <header class="page-header dashboard-hero">
+    <div class="page-header__copy">
+      <p class="eyebrow">Mission Control</p>
+      <h1>Your operation, in one view.</h1>
+      <p class="page-lead">
+        Follow every agentive workflow across CRM, inventory, and finance with evidence from
+        Enterprise Core.
+      </p>
+    </div>
+    <div class="page-actions">
+      <button mat-stroked-button type="button" (click)="store.refresh()" [disabled]="store.loading()">
+        <mat-icon>refresh</mat-icon>
+        Refresh
+      </button>
+      <a mat-flat-button routerLink="/app/purchase-orders/new">
+        <mat-icon>upload_file</mat-icon>
+        Receive order
+      </a>
+    </div>
+  </header>
 
-<section class="areas" aria-label="Business areas">
-  @for (area of areas; track area.name) {
-    <mat-card appearance="outlined">
-      <mat-card-header>
-        <mat-icon mat-card-avatar>{{ area.icon }}</mat-icon>
-        <mat-card-title>{{ area.name }}</mat-card-title>
-      </mat-card-header>
-      <mat-card-content>
-        <p>{{ area.description }}</p>
-      </mat-card-content>
-    </mat-card>
+  @if (store.error()) {
+    <section class="panel state-panel" role="alert">
+      <mat-icon>cloud_off</mat-icon>
+      <span>{{ store.error() }}</span>
+      <button mat-button type="button" (click)="store.refresh()">Try again</button>
+    </section>
+  } @else if (store.loading() && !store.data()) {
+    <section class="panel state-panel" aria-label="Loading Mission Control">
+      <mat-spinner diameter="28" />
+      <span>Synchronizing the workspace…</span>
+    </section>
+  } @else if (store.data(); as data) {
+    <section class="metric-grid" aria-label="Operational summary">
+      <article class="metric-card metric-card--blue">
+        <span class="metric-card__label">Active workflows</span>
+        <strong class="metric-card__value">{{ activeExecutions() }}</strong>
+        <span class="metric-card__detail">{{ data.executions.length }} recent executions</span>
+      </article>
+      <article class="metric-card metric-card--violet">
+        <span class="metric-card__label">Waiting approval</span>
+        <strong class="metric-card__value">{{ waitingApprovals() }}</strong>
+        <span class="metric-card__detail">Human control stays explicit</span>
+      </article>
+      <article class="metric-card metric-card--green">
+        <span class="metric-card__label">Active customers</span>
+        <strong class="metric-card__value">{{ activeCustomers() }}</strong>
+        <span class="metric-card__detail">{{ data.customers.length }} CRM records</span>
+      </article>
+      <article class="metric-card metric-card--orange">
+        <span class="metric-card__label">Available units</span>
+        <strong class="metric-card__value">{{ availableUnits() }}</strong>
+        <span class="metric-card__detail">Across {{ data.stockItems.length }} tracked SKUs</span>
+      </article>
+    </section>
+
+    <section>
+      <div class="section-heading">
+        <div>
+          <h2>Department workspaces</h2>
+          <p>Authoritative business context, separated by ownership.</p>
+        </div>
+      </div>
+      <div class="department-grid department-grid--dashboard">
+        <a class="department-card" routerLink="/app/crm">
+          <span class="department-card__icon"><mat-icon>handshake</mat-icon></span>
+          <div>
+            <h3>CRM & Sales</h3>
+            <p>Customer identity and commercial readiness.</p>
+          </div>
+          <span class="department-card__footer">
+            {{ activeCustomers() }} active <mat-icon>arrow_forward</mat-icon>
+          </span>
+        </a>
+        <a class="department-card" routerLink="/app/inventory">
+          <span class="department-card__icon"><mat-icon>inventory_2</mat-icon></span>
+          <div>
+            <h3>Inventory</h3>
+            <p>Availability evidence for every extracted SKU.</p>
+          </div>
+          <span class="department-card__footer">
+            {{ data.stockItems.length }} SKUs <mat-icon>arrow_forward</mat-icon>
+          </span>
+        </a>
+        <a class="department-card" routerLink="/app/finance">
+          <span class="department-card__icon"><mat-icon>account_balance</mat-icon></span>
+          <div>
+            <h3>Finance</h3>
+            <p>Credit standing, payment terms, and control points.</p>
+          </div>
+          <span class="department-card__footer">
+            {{ data.creditProfiles.length }} profiles <mat-icon>arrow_forward</mat-icon>
+          </span>
+        </a>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel__header">
+        <h2>Recent workflow activity</h2>
+        <span class="data-row__meta">Tenant-scoped · live from Core</span>
+      </div>
+      @if (data.executions.length) {
+        <div class="data-list">
+          @for (execution of data.executions; track execution.id) {
+            <div class="data-row">
+              <div>
+                <div class="data-row__primary">{{ execution.purchaseOrderNumber }}</div>
+                <div class="data-row__secondary">{{ execution.customerName }}</div>
+              </div>
+              <span
+                class="status-pill"
+                [class.status-pill--good]="isHealthyState(execution.state)"
+                [class.status-pill--review]="execution.state === 'WAITING_APPROVAL'"
+              >{{ execution.state }}</span>
+              <span class="data-row__meta">{{ execution.updatedAt | date: 'medium' }}</span>
+              <span class="data-row__meta correlation">{{ execution.correlationId }}</span>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="state-panel">
+          <mat-icon>inbox</mat-icon>
+          <span>No workflows yet. Receive the first purchase order to start the fleet.</span>
+        </div>
+      }
+    </section>
   }
-</section>
+</div>

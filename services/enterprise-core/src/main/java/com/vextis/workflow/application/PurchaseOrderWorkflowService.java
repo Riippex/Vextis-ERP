@@ -4,6 +4,7 @@ import com.vextis.billing.CreditLookup;
 import com.vextis.crm.CustomerLookup;
 import com.vextis.inventory.StockLookup;
 import com.vextis.workflow.application.port.PurchaseOrderWorkflowRepository;
+import com.vextis.workflow.ExecutionOverview;
 import com.vextis.workflow.domain.Actor;
 import com.vextis.workflow.domain.ExecutionState;
 import com.vextis.workflow.domain.ExecutionTimelineEntry;
@@ -27,7 +28,7 @@ import java.util.UUID;
 
 @Service
 public class PurchaseOrderWorkflowService implements ReceivePurchaseOrderUseCase, FindExecutionUseCase,
-        StartPlanningUseCase, RecordPlanUseCase, EvaluateReadinessUseCase {
+        StartPlanningUseCase, RecordPlanUseCase, EvaluateReadinessUseCase, ExecutionOverview {
 
     static final String RECEIVE_OPERATION = "workflow.receive-purchase-order";
     static final String START_PLANNING_OPERATION = "workflow.start-planning";
@@ -106,6 +107,15 @@ public class PurchaseOrderWorkflowService implements ReceivePurchaseOrderUseCase
     @Transactional(readOnly = true)
     public Optional<WorkflowExecution> findById(String tenantId, UUID executionId) {
         return repository.findExecution(tenantId, executionId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ExecutionOverview.ExecutionSummary> findRecent(String tenantId, int limit) {
+        if (limit < 1 || limit > 50) {
+            throw new IllegalArgumentException("Execution summary limit must be between 1 and 50");
+        }
+        return repository.findRecentExecutions(tenantId, limit);
     }
 
     @Override
