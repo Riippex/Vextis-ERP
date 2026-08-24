@@ -68,6 +68,10 @@ footer {
   text-decoration: none;
 }
 
+.nav__theme {
+  color: var(--vxt-text-secondary);
+}
+
 .hero {
   align-items: center;
   display: grid;
@@ -537,6 +541,10 @@ footer p {
 }
 
 @media (max-width: 640px) {
+  .nav__links {
+    gap: 0.5rem;
+  }
+
   .nav__links > a:not([mat-stroked-button]),
   .stack > span {
     display: none;
