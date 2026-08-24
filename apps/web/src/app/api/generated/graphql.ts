@@ -37,6 +37,11 @@ export type ReceivePurchaseOrderInput = {
 export type ServiceStatus =
   | 'UP';
 
+export type SetStockAvailabilityInput = {
+  availableQuantity: number;
+  sku: string;
+};
+
 export type TimelineEntryType =
   | 'APPROVAL_DECIDED'
   | 'APPROVAL_REQUESTED'
@@ -45,10 +50,43 @@ export type TimelineEntryType =
   | 'RECEIVED'
   | 'STATUS_CHANGED';
 
+export type UpsertCreditProfileInput = {
+  customerId: string | number;
+  maxPaymentTermsDays: number;
+  standing: CreditStanding;
+};
+
+export type UpsertCustomerInput = {
+  active: boolean;
+  id?: string | number | null | undefined;
+  legalName: string;
+};
+
 export type HealthQueryVariables = Exact<{ [key: string]: never; }>;
 
 
 export type HealthQuery = { health: { status: ServiceStatus } };
+
+export type UpsertCustomerMutationVariables = Exact<{
+  input: UpsertCustomerInput;
+}>;
+
+
+export type UpsertCustomerMutation = { upsertCustomer: { id: string, legalName: string, active: boolean } };
+
+export type UpsertCreditProfileMutationVariables = Exact<{
+  input: UpsertCreditProfileInput;
+}>;
+
+
+export type UpsertCreditProfileMutation = { upsertCreditProfile: { customerId: string, customerName: string, standing: CreditStanding, maxPaymentTermsDays: number } };
+
+export type SetStockAvailabilityMutationVariables = Exact<{
+  input: SetStockAvailabilityInput;
+}>;
+
+
+export type SetStockAvailabilityMutation = { setStockAvailability: { sku: string, availableQuantity: number } };
 
 export type MissionControlQueryVariables = Exact<{ [key: string]: never; }>;
 
@@ -82,6 +120,66 @@ export const HealthDocument = gql`
   })
   export class HealthGQL extends Apollo.Query<HealthQuery, HealthQueryVariables> {
     document = HealthDocument;
+
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const UpsertCustomerDocument = gql`
+    mutation UpsertCustomer($input: UpsertCustomerInput!) {
+  upsertCustomer(input: $input) {
+    id
+    legalName
+    active
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class UpsertCustomerGQL extends Apollo.Mutation<UpsertCustomerMutation, UpsertCustomerMutationVariables> {
+    document = UpsertCustomerDocument;
+
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const UpsertCreditProfileDocument = gql`
+    mutation UpsertCreditProfile($input: UpsertCreditProfileInput!) {
+  upsertCreditProfile(input: $input) {
+    customerId
+    customerName
+    standing
+    maxPaymentTermsDays
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class UpsertCreditProfileGQL extends Apollo.Mutation<UpsertCreditProfileMutation, UpsertCreditProfileMutationVariables> {
+    document = UpsertCreditProfileDocument;
+
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const SetStockAvailabilityDocument = gql`
+    mutation SetStockAvailability($input: SetStockAvailabilityInput!) {
+  setStockAvailability(input: $input) {
+    sku
+    availableQuantity
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class SetStockAvailabilityGQL extends Apollo.Mutation<SetStockAvailabilityMutation, SetStockAvailabilityMutationVariables> {
+    document = SetStockAvailabilityDocument;
 
     constructor(apollo: Apollo.Apollo) {
       super(apollo);

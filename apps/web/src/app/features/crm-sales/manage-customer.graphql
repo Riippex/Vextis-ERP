@@ -1,0 +1,7 @@
+mutation UpsertCustomer($input: UpsertCustomerInput!) {
+  upsertCustomer(input: $input) {
+    id
+    legalName
+    active
+  }
+}

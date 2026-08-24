@@ -1,0 +1,8 @@
+mutation UpsertCreditProfile($input: UpsertCreditProfileInput!) {
+  upsertCreditProfile(input: $input) {
+    customerId
+    customerName
+    standing
+    maxPaymentTermsDays
+  }
+}

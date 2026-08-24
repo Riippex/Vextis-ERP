@@ -41,4 +41,17 @@ class JdbcCustomerLookup implements CustomerLookup, CustomerDirectory {
                         rs.getObject("id", UUID.class), rs.getString("legal_name"), rs.getBoolean("active"))
         );
     }
+
+    @Override
+    public Optional<CustomerSummary> findById(String tenantId, UUID customerId) {
+        return jdbc.query(
+                """
+                SELECT id, legal_name, active FROM crm_customers
+                WHERE tenant_id = :tenantId AND id = :customerId
+                """,
+                Map.of("tenantId", tenantId, "customerId", customerId),
+                (rs, row) -> new CustomerSummary(
+                        rs.getObject("id", UUID.class), rs.getString("legal_name"), rs.getBoolean("active"))
+        ).stream().findFirst();
+    }
 }

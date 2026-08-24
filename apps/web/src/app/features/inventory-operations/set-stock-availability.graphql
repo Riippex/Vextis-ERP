@@ -1,0 +1,6 @@
+mutation SetStockAvailability($input: SetStockAvailabilityInput!) {
+  setStockAvailability(input: $input) {
+    sku
+    availableQuantity
+  }
+}
