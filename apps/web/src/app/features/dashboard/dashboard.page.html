@@ -32,27 +32,36 @@
       <span>Synchronizing the workspace…</span>
     </section>
   } @else if (store.data(); as data) {
-    <section class="metric-grid" aria-label="Operational summary">
-      <article class="metric-card metric-card--blue">
-        <span class="metric-card__label">Active workflows</span>
-        <strong class="metric-card__value">{{ activeExecutions() }}</strong>
-        <span class="metric-card__detail">{{ data.executions.length }} recent executions</span>
-      </article>
-      <article class="metric-card metric-card--violet">
-        <span class="metric-card__label">Waiting approval</span>
-        <strong class="metric-card__value">{{ waitingApprovals() }}</strong>
-        <span class="metric-card__detail">Human control stays explicit</span>
-      </article>
-      <article class="metric-card metric-card--green">
-        <span class="metric-card__label">Active customers</span>
-        <strong class="metric-card__value">{{ activeCustomers() }}</strong>
-        <span class="metric-card__detail">{{ data.customers.length }} CRM records</span>
-      </article>
-      <article class="metric-card metric-card--orange">
-        <span class="metric-card__label">Available units</span>
-        <strong class="metric-card__value">{{ availableUnits() }}</strong>
-        <span class="metric-card__detail">Across {{ data.stockItems.length }} tracked SKUs</span>
-      </article>
+    <section class="metrics-surface" aria-label="Operational summary">
+      <div class="metrics-surface__header">
+        <div>
+          <p class="eyebrow">Live operations</p>
+          <h2>Operational snapshot</h2>
+        </div>
+        <span>Authoritative data from Enterprise Core</span>
+      </div>
+      <div class="metric-grid">
+        <article class="metric-card metric-card--blue">
+          <span class="metric-card__label">Active workflows</span>
+          <strong class="metric-card__value">{{ activeExecutions() }}</strong>
+          <span class="metric-card__detail">{{ data.executions.length }} recent executions</span>
+        </article>
+        <article class="metric-card metric-card--violet">
+          <span class="metric-card__label">Waiting approval</span>
+          <strong class="metric-card__value">{{ waitingApprovals() }}</strong>
+          <span class="metric-card__detail">Human control stays explicit</span>
+        </article>
+        <article class="metric-card metric-card--green">
+          <span class="metric-card__label">Active customers</span>
+          <strong class="metric-card__value">{{ activeCustomers() }}</strong>
+          <span class="metric-card__detail">{{ data.customers.length }} CRM records</span>
+        </article>
+        <article class="metric-card metric-card--orange">
+          <span class="metric-card__label">Available units</span>
+          <strong class="metric-card__value">{{ availableUnits() }}</strong>
+          <span class="metric-card__detail">Across {{ data.stockItems.length }} tracked SKUs</span>
+        </article>
+      </div>
     </section>
 
     <section>
