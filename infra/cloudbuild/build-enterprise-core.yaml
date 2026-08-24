@@ -1,0 +1,21 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    id: build-enterprise-core
+    args:
+      - build
+      - --file
+      - services/enterprise-core/Dockerfile
+      - --tag
+      - us-central1-docker.pkg.dev/$PROJECT_ID/vextis/enterprise-core:${_TAG}
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    id: push-enterprise-core
+    args:
+      - push
+      - us-central1-docker.pkg.dev/$PROJECT_ID/vextis/enterprise-core:${_TAG}
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 1200s

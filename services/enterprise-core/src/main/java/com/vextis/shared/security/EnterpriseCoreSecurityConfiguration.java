@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -22,6 +23,8 @@ class EnterpriseCoreSecurityConfiguration {
 
         if ("PUBLIC".equalsIgnoreCase(exposure)) {
             http.addFilterBefore(firebaseFilter, UsernamePasswordAuthenticationFilter.class)
+                    .exceptionHandling(exceptions -> exceptions.authenticationEntryPoint(
+                            (request, response, cause) -> response.sendError(HttpStatus.UNAUTHORIZED.value())))
                     .authorizeHttpRequests(authorize -> authorize
                             .requestMatchers("/actuator/health/**", "/actuator/info", "/error").permitAll()
                             .requestMatchers("/graphql").authenticated()

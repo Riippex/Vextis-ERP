@@ -87,6 +87,14 @@ resource "google_cloud_run_v2_service" "enterprise_core" {
         name  = "JAVA_TOOL_OPTIONS"
         value = "-XX:MaxRAMPercentage=75.0 -XX:+UseSerialGC"
       }
+      env {
+        name  = "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE"
+        value = "4"
+      }
+      env {
+        name  = "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE"
+        value = "0"
+      }
     }
   }
 
@@ -174,6 +182,14 @@ resource "google_cloud_run_v2_service" "enterprise_core_public" {
       env {
         name  = "JAVA_TOOL_OPTIONS"
         value = "-XX:MaxRAMPercentage=75.0 -XX:+UseSerialGC"
+      }
+      env {
+        name  = "SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE"
+        value = "4"
+      }
+      env {
+        name  = "SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE"
+        value = "0"
       }
     }
   }

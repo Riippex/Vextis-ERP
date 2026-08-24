@@ -7,6 +7,59 @@ locals {
   }
 }
 
+resource "google_project_service" "firebase_management" {
+  project            = var.project_id
+  service            = "firebase.googleapis.com"
+  disable_on_destroy = false
+}
+
+resource "google_project_service" "firebase_hosting" {
+  project            = var.project_id
+  service            = "firebasehosting.googleapis.com"
+  disable_on_destroy = false
+}
+
+resource "google_project_service" "identity_toolkit" {
+  project            = var.project_id
+  service            = "identitytoolkit.googleapis.com"
+  disable_on_destroy = false
+}
+
+resource "google_identity_platform_config" "default" {
+  project = var.project_id
+  authorized_domains = [
+    "localhost",
+    "vextis-erp.firebaseapp.com",
+    "vextis-erp.web.app",
+  ]
+
+  sign_in {
+    allow_duplicate_emails = false
+
+    anonymous {
+      enabled = false
+    }
+
+    email {
+      enabled           = true
+      password_required = true
+    }
+
+    phone_number {
+      enabled = false
+    }
+  }
+
+  client {
+    permissions {
+      disabled_user_deletion = true
+      disabled_user_signup   = true
+    }
+  }
+
+  depends_on = [google_project_service.identity_toolkit]
+}
+
 module "cloud_sql" {
   source = "../../modules/cloud-sql"
 

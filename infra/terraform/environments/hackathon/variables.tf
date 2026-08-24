@@ -13,7 +13,7 @@ variable "region" {
 variable "enterprise_core_image_tag" {
   description = "Enterprise Core image tag promoted to the hackathon service."
   type        = string
-  default     = "bootstrap-20260823-r3"
+  default     = "firebase-auth-20260823-r2"
 }
 
 variable "agent_runtime_image_tag" {

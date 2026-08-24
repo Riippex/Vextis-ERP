@@ -5,6 +5,9 @@ spring:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/vextis}
     username: ${POSTGRES_USER:vextis}
     password: ${POSTGRES_PASSWORD:vextis_local_only}
+    hikari:
+      maximum-pool-size: ${VEXTIS_DB_POOL_MAX_SIZE:4}
+      minimum-idle: ${VEXTIS_DB_POOL_MIN_IDLE:0}
   jpa:
     open-in-view: false
     hibernate:
