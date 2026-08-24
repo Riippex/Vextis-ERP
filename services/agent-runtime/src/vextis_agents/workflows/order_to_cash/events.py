@@ -83,7 +83,7 @@ class WorkflowApprovalDecidedV1(BaseModel):
 
 
 DomainEvent = PurchaseOrderReceivedV2 | WorkflowApprovalDecidedV1
-DOMAIN_EVENT_ADAPTER = TypeAdapter(DomainEvent)
+DOMAIN_EVENT_ADAPTER: TypeAdapter[DomainEvent] = TypeAdapter(DomainEvent)
 
 
 class PubSubPushMessage(BaseModel):

@@ -40,7 +40,11 @@ def create_app(
         )
 
     if settings.pubsub_push_enabled:
-        tool = planning_tool or EnterpriseCorePlanningClient(settings)
+        tool: PlanningTool = (
+            planning_tool
+            if planning_tool is not None
+            else EnterpriseCorePlanningClient(settings)
+        )
         generator = plan_generator or AdkGeminiPlanGenerator(settings)
         application.include_router(
             create_pubsub_router(

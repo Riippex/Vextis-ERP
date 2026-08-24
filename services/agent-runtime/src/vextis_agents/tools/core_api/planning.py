@@ -42,7 +42,7 @@ class PlanningTool(Protocol):
 
     async def record_plan(
         self,
-        event: DomainEvent,
+        event: PurchaseOrderReceivedV2,
         context: PlanningContext,
         plan: GeneratedPlan,
         model_id: str,
@@ -122,7 +122,7 @@ class EnterpriseCorePlanningClient:
 
     async def _headers(
         self,
-        event: PurchaseOrderReceivedV2,
+        event: DomainEvent,
         correlation_id: str,
         idempotency_key: str,
     ) -> dict[str, str]:
