@@ -2,7 +2,11 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 
-import { FindExecutionGQL, ReceivePurchaseOrderGQL } from '../../api/generated/graphql';
+import {
+  DecideApprovalGQL,
+  FindExecutionGQL,
+  ReceivePurchaseOrderGQL,
+} from '../../api/generated/graphql';
 import { ReceivePurchaseOrderPage } from './receive-purchase-order.page';
 
 describe('ReceivePurchaseOrderPage', () => {
@@ -135,6 +139,7 @@ describe('ReceivePurchaseOrderPage', () => {
         provideRouter([]),
         { provide: ReceivePurchaseOrderGQL, useValue: { mutate } },
         { provide: FindExecutionGQL, useValue: { fetch } },
+        { provide: DecideApprovalGQL, useValue: { mutate: vi.fn() } },
       ],
     }).compileComponents();
   });

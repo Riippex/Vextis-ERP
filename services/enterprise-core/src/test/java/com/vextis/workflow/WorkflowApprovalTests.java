@@ -1,4 +1,18 @@
-package com.vextis.workflow.domain;
+package com.vextis.workflow;
+
+import com.vextis.workflow.domain.ApprovalDecision;
+import com.vextis.workflow.domain.ApprovalStatus;
+import com.vextis.workflow.domain.ExecutionState;
+import com.vextis.workflow.domain.ExecutionTimelineEntry;
+import com.vextis.workflow.domain.ExtractedOrderLine;
+import com.vextis.workflow.domain.PlanningDepartment;
+import com.vextis.workflow.domain.ReadinessStatus;
+import com.vextis.workflow.domain.TimelineEntryType;
+import com.vextis.workflow.domain.WorkflowExecution;
+import com.vextis.workflow.domain.WorkflowPlan;
+import com.vextis.workflow.domain.WorkflowPlanStep;
+import com.vextis.workflow.domain.WorkflowReadiness;
+import com.vextis.workflow.domain.WorkflowReadinessCheck;
 
 import org.junit.jupiter.api.Test;
 
