@@ -24,6 +24,12 @@ secret. Agent Runtime can use Vertex AI but has no Cloud SQL access. Both
 backends can read the dedicated `vextis-agent-tools-token`; the Pub/Sub push
 identity has no application or data permissions.
 
+GitHub Actions federates into `vextis-build-hackathon` only from `main`. That
+identity builds component images and deploys the selected Cloud Run or Firebase
+Hosting release; it cannot read application secrets or data. Terraform owns the
+Cloud Run configuration while delivery owns only the immutable container image
+revision, as recorded in ADR 0004.
+
 The `order-events` topic is provisioned for the Enterprise Core transactional
 outbox. Publisher access is granted on that topic only. Its authenticated push
 subscription is intentionally deferred until Agent Runtime has a stable Cloud
