@@ -1,13 +1,13 @@
-FROM ghcr.io/astral-sh/uv:0.11.17-python3.13-bookworm-slim AS build
+FROM ghcr.io/astral-sh/uv:0.12.5-python3.13-trixie-slim AS build
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 WORKDIR /app
-COPY pyproject.toml uv.lock* ./
+COPY services/agent-runtime/pyproject.toml services/agent-runtime/uv.lock* ./
 RUN uv sync --frozen --no-dev --no-install-project
-COPY src ./src
-COPY README.md ./README.md
-RUN uv sync --frozen --no-dev
+COPY services/agent-runtime/src ./src
+COPY services/agent-runtime/README.md ./README.md
+RUN uv sync --frozen --no-dev --no-editable
 
-FROM python:3.13-slim-bookworm
+FROM python:3.13-slim-trixie
 RUN useradd --system --uid 10001 vextis
 WORKDIR /app
 COPY --from=build --chown=vextis:vextis /app/.venv /app/.venv

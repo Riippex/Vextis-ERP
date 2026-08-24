@@ -1,0 +1,377 @@
+// "Exotic" hero identity Rafa shared as a reference, adapted to Vextis's own
+// colors. It's the front door, not a CRM view, so it keeps its own distinct
+// look rather than reusing the shell's chrome tokens directly — but it does
+// follow the global light/dark toggle via `html.dark`, same mechanism as the
+// rest of the app (see app.ts / _tokens.scss). Dark mode is the original,
+// unchanged "exotic" look; light mode is new.
+
+:host {
+  --login-bg: var(--vxt-page);
+  --login-glow-violet: radial-gradient(circle, var(--vxt-brand-violet-tint), transparent 70%);
+  --login-glow-blue: radial-gradient(circle, rgba(37, 104, 201, 0.16), transparent 70%);
+  --login-glow-opacity: 0.5;
+  --login-grain-color: #0b0b0b;
+  --login-grain-opacity: 0.035;
+  --login-text-primary: var(--vxt-text-primary);
+  --login-text-secondary: var(--vxt-text-secondary);
+  --login-text-tertiary: var(--vxt-muted);
+  --login-border: var(--vxt-border);
+  --login-eyebrow-bg: rgba(11, 11, 11, 0.03);
+  --login-panel-bg: var(--vxt-surface);
+  --login-field-bg: rgba(11, 11, 11, 0.02);
+  --login-submit-bg: var(--vxt-brand-gradient);
+  --login-submit-text: #ffffff;
+  --login-audit-bg: rgba(11, 11, 11, 0.02);
+
+  display: block;
+}
+
+:host-context(html.dark) {
+  --login-bg: #07070c;
+  --login-glow-violet: radial-gradient(circle, rgba(124, 92, 255, 0.5), transparent 70%);
+  --login-glow-blue: radial-gradient(circle, rgba(37, 104, 201, 0.5), transparent 70%);
+  --login-glow-opacity: 0.6;
+  --login-grain-color: #ffffff;
+  --login-grain-opacity: 0.07;
+  --login-text-primary: #ffffff;
+  --login-text-secondary: rgba(255, 255, 255, 0.5);
+  --login-text-tertiary: rgba(255, 255, 255, 0.4);
+  --login-border: rgba(255, 255, 255, 0.1);
+  --login-eyebrow-bg: rgba(255, 255, 255, 0.03);
+  --login-panel-bg: #0c0c14;
+  --login-field-bg: rgba(255, 255, 255, 0.03);
+  --login-submit-bg: linear-gradient(135deg, #ffffff, #e4e0ff);
+  --login-submit-text: #0c0c14;
+  --login-audit-bg: rgba(255, 255, 255, 0.02);
+}
+
+.login {
+  background: var(--login-bg);
+  display: flex;
+  height: 100dvh;
+  overflow: hidden;
+  width: 100%;
+}
+
+.login__hero {
+  display: none;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+  position: relative;
+
+  @media (min-width: 1024px) {
+    display: flex;
+  }
+}
+
+.login__glow {
+  border-radius: 999px;
+  filter: blur(90px);
+  opacity: var(--login-glow-opacity);
+  pointer-events: none;
+  position: absolute;
+}
+
+.login__glow--violet {
+  background: var(--login-glow-violet);
+  height: 520px;
+  right: -160px;
+  top: -160px;
+  width: 520px;
+}
+
+.login__glow--blue {
+  background: var(--login-glow-blue);
+  bottom: -208px;
+  left: -96px;
+  width: 420px;
+  height: 420px;
+  opacity: calc(var(--login-glow-opacity) * 0.67);
+}
+
+.login__grain {
+  background-image: radial-gradient(var(--login-grain-color) 1px, transparent 1px);
+  background-size: 22px 22px;
+  inset: 0;
+  opacity: var(--login-grain-opacity);
+  pointer-events: none;
+  position: absolute;
+}
+
+.login__hero-top {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  z-index: 1;
+}
+
+.login__brand,
+.login__panel-brand {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.login__wordmark {
+  background-image: linear-gradient(135deg, #2568c9 0%, #6a4fe0 60%, #7c5cff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.login__hero-meta {
+  align-items: center;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.login__badge {
+  border: 1px solid var(--login-border);
+  border-radius: 999px;
+  color: var(--login-text-secondary);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  padding: 0.25rem 0.75rem;
+  text-transform: uppercase;
+}
+
+.login__clock {
+  color: var(--login-text-secondary);
+  font-family: 'SFMono-Regular', ui-monospace, Menlo, monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
+}
+
+.login__hero-body {
+  align-items: center;
+  display: grid;
+  flex: 1;
+  gap: 2.5rem;
+  grid-template-columns: 1fr;
+  position: relative;
+  z-index: 1;
+
+  @media (min-width: 1280px) {
+    grid-template-columns: 1.1fr 0.9fr;
+  }
+}
+
+.login__eyebrow {
+  align-items: center;
+  background: var(--login-eyebrow-bg);
+  border: 1px solid var(--login-border);
+  border-radius: 999px;
+  color: var(--login-text-secondary);
+  display: inline-flex;
+  font-size: 0.6875rem;
+  gap: 0.5rem;
+  letter-spacing: 0.05em;
+  margin-bottom: 1.5rem;
+  padding: 0.25rem 0.75rem;
+  text-transform: uppercase;
+}
+
+.login__eyebrow-dot {
+  background: #7c5cff;
+  border-radius: 999px;
+  height: 6px;
+  width: 6px;
+}
+
+.login__headline {
+  color: var(--login-text-primary);
+  font-size: clamp(2.5rem, 4.5vw, 3.75rem);
+  font-weight: 600;
+  line-height: 1.05;
+  margin: 0;
+}
+
+.login__headline-accent {
+  background-image: linear-gradient(135deg, #2568c9 0%, #6a4fe0 60%, #7c5cff 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-style: italic;
+}
+
+.login__lead {
+  color: var(--login-text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.65;
+  margin: 1.5rem 0 0;
+  max-width: 30rem;
+}
+
+.login__stats {
+  border-top: 1px solid var(--login-border);
+  display: flex;
+  gap: 2rem;
+  margin: 2.5rem 0 0;
+  padding-top: 1.5rem;
+}
+
+.login__stats dt {
+  color: var(--login-text-tertiary);
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.login__stats dd {
+  color: var(--login-text-primary);
+  font-size: 1rem;
+  font-weight: 500;
+  margin: 0.25rem 0 0;
+}
+
+.login__sphere {
+  align-items: center;
+  display: none;
+  justify-content: center;
+
+  @media (min-width: 1280px) {
+    display: flex;
+  }
+}
+
+.login__panel {
+  background: var(--login-panel-bg);
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  justify-content: center;
+  padding: clamp(1.75rem, 4vw, 2.5rem);
+  width: 100%;
+
+  @media (min-width: 1024px) {
+    width: 420px;
+  }
+
+  @media (min-width: 1280px) {
+    width: 460px;
+  }
+}
+
+.login__panel-brand {
+  display: flex;
+  margin-bottom: 2.5rem;
+
+  @media (min-width: 1024px) {
+    display: none;
+  }
+}
+
+.login__wordmark--dark {
+  font-size: 0.9rem;
+}
+
+.login__panel-title {
+  color: var(--login-text-primary);
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.login__panel-subtitle {
+  color: var(--login-text-tertiary);
+  font-size: 0.875rem;
+  margin: 0.25rem 0 0;
+}
+
+.login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.login__field {
+  color: var(--login-text-secondary);
+  display: flex;
+  flex-direction: column;
+  font-size: 0.75rem;
+  gap: 0.375rem;
+}
+
+.login__field input {
+  background: var(--login-field-bg);
+  border: 1px solid var(--login-border);
+  border-radius: 0.5rem;
+  color: var(--login-text-primary);
+  font-size: 0.875rem;
+  padding: 0.625rem 0.75rem;
+
+  &:focus {
+    border-color: #7c5cff;
+    outline: none;
+  }
+
+  &[aria-invalid='true'] {
+    border-color: #e34948;
+  }
+}
+
+.login__error {
+  color: #d03b3b;
+  font-size: 0.75rem;
+  margin: -0.25rem 0 0;
+}
+
+:host-context(html.dark) .login__error {
+  color: #ff8a8a;
+}
+
+.login__submit {
+  align-items: center;
+  background: var(--login-submit-bg);
+  border: 0;
+  border-radius: 0.5rem;
+  color: var(--login-submit-text);
+  cursor: pointer;
+  display: flex;
+  font-size: 0.875rem;
+  font-weight: 600;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 0.5rem;
+  padding: 0.65rem 1rem;
+  transition: opacity 0.15s ease;
+
+  &:hover {
+    opacity: 0.9;
+  }
+
+  &:disabled {
+    cursor: wait;
+    opacity: 0.65;
+  }
+}
+
+.login__audit-note {
+  align-items: center;
+  background: var(--login-audit-bg);
+  border: 1px solid var(--login-border);
+  border-radius: 0.5rem;
+  color: var(--login-text-tertiary);
+  display: flex;
+  font-size: 0.6875rem;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  padding: 0.625rem 0.75rem;
+}
+
+.login__panel-footer {
+  color: var(--login-text-tertiary);
+  font-size: 0.6875rem;
+  margin-top: 2rem;
+  text-align: center;
+  opacity: 0.7;
+}

@@ -8,7 +8,7 @@ channels:
     address: order-events
     messages:
       purchaseOrderReceived:
-        $ref: "#/components/messages/PurchaseOrderReceived"
+        $ref: "#/components/messages/PurchaseOrderReceivedV2"
 operations:
   receivePurchaseOrder:
     action: receive
@@ -18,9 +18,8 @@ operations:
       - $ref: "#/channels/orderEvents/messages/purchaseOrderReceived"
 components:
   messages:
-    PurchaseOrderReceived:
+    PurchaseOrderReceivedV2:
       name: purchase_order.received
-      title: Purchase order received
+      title: Purchase order received (v2)
       payload:
-        $ref: "./schemas/purchase-order-received.v1.json"
-
+        $ref: "./schemas/purchase-order-received.v2.json"

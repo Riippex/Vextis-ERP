@@ -1,28 +1,28 @@
-# ADR 0001 — Java + Python + PostgreSQL en monorepo
+# ADR 0001 — Java + Python + PostgreSQL in a monorepo
 
-- Estado: Accepted
-- Fecha: 2026-08-19
+- Status: Accepted
+- Date: 2026-08-19
 
-## Contexto
+## Context
 
-Vextis necesita reglas ERP/CRM transaccionales y, al mismo tiempo, rapidez y soporte de primera clase para Google ADK, RAG y workflows agentivos.
+Vextis needs transactional ERP/CRM business rules while also needing speed and first-class support for Google ADK, RAG, and agentive workflows.
 
-## Decisión
+## Decision
 
-- Angular en `apps/web`.
-- Enterprise Core Java/Spring Boot en `services/enterprise-core`.
-- Agent Runtime Python/Google ADK en `services/agent-runtime`.
-- Cloud SQL PostgreSQL como fuente de verdad durable.
-- Pub/Sub con transactional outbox para integración asíncrona.
-- Contratos ejecutables en `contracts`.
+- Angular in `apps/web`.
+- Enterprise Core Java/Spring Boot in `services/enterprise-core`.
+- Agent Runtime Python/Google ADK in `services/agent-runtime`.
+- Cloud SQL PostgreSQL as the durable source of truth.
+- Pub/Sub with a transactional outbox for asynchronous integration.
+- Executable contracts in `contracts`.
 
-Enterprise Core es la única autoridad para mutaciones empresariales. Agent Runtime coordina y llama herramientas autenticadas; no escribe directamente en tablas del ERP.
+Enterprise Core is the sole authority for business mutations. Agent Runtime coordinates and calls authenticated tools; it does not write directly to ERP tables.
 
-> La selección de build Java y del contrato público fue actualizada por ADR 0002: Gradle Kotlin DSL y GraphQL para Angular; OpenAPI permanece para las tools internas.
+> The Java build and public-contract choice were updated by ADR 0002: Gradle Kotlin DSL and GraphQL for Angular; OpenAPI remains for internal tools.
 
-## Consecuencias
+## Consequences
 
-- Dos backends desplegables, no un microservicio por departamento.
-- Mayor complejidad de build por dos lenguajes, mitigada por contratos generados y automatización raíz.
-- Límites de dominio más claros y una ruta razonable de escalado enterprise.
-- Firestore y el layout histórico `web/api/worker/agents/shared` quedan descartados para el código nuevo.
+- Two deployable backends, not one microservice per department.
+- Higher build complexity from two languages, mitigated by generated contracts and root-level automation.
+- Clearer domain boundaries and a reasonable path for enterprise scaling.
+- Firestore and the historical `web/api/worker/agents/shared` layout are dropped for new code.

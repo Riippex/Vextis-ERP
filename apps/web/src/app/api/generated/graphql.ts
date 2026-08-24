@@ -5,90 +5,59 @@ export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' |
 import { gql } from 'apollo-angular';
 import { Injectable } from '@angular/core';
 import * as Apollo from 'apollo-angular';
-export type Maybe<T> = T | null;
-export type InputMaybe<T> = Maybe<T>;
-/** All built-in and custom scalars, mapped to their actual values */
-export type Scalars = {
-  ID: { input: string; output: string; }
-  String: { input: string; output: string; }
-  Boolean: { input: boolean; output: boolean; }
-  Int: { input: number; output: number; }
-  Float: { input: number; output: number; }
+export type ExecutionState =
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'PLANNING'
+  | 'RECEIVED'
+  | 'RUNNING'
+  | 'WAITING_APPROVAL';
+
+export type PlanningDepartment =
+  | 'CRM_SALES'
+  | 'FINANCE_BILLING'
+  | 'INVENTORY_OPERATIONS';
+
+export type ReadinessStatus =
+  | 'READY'
+  | 'REVIEW_REQUIRED';
+
+export type ReceivePurchaseOrderInput = {
+  customerName: string;
+  documentUri: string;
+  idempotencyKey: string;
+  purchaseOrderNumber: string;
 };
-
-export type CreateLiveSessionInput = {
-  conversationId: Scalars['ID']['input'];
-};
-
-export type Execution = {
-  __typename?: 'Execution';
-  correlationId: Scalars['String']['output'];
-  createdAt: Scalars['String']['output'];
-  id: Scalars['ID']['output'];
-  state: ExecutionState;
-  updatedAt: Scalars['String']['output'];
-};
-
-export enum ExecutionState {
-  Completed = 'COMPLETED',
-  Failed = 'FAILED',
-  Planning = 'PLANNING',
-  Received = 'RECEIVED',
-  Running = 'RUNNING',
-  WaitingApproval = 'WAITING_APPROVAL'
-}
-
-export type Health = {
-  __typename?: 'Health';
-  status: ServiceStatus;
-};
-
-export type LiveSession = {
-  __typename?: 'LiveSession';
-  expiresAt: Scalars['String']['output'];
-  id: Scalars['ID']['output'];
-  sessionToken: Scalars['String']['output'];
-  websocketUrl: Scalars['String']['output'];
-};
-
-export type Mutation = {
-  __typename?: 'Mutation';
-  closeLiveSession: Scalars['Boolean']['output'];
-  createLiveSession: LiveSession;
-};
-
-
-export type MutationCloseLiveSessionArgs = {
-  id: Scalars['ID']['input'];
-};
-
-
-export type MutationCreateLiveSessionArgs = {
-  input: CreateLiveSessionInput;
-};
-
-export type Query = {
-  __typename?: 'Query';
-  execution?: Maybe<Execution>;
-  health: Health;
-};
-
-
-export type QueryExecutionArgs = {
-  id: Scalars['ID']['input'];
-};
-
-export enum ServiceStatus {
-  Up = 'UP'
-}
 
 export type ServiceStatus =
   | 'UP';
+
+export type TimelineEntryType =
+  | 'APPROVAL_DECIDED'
+  | 'APPROVAL_REQUESTED'
+  | 'COMPLETED'
+  | 'FAILED'
+  | 'RECEIVED'
+  | 'STATUS_CHANGED';
 
 export type HealthQueryVariables = Exact<{ [key: string]: never; }>;
 
 
 export type HealthQuery = { health: { status: ServiceStatus } };
+
+export type FindExecutionQueryVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type FindExecutionQuery = { execution: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, orderLines: Array<{ sku: string, quantity: number }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null } | null };
+
+export type ReceivePurchaseOrderMutationVariables = Exact<{
+  input: ReceivePurchaseOrderInput;
+}>;
+
+
+export type ReceivePurchaseOrderMutation = { receivePurchaseOrder: { purchaseOrder: { id: string, purchaseOrderNumber: string, customerName: string, documentUri: string, receivedAt: string }, execution: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, orderLines: Array<{ sku: string, quantity: number }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null } } };
 
 export const HealthDocument = gql`
     query Health {
@@ -103,7 +72,124 @@ export const HealthDocument = gql`
   })
   export class HealthGQL extends Apollo.Query<HealthQuery, HealthQueryVariables> {
     document = HealthDocument;
-    
+
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const FindExecutionDocument = gql`
+    query FindExecution($id: ID!) {
+  execution(id: $id) {
+    id
+    goal
+    state
+    correlationId
+    createdAt
+    updatedAt
+    timeline {
+      sequence
+      type
+      title
+      detail
+      occurredAt
+    }
+    plan {
+      summary
+      modelId
+      generatedAt
+      requestedPaymentTermsDays
+      orderLines {
+        sku
+        quantity
+      }
+      steps {
+        sequence
+        department
+        objective
+        requiresApproval
+      }
+    }
+    readiness {
+      evaluatedAt
+      checks {
+        department
+        status
+        detail
+      }
+    }
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class FindExecutionGQL extends Apollo.Query<FindExecutionQuery, FindExecutionQueryVariables> {
+    document = FindExecutionDocument;
+
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const ReceivePurchaseOrderDocument = gql`
+    mutation ReceivePurchaseOrder($input: ReceivePurchaseOrderInput!) {
+  receivePurchaseOrder(input: $input) {
+    purchaseOrder {
+      id
+      purchaseOrderNumber
+      customerName
+      documentUri
+      receivedAt
+    }
+    execution {
+      id
+      goal
+      state
+      correlationId
+      createdAt
+      updatedAt
+      timeline {
+        sequence
+        type
+        title
+        detail
+        occurredAt
+      }
+      plan {
+        summary
+        modelId
+        generatedAt
+        requestedPaymentTermsDays
+        orderLines {
+          sku
+          quantity
+        }
+        steps {
+          sequence
+          department
+          objective
+          requiresApproval
+        }
+      }
+      readiness {
+        evaluatedAt
+        checks {
+          department
+          status
+          detail
+        }
+      }
+    }
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class ReceivePurchaseOrderGQL extends Apollo.Mutation<ReceivePurchaseOrderMutation, ReceivePurchaseOrderMutationVariables> {
+    document = ReceivePurchaseOrderDocument;
+
     constructor(apollo: Apollo.Apollo) {
       super(apollo);
     }

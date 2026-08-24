@@ -1,8 +1,8 @@
 # Vextis — Monorepo Structure
 
-## Decisión
+## Decision
 
-Vextis vivirá en un monorepo con tres aplicaciones desplegables y contratos compartidos:
+Vextis will live in a monorepo with three deployable applications and shared contracts:
 
 ```text
 vextis-erp/
@@ -11,19 +11,19 @@ vextis-erp/
 ├── services/
 │   ├── enterprise-core/             # Java + Spring Boot
 │   └── agent-runtime/               # Python + Google ADK
-├── contracts/                       # GraphQL, OpenAPI interno, eventos y esquemas
-├── infra/                           # Google Cloud e infraestructura local
-├── docs/                            # Arquitectura, ADR y demo
-├── tools/                           # Automatización de desarrollo
+├── contracts/                       # GraphQL, internal OpenAPI, events, and schemas
+├── infra/                           # Google Cloud and local infrastructure
+├── docs/                            # Architecture, ADRs, and demo
+├── tools/                           # Development automation
 ├── compose.yaml
 ├── .env.example
 ├── README.md
 └── LICENSE
 ```
 
-No se usará una carpeta genérica `backend/`: existen dos backends con responsabilidades y ciclos de despliegue diferentes.
+No generic `backend/` folder is used: there are two backends with different responsibilities and deployment cycles.
 
-## Regla principal de dependencias
+## Main dependency rule
 
 ```text
 Angular ────────> Enterprise Core <──────── Agent Runtime
@@ -31,22 +31,22 @@ Angular ────────> Enterprise Core <──────── Agen
                          v
                     PostgreSQL
 
-Enterprise Core ──eventos──> Pub/Sub ──> Agent Runtime
+Enterprise Core ──events──> Pub/Sub ──> Agent Runtime
 ```
 
-- Angular nunca consulta PostgreSQL ni llama directamente a Gemini.
-- Agent Runtime nunca escribe directamente en tablas del ERP.
-- Enterprise Core nunca importa código Python ni depende de prompts.
-- Las tres aplicaciones dependen de `contracts/`, no entre sí a nivel de código.
-- La comunicación se realiza con APIs autenticadas y eventos versionados.
+- Angular never queries PostgreSQL nor calls Gemini directly.
+- Agent Runtime never writes directly to ERP tables.
+- Enterprise Core never imports Python code nor depends on prompts.
+- All three applications depend on `contracts/`, not on each other at the code level.
+- Communication happens through authenticated APIs and versioned events.
 
 ## 1. Angular Web
 
 ```text
 apps/web/
 ├── src/app/
-│   ├── core/                        # Auth, layout, interceptores, configuración
-│   ├── shared/                      # Componentes visuales reutilizables
+│   ├── core/                        # Auth, layout, interceptors, configuration
+│   ├── shared/                      # Reusable visual components
 │   ├── features/
 │   │   ├── dashboard/
 │   │   ├── crm-sales/
@@ -54,20 +54,20 @@ apps/web/
 │   │   ├── finance-billing/
 │   │   ├── agent-mission-control/
 │   │   └── approvals/
-│   └── api/                         # Operaciones y tipos generados desde GraphQL
+│   └── api/                         # Operations and types generated from GraphQL
 ├── public/
 ├── Dockerfile
 ├── package.json
 └── angular.json
 ```
 
-### Reglas
+### Rules
 
-- Organizar por feature, no por tipo técnico global (`components/`, `services/`, etc.).
-- `shared/` contiene solo elementos realmente compartidos y sin reglas de negocio.
-- `api/` es código generado; no se edita a mano.
-- Mission Control es transversal, pero consume datos del Enterprise Core.
-- El frontend no decide permisos ni reglas financieras; solo refleja capacidades entregadas por la API.
+- Organize by feature, not by generic technical type (`components/`, `services/`, etc.).
+- `shared/` contains only genuinely shared elements with no business rules.
+- `api/` is generated code; it is not edited by hand.
+- Mission Control is cross-cutting, but consumes data from Enterprise Core.
+- The frontend does not decide permissions or financial rules; it only reflects capabilities delivered by the API.
 
 ## 2. Enterprise Core
 
@@ -109,29 +109,29 @@ services/enterprise-core/
 └── README.md
 ```
 
-### Significado de las capas
+### What each layer means
 
-- `domain/`: entidades, value objects, reglas e interfaces del dominio; sin Spring, JPA ni Google Cloud.
-- `application/`: casos de uso y coordinación transaccional.
-- `infrastructure/`: JPA, Pub/Sub, Storage, clientes externos y adaptadores.
-- `api/`: adaptadores GraphQL públicos, REST internos, DTO y mapeadores.
+- `domain/`: entities, value objects, rules, and domain interfaces; no Spring, JPA, or Google Cloud.
+- `application/`: use cases and transactional coordination.
+- `infrastructure/`: JPA, Pub/Sub, Storage, external clients, and adapters.
+- `api/`: public GraphQL adapters, internal REST, DTOs, and mappers.
 
-### Reglas
+### Rules
 
-- CRM, Inventario y Facturación son módulos, no microservicios iniciales.
-- Un módulo no consulta las tablas internas de otro módulo.
-- La integración interna ocurre mediante casos de uso públicos o eventos de dominio.
-- `shared/` solo contiene primitivas técnicas o conceptos verdaderamente universales; no es un vertedero.
-- Toda mutación iniciada por un agente pasa por los mismos casos de uso y validaciones que una mutación iniciada por un humano.
-- El outbox transaccional vive aquí porque el core es dueño de las transacciones empresariales.
+- CRM, Inventory, and Billing are modules, not initial microservices.
+- A module does not query another module's internal tables.
+- Internal integration happens through public use cases or domain events.
+- `shared/` only contains technical primitives or truly universal concepts; it is not a dumping ground.
+- Every agent-initiated mutation goes through the same use cases and validations as a human-initiated mutation.
+- The transactional outbox lives here because the core owns business transactions.
 
 ## 3. Agent Runtime
 
 ```text
 services/agent-runtime/
 ├── src/vextis_agents/
-│   ├── app/                         # Configuración y entrypoints
-│   ├── coordinator/                 # Enrutamiento de la flota
+│   ├── app/                         # Configuration and entrypoints
+│   ├── coordinator/                 # Fleet routing
 │   ├── agents/
 │   │   ├── crm/
 │   │   ├── inventory/
@@ -139,7 +139,7 @@ services/agent-runtime/
 │   ├── workflows/
 │   │   └── order_to_cash/
 │   ├── tools/
-│   │   ├── core_api/                # Herramientas que llaman a Java
+│   │   ├── core_api/                # Tools that call Java
 │   │   ├── documents/
 │   │   └── approvals/
 │   ├── rag/
@@ -149,26 +149,26 @@ services/agent-runtime/
 │   ├── memory/
 │   ├── policies/
 │   ├── observability/
-│   └── generated/                   # Cliente OpenAPI generado
+│   └── generated/                   # Generated OpenAPI client
 ├── tests/
 │   ├── unit/
 │   ├── integration/
-│   └── evals/                       # Evaluaciones de agentes
+│   └── evals/                       # Agent evaluations
 ├── pyproject.toml
 ├── Dockerfile
 └── README.md
 ```
 
-### Reglas
+### Rules
 
-- Los prompts permanecen cerca del agente o workflow que los usa y se versionan.
-- Las tools son adaptadores pequeños; no contienen reglas de inventario, crédito o facturación.
-- Las salidas de agentes usan modelos Pydantic, no diccionarios libres.
-- `rag/` recupera evidencia; no decide acciones empresariales.
-- `memory/` almacena preferencias y contexto, nunca saldos o existencias.
-- Los evals son parte del producto y se ejecutan en CI.
+- Prompts stay close to the agent or workflow that uses them and are versioned.
+- Tools are small adapters; they contain no inventory, credit, or billing rules.
+- Agent outputs use Pydantic models, not free-form dicts.
+- `rag/` retrieves evidence; it does not decide business actions.
+- `memory/` stores preferences and context, never balances or stock.
+- Evals are part of the product and run in CI.
 
-## 4. Contratos
+## 4. Contracts
 
 ```text
 contracts/
@@ -186,15 +186,15 @@ contracts/
 └── examples/
 ```
 
-### Reglas
+### Rules
 
-- GraphQL SDL, OpenAPI y JSON Schema son las fuentes de verdad de integración.
-- Se generan operaciones/tipos TypeScript y clientes Python; no se comparte una librería binaria entre lenguajes.
-- Todos los eventos llevan `eventId`, `eventType`, `version`, `occurredAt`, `correlationId`, `causationId`, `tenantId` y `payload`.
-- Los contratos publicados son compatibles hacia atrás o reciben una nueva versión.
-- Los ejemplos válidos de payload se prueban en CI.
+- GraphQL SDL, OpenAPI, and JSON Schema are the sources of truth for integration.
+- TypeScript operations/types and Python clients are generated; no binary library is shared between languages.
+- Every event carries `eventId`, `eventType`, `version`, `occurredAt`, `correlationId`, `causationId`, `tenantId`, and `payload`.
+- Published contracts are backward compatible or receive a new version.
+- Valid payload examples are tested in CI.
 
-## 5. Infraestructura
+## 5. Infrastructure
 
 ```text
 infra/
@@ -207,20 +207,20 @@ infra/
 │   │   └── iam/
 │   └── environments/
 │       ├── hackathon/
-│       └── production/              # Preparado, no necesariamente desplegado
+│       └── production/              # Prepared, not necessarily deployed
 ├── docker/
 └── seed/
 ```
 
-### Reglas
+### Rules
 
-- Un entorno `hackathon` pequeño y reproducible.
-- Recursos costosos u opcionales se controlan con flags.
-- Una service account distinta para web/core y agent runtime.
-- Secretos se referencian desde Secret Manager y nunca se guardan en `.env` versionados.
-- Los datos semilla pertenecen a `infra/seed/`; las migraciones de esquema pertenecen al core.
+- One small, reproducible `hackathon` environment.
+- Expensive or optional resources are controlled with flags.
+- A separate service account for web/core and for agent runtime.
+- Secrets are referenced from Secret Manager and never stored in versioned `.env` files.
+- Seed data belongs in `infra/seed/`; schema migrations belong to the core.
 
-## 6. Documentación
+## 6. Documentation
 
 ```text
 docs/
@@ -239,11 +239,11 @@ docs/
 └── runbooks/
 ```
 
-Los ADR registran decisiones y consecuencias; no repiten tutoriales de instalación.
+ADRs record decisions and consequences; they do not repeat installation tutorials.
 
-## 7. Automatización raíz
+## 7. Root automation
 
-Los comandos raíz deben ocultar la diferencia entre Gradle, pnpm y Python:
+Root commands must hide the differences between Gradle, pnpm, and Python:
 
 ```text
 tools/
@@ -254,64 +254,64 @@ tools/
 └── deploy.ps1
 ```
 
-Comandos conceptuales:
+Conceptual commands:
 
-- `dev`: levanta PostgreSQL y las tres aplicaciones.
-- `test`: ejecuta Java, Angular, Python, contratos y evals.
-- `generate-contracts`: regenera los clientes Angular y Python.
-- `seed`: crea los escenarios reproducibles de demo.
-- `deploy`: construye y publica los servicios en Google Cloud.
+- `dev`: brings up PostgreSQL and the three applications.
+- `test`: runs Java, Angular, Python, contracts, and evals.
+- `generate-contracts`: regenerates the Angular and Python clients.
+- `seed`: creates reproducible demo scenarios.
+- `deploy`: builds and publishes the services to Google Cloud.
 
-También pueden existir equivalentes `.sh`, pero la lógica no debe duplicarse de forma divergente.
+Equivalent `.sh` scripts may also exist, but logic must not diverge between them.
 
-## 8. CI/CD por cambios
+## 8. CI/CD by change
 
 ```text
-Cambio en apps/web/**
-  -> lint + unit tests + build Angular
+Change in apps/web/**
+  -> lint + unit tests + Angular build
 
-Cambio en services/enterprise-core/**
+Change in services/enterprise-core/**
   -> unit + architecture + integration tests + container build
 
-Cambio en services/agent-runtime/**
+Change in services/agent-runtime/**
   -> lint + type check + unit + evals + container build
 
-Cambio en contracts/**
+Change in contracts/**
   -> validate schemas + regenerate clients + test all consumers
 
-Cambio en infra/**
+Change in infra/**
   -> terraform fmt + validate + plan
 ```
 
-El monorepo no obliga a reconstruir todo en cada cambio; los pipelines usan filtros por ruta.
+The monorepo does not force a full rebuild on every change; pipelines use path filters.
 
-## 9. Propiedad de datos
+## 9. Data ownership
 
-Aunque inicialmente exista una sola instancia PostgreSQL, cada módulo es dueño de sus tablas:
+Although initially a single PostgreSQL instance exists, each module owns its tables:
 
 ```text
-crm_*          -> CRM/Ventas
-inventory_*    -> Inventario/Operaciones
-billing_*      -> Finanzas/Facturación
-workflow_*     -> Ejecuciones, aprobaciones e idempotencia
-audit_*        -> Auditoría funcional
-rag_*          -> Chunks, embeddings y metadatos
-outbox_*       -> Publicación confiable de eventos
+crm_*          -> CRM/Sales
+inventory_*    -> Inventory/Operations
+billing_*      -> Finance/Billing
+workflow_*     -> Executions, approvals, and idempotency
+audit_*        -> Functional audit
+rag_*          -> Chunks, embeddings, and metadata
+outbox_*       -> Reliable event publication
 ```
 
-El Agent Runtime accede a `rag_*` mediante un puerto dedicado o servicio de retrieval. No recibe permisos de escritura sobre tablas empresariales.
+Agent Runtime accesses `rag_*` through a dedicated port or retrieval service. It receives no write permissions on business tables.
 
-## 10. Qué se despliega
+## 10. What gets deployed
 
-Para la hackathon:
+For the hackathon:
 
-| Unidad | Tecnología | Destino |
+| Unit | Technology | Destination |
 |---|---|---|
-| `apps/web` | Angular | Firebase Hosting o Cloud Run |
+| `apps/web` | Angular | Firebase Hosting or Cloud Run |
 | `services/enterprise-core` | Java | Cloud Run |
-| `services/agent-runtime` | Python/ADK | Agent Engine Runtime o Cloud Run |
+| `services/agent-runtime` | Python/ADK | Agent Engine Runtime or Cloud Run |
 | PostgreSQL | Cloud SQL | Google Cloud |
-| Documentos | Cloud Storage | Google Cloud |
-| Eventos | Pub/Sub | Google Cloud |
+| Documents | Cloud Storage | Google Cloud |
+| Events | Pub/Sub | Google Cloud |
 
-La separación física futura de CRM, Inventario o Billing solo se considera cuando exista una razón medible de escalado, disponibilidad, equipo o cumplimiento.
+Future physical separation of CRM, Inventory, or Billing is only considered when a measurable reason around scaling, availability, team, or compliance exists.

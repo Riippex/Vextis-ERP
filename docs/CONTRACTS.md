@@ -1,10 +1,10 @@
-# Contratos técnicos — Vextis
+# Technical contracts — Vextis
 
-Este documento define los límites estables entre Angular, Enterprise Core y Agent Runtime. Los contratos ejecutables vivirán en `contracts/` como GraphQL SDL, OpenAPI, AsyncAPI y JSON Schema; este archivo explica sus invariantes y ownership.
+This document defines the stable boundaries between Angular, Enterprise Core, and Agent Runtime. Executable contracts live in `contracts/` as GraphQL SDL, OpenAPI, AsyncAPI, and JSON Schema; this file explains their invariants and ownership.
 
-Estado: **decisión vigente desde 19 de agosto de 2026**.
+Status: **decision in effect since August 19, 2026**.
 
-## 1. Autoridad y dependencias
+## 1. Authority and dependencies
 
 ```text
 Angular ───────> Enterprise Core Java <────── Agent Runtime Python
@@ -15,59 +15,59 @@ Angular ───────> Enterprise Core Java <────── Agent Ru
 Enterprise Core ──outbox──> Pub/Sub ──> Agent Runtime
 ```
 
-- Enterprise Core es la única autoridad para mutaciones de CRM, inventario, crédito, pedidos y facturas.
-- Agent Runtime no recibe credenciales de escritura sobre tablas empresariales.
-- Angular no llama directamente a Gemini, Pub/Sub ni PostgreSQL.
-- Angular solo abre un canal Live con Agent Runtime después de que Enterprise Core autorice una sesión corta y auditable; nunca recibe credenciales de Vertex AI.
-- RAG recupera evidencia; no ejecuta reglas empresariales.
-- Memory Bank conserva preferencias y contexto agentivo, nunca saldos, existencias o estados contables.
+- Enterprise Core is the sole authority for CRM, inventory, credit, order, and invoice mutations.
+- Agent Runtime never receives write credentials on business tables.
+- Angular never calls Gemini, Pub/Sub, or PostgreSQL directly.
+- Angular only opens a Live channel with Agent Runtime after Enterprise Core authorizes a short, auditable session; it never receives Vertex AI credentials.
+- RAG retrieves evidence; it does not execute business rules.
+- Memory Bank holds preferences and agentive context, never balances, stock, or accounting state.
 
-## 2. Ownership de datos
+## 2. Data ownership
 
-Una sola instancia PostgreSQL es suficiente para la hackathon. Cada módulo es dueño lógico de sus tablas:
+A single PostgreSQL instance is enough for the hackathon. Each module logically owns its tables:
 
-| Prefijo | Dueño | Contenido |
+| Prefix | Owner | Content |
 |---|---|---|
-| `crm_*` | CRM/Ventas | clientes, contactos, oportunidades, cotizaciones y condiciones comerciales |
-| `inventory_*` | Inventario/Operaciones | productos, alias, sustitutos, existencias, reservas y movimientos |
-| `billing_*` | Finanzas/Facturación | crédito, facturas, impuestos y estados de cobro |
-| `workflow_*` | Workflow | ejecuciones, pasos, aprobaciones e idempotencia |
-| `audit_*` | Auditoría | acciones humanas, de agentes y herramientas |
-| `agent_*` | Gobierno de agentes | registro, versiones, capacidades y políticas |
-| `rag_*` | Retrieval | documentos, chunks, embeddings, ACL, hashes y versiones |
-| `outbox_*` | Integración | eventos pendientes, publicados y fallidos |
+| `crm_*` | CRM/Sales | customers, contacts, opportunities, quotes, and commercial terms |
+| `inventory_*` | Inventory/Operations | products, aliases, substitutes, stock, reservations, and movements |
+| `billing_*` | Finance/Billing | credit, invoices, taxes, and collection status |
+| `workflow_*` | Workflow | executions, steps, approvals, and idempotency |
+| `audit_*` | Audit | human, agent, and tool actions |
+| `agent_*` | Agent governance | registry, versions, capabilities, and policies |
+| `rag_*` | Retrieval | documents, chunks, embeddings, ACL, hashes, and versions |
+| `outbox_*` | Integration | pending, published, and failed events |
 
-Un módulo Java no consulta directamente las tablas internas de otro módulo. Se integra mediante casos de uso públicos o eventos de dominio.
+A Java module does not query another module's internal tables directly. Integration happens through public use cases or domain events.
 
-## 3. Agregados mínimos
+## 3. Minimum aggregates
 
-### CRM/Ventas
+### CRM/Sales
 
-- `Customer`: identidad, contactos, condiciones y preferencias comerciales.
-- `Opportunity`: etapa y valor potencial.
-- `Quote`: líneas, precios, descuentos, vigencia y estado.
-- `SalesOrder`: líneas confirmadas, total y referencias a reserva y factura.
+- `Customer`: identity, contacts, terms, and commercial preferences.
+- `Opportunity`: stage and potential value.
+- `Quote`: lines, prices, discounts, validity, and status.
+- `SalesOrder`: confirmed lines, total, and references to reservation and invoice.
 
-### Inventario/Operaciones
+### Inventory/Operations
 
-- `Product`: SKU, alias, precio de referencia y sustitutos.
-- `Stock`: disponible, reservado y versión de concurrencia.
-- `Reservation`: pedido, SKU, cantidad y estado.
+- `Product`: SKU, aliases, reference price, and substitutes.
+- `Stock`: available, reserved, and concurrency version.
+- `Reservation`: order, SKU, quantity, and status.
 
-### Finanzas/Facturación
+### Finance/Billing
 
-- `CreditAccount`: límite, utilizado y disponible.
-- `Invoice`: pedido, cliente, subtotal, impuestos, total y estado.
+- `CreditAccount`: limit, used, and available.
+- `Invoice`: order, customer, subtotal, taxes, total, and status.
 
 ### Workflow
 
-- `Execution`: objetivo, estado, paso actual y correlation ID.
-- `Approval`: opción propuesta, evidencia, decisión, actor y timestamps.
-- `IdempotencyRecord`: clave, operación, resultado y expiración opcional.
+- `Execution`: goal, status, current step, and correlation ID.
+- `Approval`: proposed option, evidence, decision, actor, and timestamps.
+- `IdempotencyRecord`: key, operation, result, and optional expiration.
 
-Los IDs son UUID/ULID estables. Los montos usan decimal y moneda ISO 4217; nunca `float`.
+IDs are stable UUID/ULID. Amounts use decimal and ISO 4217 currency; never `float`.
 
-## 4. Estados y transiciones
+## 4. States and transitions
 
 ```text
 RECEIVED -> PLANNING -> RUNNING -> COMPLETED
@@ -79,36 +79,36 @@ RECEIVED -> PLANNING -> RUNNING -> COMPLETED
                            |
                   RUNNING / FAILED
 
-RECEIVED, PLANNING y RUNNING pueden pasar a FAILED.
-FAILED puede reintentarse hacia RUNNING solo mediante un comando explícito e idempotente.
+RECEIVED, PLANNING, and RUNNING can move to FAILED.
+FAILED can only be retried toward RUNNING through an explicit, idempotent command.
 ```
 
-No se inventan estados desde la UI o los prompts. Una transición inválida es rechazada por Enterprise Core.
+States are never invented from the UI or prompts. An invalid transition is rejected by Enterprise Core.
 
 ## 5. APIs
 
-### API pública — Angular a Enterprise Core
+### Public API — Angular to Enterprise Core
 
-Fuente ejecutable: `contracts/graphql/public-api.graphqls`.
+Executable source: `contracts/graphql/public-api.graphqls`.
 
-La API pública usa queries y mutaciones específicas. Los resolvers son adaptadores hacia casos de uso del Enterprise Core: no contienen reglas empresariales ni autorizan por sí solos. Antes de exponer colecciones se exigirán paginación y límites de complejidad/profundidad.
+The public API uses specific queries and mutations. Resolvers are adapters to Enterprise Core use cases: they contain no business rules and do not authorize on their own. Pagination and complexity/depth limits will be required before exposing collections.
 
-Recursos mínimos:
+Minimum resources:
 
-- órdenes de compra e ingesta de documentos;
-- clientes, oportunidades y cotizaciones;
-- productos, stock y reservas;
-- facturas y crédito;
-- ejecuciones, timeline y resultados;
-- aprobaciones y decisiones;
-- registro visible y auditoría de agentes.
-- autorización, consulta y cierre de sesiones Live.
+- purchase orders and document ingestion;
+- customers, opportunities, and quotes;
+- products, stock, and reservations;
+- invoices and credit;
+- executions, timeline, and results;
+- approvals and decisions;
+- visible registry and agent audit;
+- authorization, query, and closing of Live sessions.
 
-### API de herramientas — Agent Runtime a Enterprise Core
+### Tools API — Agent Runtime to Enterprise Core
 
-Fuente ejecutable: `contracts/openapi/agent-tools-api.yaml`.
+Executable source: `contracts/openapi/agent-tools-api.yaml`.
 
-Todas las llamadas incluyen identidad de servicio, `agent_id`, `correlation_id` e `idempotency_key` cuando mutan estado.
+Every call includes service identity, `agent_id`, `correlation_id`, and `idempotency_key` when mutating state.
 
 **CRM Agent**
 
@@ -142,24 +142,24 @@ Todas las llamadas incluyen identidad de servicio, `agent_id`, `correlation_id` 
 
 - `register_quote_asset(quote_id, storage_uri, media_type, model_id, idempotency_key)`
 
-Imagen y Veo se invocan desde Agent Runtime con su service identity. El archivo se guarda en Cloud Storage y solo entonces el Enterprise Core registra el asset contra la cotización. Fallar al generar o registrar una imagen o video no revierte ni bloquea la transacción comercial.
+Imagen and Veo are invoked from Agent Runtime with its service identity. The file is saved to Cloud Storage, and only then does Enterprise Core register the asset against the quote. Failing to generate or register an image or video does not roll back or block the business transaction.
 
-### Sesión Live
+### Live Session
 
-1. Angular solicita una sesión a Enterprise Core.
-2. Enterprise Core valida usuario, tenant y permisos, crea el registro auditable y devuelve una credencial efímera para Agent Runtime.
-3. Angular abre el canal de audio con Agent Runtime; no se conecta directamente a Vertex AI con credenciales permanentes.
-4. Agent Runtime usa Gemini Live y convierte intenciones en los mismos tools autenticados definidos arriba.
-5. Las acciones sensibles siguen requiriendo aprobación y las acciones mutables siguen exigiendo idempotency key.
-6. Al cerrar o expirar la sesión se persisten solo la transcripción y metadatos permitidos por la política de privacidad.
+1. Angular requests a session from Enterprise Core.
+2. Enterprise Core validates user, tenant, and permissions, creates the auditable record, and returns an ephemeral credential for Agent Runtime.
+3. Angular opens the audio channel with Agent Runtime; it does not connect directly to Vertex AI with permanent credentials.
+4. Agent Runtime uses Gemini Live and translates intents into the same authenticated tools defined above.
+5. Sensitive actions still require approval, and mutable actions still require an idempotency key.
+6. On session close or expiry, only the transcript and metadata allowed by the privacy policy are persisted.
 
-Los agentes no reciben herramientas genéricas como `execute_sql`, `update_record` o `call_any_endpoint`.
+Agents do not receive generic tools such as `execute_sql`, `update_record`, or `call_any_endpoint`.
 
-## 6. Eventos
+## 6. Events
 
-Fuente ejecutable: `contracts/events/asyncapi.yaml` y `contracts/events/schemas/*.json`.
+Executable source: `contracts/events/asyncapi.yaml` and `contracts/events/schemas/*.json`.
 
-Envelope obligatorio:
+Required envelope:
 
 ```json
 {
@@ -179,7 +179,7 @@ Envelope obligatorio:
 }
 ```
 
-Eventos iniciales:
+Initial events:
 
 - `purchase_order.received.v1`
 - `workflow.execution.started.v1`
@@ -196,61 +196,61 @@ Eventos iniciales:
 - `workflow.execution.completed.v1`
 - `workflow.execution.failed.v1`
 
-El nombre lógico dentro de `event_type` no lleva el sufijo de versión; la versión viaja en `event_version`. Los archivos de schema sí incluyen `.v1`.
+The logical name inside `event_type` does not carry the version suffix; the version travels in `event_version`. Schema files do include `.v1`.
 
-## 7. Idempotencia y publicación confiable
+## 7. Idempotency and reliable publishing
 
-### Mutaciones
+### Mutations
 
-1. El consumidor envía `idempotency_key` estable.
-2. Enterprise Core abre una transacción PostgreSQL.
-3. Intenta insertar la clave bajo una restricción `UNIQUE(tenant_id, operation, idempotency_key)`.
-4. Si existe, devuelve el resultado almacenado sin repetir la operación.
-5. Si es nueva, valida reglas, ejecuta la mutación y persiste resultado e idempotency record en la misma transacción.
+1. The consumer sends a stable `idempotency_key`.
+2. Enterprise Core opens a PostgreSQL transaction.
+3. It attempts to insert the key under a `UNIQUE(tenant_id, operation, idempotency_key)` constraint.
+4. If it already exists, it returns the stored result without repeating the operation.
+5. If new, it validates rules, executes the mutation, and persists the result and idempotency record in the same transaction.
 
-### Eventos
+### Events
 
-La mutación empresarial y el registro en `outbox_events` ocurren en la misma transacción. Un publicador independiente envía el evento a Pub/Sub y marca el outbox como publicado. Pub/Sub se trata como entrega al menos una vez; los consumidores deduplican por `event_id`.
+The business mutation and the record in `outbox_events` happen in the same transaction. An independent publisher sends the event to Pub/Sub and marks the outbox as published. Pub/Sub is treated as at-least-once delivery; consumers deduplicate by `event_id`.
 
-No se promete exactly-once distribuido.
+Distributed exactly-once is not promised.
 
-## 8. Gobierno de la Fleet
+## 8. Fleet governance
 
-Cada agente registra:
+Each agent registers:
 
-- `agent_id`, nombre y versión;
-- propósito y capacidades;
-- herramientas permitidas;
-- scopes y límites monetarios;
-- versión de prompt/policy;
-- estado de despliegue;
-- service identity efectiva o identidad delegada verificable.
+- `agent_id`, name, and version;
+- purpose and capabilities;
+- allowed tools;
+- scopes and monetary limits;
+- prompt/policy version;
+- deployment status;
+- effective service identity or verifiable delegated identity.
 
-El registro es descriptivo; la autorización es aplicada por Enterprise Core y IAM. Una fila de registro no concede permisos.
+The registry is descriptive; authorization is enforced by Enterprise Core and IAM. A registry row grants no permissions.
 
-La demo debe mostrar al menos:
+The demo must show at least:
 
-1. Una acción permitida ejecutada por el agente correcto.
-2. Una acción fuera de scope rechazada por política.
-3. Una acción sensible pausada para aprobación humana.
-4. Auditoría con agente, herramienta, política, resultado y correlation ID.
+1. An allowed action executed by the correct agent.
+2. An out-of-scope action rejected by policy.
+3. A sensitive action paused for human approval.
+4. Audit trail with agent, tool, policy, result, and correlation ID.
 
-## 9. Seguridad de contenido
+## 9. Content security
 
-- Archivos externos se guardan primero en Cloud Storage.
-- Model Armor inspecciona contenido no confiable antes de enviarlo al modelo cuando la integración esté disponible.
-- El texto de documentos se trata como datos, nunca como instrucciones del sistema.
-- Logs y auditoría redactan secretos y PII definida por política.
-- Los prompts no pueden elevar permisos ni cambiar límites del Enterprise Core.
-- El audio crudo no se persiste por defecto; retención y consentimiento deben ser explícitos.
-- Todo visual generado se etiqueta como contenido generado por IA y registra modelo, prompt redactado, usuario y cotización de origen.
+- External files are saved to Cloud Storage first.
+- Model Armor inspects untrusted content before sending it to the model, once the integration is available.
+- Document text is treated as data, never as system instructions.
+- Logs and audit redact secrets and PII as defined by policy.
+- Prompts cannot elevate permissions or change Enterprise Core's limits.
+- Raw audio is not persisted by default; retention and consent must be explicit.
+- Every generated visual is labeled as AI-generated content and records the model, redacted prompt, user, and originating quote.
 
-## 10. Versionado y Clean Code
+## 10. Versioning and Clean Code
 
-- GraphQL SDL, OpenAPI, AsyncAPI y JSON Schema se validan en CI.
-- Las operaciones/tipos TypeScript y los clientes Python se generan; no se editan manualmente.
-- Cambios incompatibles crean una nueva versión de contrato.
-- DTO de transporte no se reutilizan como entidades de dominio.
-- Los casos de uso dependen de puertos; infraestructura implementa adaptadores.
-- No existe una librería `shared` entre Java, Python y TypeScript. Se comparten contratos, no implementación.
-- Cualquier cambio de contrato actualiza schema, ejemplos, consumidor y prueba en el mismo cambio.
+- GraphQL SDL, OpenAPI, AsyncAPI, and JSON Schema are validated in CI.
+- TypeScript operations/types and Python clients are generated; they are not edited by hand.
+- Incompatible changes create a new contract version.
+- Transport DTOs are not reused as domain entities.
+- Use cases depend on ports; infrastructure implements adapters.
+- There is no `shared` library between Java, Python, and TypeScript. Contracts are shared, not implementation.
+- Any contract change updates the schema, examples, consumer, and test in the same change.

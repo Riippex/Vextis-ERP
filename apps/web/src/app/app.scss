@@ -4,12 +4,15 @@
 }
 
 .shell__toolbar {
-  background: rgba(16, 24, 40, 0.92);
-  color: #f8fafc;
+  align-items: center;
+  background: var(--vxt-surface);
+  border-bottom: 1px solid var(--vxt-border);
+  color: var(--vxt-text-primary);
   display: flex;
   justify-content: space-between;
   position: sticky;
   top: 0;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
   z-index: 10;
 }
 
@@ -23,16 +26,28 @@
 
 .brand__mark {
   align-items: center;
-  background: #7f56d9;
-  border-radius: 0.55rem;
   display: inline-flex;
   height: 2rem;
   justify-content: center;
   width: 2rem;
 }
 
+.brand__word {
+  background-image: var(--vxt-brand-gradient);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  font-size: 1rem;
+}
+
+.shell__actions {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+}
+
 .shell__environment {
-  color: #d0d5dd;
+  color: var(--vxt-text-secondary);
   font-size: 0.8rem;
   font-weight: 500;
 }
@@ -41,4 +56,9 @@
   margin: 0 auto;
   max-width: 90rem;
   padding: clamp(1.25rem, 3vw, 3rem);
+}
+
+.shell__content--bare {
+  max-width: none;
+  padding: 0;
 }

@@ -1,0 +1,189 @@
+name: CI/CD
+
+on:
+  pull_request:
+  push:
+    branches:
+      - develop
+      - main
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  enterprise-core:
+    name: Enterprise Core
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: services/enterprise-core
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+          cache-dependency-path: |
+            services/enterprise-core/*.gradle.kts
+            services/enterprise-core/gradle/wrapper/gradle-wrapper.properties
+
+      - name: Test Enterprise Core
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon test
+
+  agent-runtime:
+    name: Agent Runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: services/agent-runtime
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          version: "0.12.5"
+          python-version: "3.13"
+          enable-cache: true
+          cache-dependency-glob: services/agent-runtime/uv.lock
+
+      - name: Install locked dependencies
+        run: uv sync --frozen
+
+      - name: Test Agent Runtime
+        run: uv run pytest
+
+      - name: Lint Agent Runtime
+        run: uv run ruff check src tests
+
+      - name: Type-check Agent Runtime
+        run: uv run mypy src tests
+
+  web:
+    name: Angular Web
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.19.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install locked dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint Angular
+        run: pnpm web:lint
+
+      - name: Test Angular
+        run: pnpm web:test
+
+      - name: Build Angular
+        run: pnpm web:build
+
+      - name: Verify generated GraphQL client is current
+        run: git diff --exit-code -- apps/web/src/app/api/generated/graphql.ts
+
+  terraform:
+    name: Terraform
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: infra/terraform/environments/hackathon
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: "1.15.8"
+          terraform_wrapper: false
+
+      - name: Check Terraform formatting
+        run: terraform fmt -check -recursive ../..
+
+      - name: Initialize providers without backend
+        run: terraform init -backend=false -input=false
+
+      - name: Validate Terraform
+        run: terraform validate
+
+  delivery-images:
+    name: Publish main delivery images
+    needs:
+      - enterprise-core
+      - agent-runtime
+      - web
+      - terraform
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Detect deployable changes
+        id: deployable
+        shell: bash
+        run: |
+          if git diff --quiet "${GITHUB_SHA}^" "${GITHUB_SHA}" -- \
+            apps/web services contracts infra/cloudbuild \
+            pnpm-lock.yaml pnpm-workspace.yaml package.json LICENSE NOTICE; then
+            echo "required=false" >> "${GITHUB_OUTPUT}"
+          else
+            echo "required=true" >> "${GITHUB_OUTPUT}"
+          fi
+
+      - name: Authenticate to Google Cloud without keys
+        if: steps.deployable.outputs.required == 'true'
+        uses: google-github-actions/auth@v3
+        with:
+          project_id: vextis-erp
+          workload_identity_provider: projects/797183513325/locations/global/workloadIdentityPools/github-actions/providers/github
+          service_account: vextis-build-hackathon@vextis-erp.iam.gserviceaccount.com
+
+      - name: Set up Google Cloud SDK
+        if: steps.deployable.outputs.required == 'true'
+        uses: google-github-actions/setup-gcloud@v3
+
+      - name: Build and publish commit images
+        if: steps.deployable.outputs.required == 'true'
+        run: >-
+          gcloud builds submit .
+          --project=vextis-erp
+          --region=us-central1
+          --config=infra/cloudbuild/build-images.yaml
+          --substitutions=_TAG=${GITHUB_SHA}
+          --service-account=projects/vextis-erp/serviceAccounts/vextis-build-hackathon@vextis-erp.iam.gserviceaccount.com
+          --gcs-source-staging-dir=gs://vextis-erp-hackathon-build-source/source

@@ -1,43 +1,43 @@
 # Vextis — Technology Stack Decision
 
-## Decisión
+## Decision
 
-Vextis usará una arquitectura híbrida con solo dos backends desplegables:
+Vextis will use a hybrid architecture with only two deployable backends:
 
-1. **Enterprise Core en Java:** reglas y transacciones de CRM/Ventas, Inventario/Operaciones y Finanzas/Facturación.
-2. **Agent Runtime en Python:** coordinación multiagente, Gemini, ADK, RAG, memoria y evaluaciones.
+1. **Enterprise Core in Java:** rules and transactions for CRM/Sales, Inventory/Operations, and Finance/Billing.
+2. **Agent Runtime in Python:** multi-agent coordination, Gemini, ADK, RAG, memory, and evaluations.
 
-El frontend será Angular y la plataforma de ejecución y datos será Google Cloud.
+The frontend will be Angular and the execution/data platform will be Google Cloud.
 
-Esta separación no es “microservicios por moda”. Existe una frontera concreta: el modelo decide y coordina en Python; el core Java valida y ejecuta todas las mutaciones empresariales.
+This split is not "microservices for fashion's sake." There is a concrete boundary: the model decides and coordinates in Python; the Java core validates and executes all business mutations.
 
-## Stack definitivo
+## Definitive stack
 
 ### Frontend
 
-- Angular estable con TypeScript estricto.
-- Angular Material para el sistema visual.
-- Signals/RxJS para estado local y flujos asíncronos.
-- Apollo Angular y GraphQL Code Generator para operaciones y tipos desde el schema público.
-- Server-Sent Events para el timeline de ejecución; polling como fallback.
-- Firebase Hosting o Cloud Run para el despliegue web.
-- Identity Platform/Firebase Authentication para login de la demo.
+- Stable Angular with strict TypeScript.
+- Angular Material for the visual system.
+- Signals/RxJS for local state and async flows.
+- Apollo Angular and GraphQL Code Generator for operations and types from the public schema.
+- Server-Sent Events for the execution timeline; polling as a fallback.
+- Firebase Hosting or Cloud Run for web deployment.
+- Identity Platform/Firebase Authentication for demo login.
 
 ### Enterprise Core
 
 - Java 21 LTS.
-- Spring Boot estable.
-- Gradle Wrapper con Kotlin DSL.
-- Spring for GraphQL para la API pública consumida por Angular.
-- Spring Modulith para límites y eventos entre módulos.
-- Arquitectura hexagonal/modular monolith.
+- Stable Spring Boot.
+- Gradle Wrapper with Kotlin DSL.
+- Spring for GraphQL for the public API consumed by Angular.
+- Spring Modulith for boundaries and events between modules.
+- Hexagonal/modular monolith architecture.
 - Spring Data JPA/Hibernate.
-- Flyway para migraciones.
+- Flyway for migrations.
 - Bean Validation.
 - PostgreSQL.
-- Testcontainers, JUnit 5 y ArchUnit.
+- Testcontainers, JUnit 5, and ArchUnit.
 
-Módulos internos:
+Internal modules:
 
 ```text
 core/
@@ -48,21 +48,21 @@ core/
 └── shared-kernel/
 ```
 
-El core es la única autoridad que puede crear pedidos, reservar inventario, aprobar descuentos, consumir crédito o emitir facturas. Los agentes no escriben directamente en sus tablas.
+The core is the sole authority that can create orders, reserve inventory, approve discounts, consume credit, or issue invoices. Agents do not write directly to its tables.
 
 ### Agent Runtime
 
 - Python 3.13.
 - Google ADK 2.x.
 - Google GenAI SDK.
-- Vertex AI para Gemini 3.5+ y embeddings.
-- FastAPI únicamente para callbacks, health checks y adaptadores que no cubra Agent Engine.
-- Pydantic para contratos estructurados.
-- Vertex AI Agent Engine Runtime y Memory Bank, si la región/cuenta están disponibles.
-- Cloud Run como alternativa de despliegue y para workers auxiliares.
-- Pytest y evaluaciones de ADK.
+- Vertex AI for Gemini 3.5+ and embeddings.
+- FastAPI only for callbacks, health checks, and adapters not covered by Agent Engine.
+- Pydantic for structured contracts.
+- Vertex AI Agent Engine Runtime and Memory Bank, if the region/account are available.
+- Cloud Run as a deployment alternative and for auxiliary workers.
+- Pytest and ADK evaluations.
 
-Agentes:
+Agents:
 
 ```text
 Coordinator Agent
@@ -71,37 +71,37 @@ Coordinator Agent
 └── Billing Agent
 ```
 
-Cada agente llama herramientas respaldadas por la API interna del core Java. No accede directamente a PostgreSQL.
+Each agent calls tools backed by the Java core's internal API. It does not access PostgreSQL directly.
 
-### Capacidades multimodales opcionales
+### Optional multimodal capabilities
 
-- **Imagen 4 en Vertex AI:** genera un activo visual para una cotización o propuesta aprobada. Agent Runtime construye la solicitud, Cloud Storage conserva el archivo y Enterprise Core registra la relación con la cotización.
-- **Veo 3 Fast en Vertex AI:** genera de forma asíncrona un video comercial corto bajo solicitud explícita. Es una tool de CRM/Ventas y reutiliza el pipeline de assets de propuestas; no introduce un módulo de Marketing.
-- **Gemini Live API:** habilita conversación bidireccional de baja latencia desde Angular. La sesión se transporta mediante un adaptador de Agent Runtime y traduce la conversación a los mismos comandos y tools existentes.
-- **Gemini multimodal estándar:** procesa archivos de audio o mensajes no interactivos; no se abre una sesión Live para tareas batch.
+- **Imagen 4 on Vertex AI:** generates a visual asset for an approved quote or proposal. Agent Runtime builds the request, Cloud Storage holds the file, and Enterprise Core records the relationship with the quote.
+- **Veo 3 Fast on Vertex AI:** asynchronously generates a short commercial video on explicit request. It is a CRM/Sales tool and reuses the proposal-assets pipeline; it does not introduce a Marketing module.
+- **Gemini Live API:** enables low-latency bidirectional conversation from Angular. The session is transported through an Agent Runtime adapter and translates the conversation into the same existing commands and tools.
+- **Standard multimodal Gemini:** processes audio files or non-interactive messages; a Live session is not opened for batch tasks.
 
-Live Audio no crea un segundo conjunto de casos de uso. Texto, audio subido y conversación Live convergen en los mismos contratos, políticas, aprobaciones e idempotencia. Imagen, Veo y Live se controlan con feature flags y pueden deshabilitarse sin afectar el ERP.
+Live Audio does not create a second set of use cases. Text, uploaded audio, and Live conversation converge on the same contracts, policies, approvals, and idempotency. Image, Veo, and Live are controlled with feature flags and can be disabled without affecting the ERP.
 
-### Datos y RAG
+### Data and RAG
 
-- Cloud SQL for PostgreSQL como fuente transaccional.
-- `pgvector` para el primer RAG.
-- Vertex AI `gemini-embedding` para embeddings.
-- Cloud Storage para PDFs, imágenes generadas, facturas, audio temporal permitido y documentos originales.
-- PostgreSQL para metadatos, chunks, ACL, hashes, versiones y relaciones con clientes.
-- Memory Bank para preferencias y memoria agentiva de largo plazo; no para saldos, inventario ni datos contables.
+- Cloud SQL for PostgreSQL as the transactional source.
+- `pgvector` for the first RAG.
+- Vertex AI `gemini-embedding` for embeddings.
+- Cloud Storage for PDFs, generated images, invoices, allowed temporary audio, and original documents.
+- PostgreSQL for metadata, chunks, ACL, hashes, versions, and customer relationships.
+- Memory Bank for preferences and long-term agentive memory; not for balances, inventory, or accounting data.
 
-Cloud SQL + pgvector evita introducir una base vectorial adicional durante la hackathon. Si el volumen o la latencia lo justifican posteriormente, la evolución natural será AlloyDB AI o Vertex AI Search.
+Cloud SQL + pgvector avoids introducing an additional vector database during the hackathon. If volume or latency later justify it, the natural evolution is AlloyDB AI or Vertex AI Search.
 
-### Eventos y workflows
+### Events and workflows
 
-- Pub/Sub para eventos entre el core y el runtime agentivo.
-- Patrón transactional outbox en Java para no perder eventos tras un commit.
-- Claves de idempotencia en PostgreSQL.
-- Cloud Tasks para reintentos diferidos o callbacks programados, solo si el caso aparece.
-- Estados durables en PostgreSQL; Pub/Sub y Redis nunca son la fuente de verdad.
+- Pub/Sub for events between the core and the agentive runtime.
+- Transactional outbox pattern in Java so events aren't lost after a commit.
+- Idempotency keys in PostgreSQL.
+- Cloud Tasks for deferred retries or scheduled callbacks, only if the need arises.
+- Durable state in PostgreSQL; Pub/Sub and Redis are never the source of truth.
 
-Eventos principales:
+Main events:
 
 ```text
 purchase_order.received
@@ -119,33 +119,33 @@ live.session.started
 live.session.ended
 ```
 
-### Seguridad
+### Security
 
-- IAM y una service account por servicio.
-- Autenticación service-to-service entre Agent Runtime y Enterprise Core.
-- Secret Manager para secretos.
-- Model Armor antes de enviar documentos o prompts no confiables al modelo.
-- Políticas de herramientas y aprobaciones en el core, no únicamente en prompts.
-- Cloud Audit Logs y auditoría funcional propia.
-- Datos privados y Cloud SQL sin exposición pública en una configuración productiva.
+- IAM and one service account per service.
+- Service-to-service authentication between Agent Runtime and Enterprise Core.
+- Secret Manager for secrets.
+- Model Armor before sending untrusted documents or prompts to the model.
+- Tool and approval policies live in the core, not only in prompts.
+- Cloud Audit Logs and a dedicated functional audit trail.
+- Private data and Cloud SQL with no public exposure in a production configuration.
 
-### Observabilidad
+### Observability
 
 - OpenTelemetry.
-- Cloud Logging, Monitoring, Trace y Error Reporting.
-- Correlation ID compartido entre frontend, coordinador, agentes, Pub/Sub y core.
-- Métricas de negocio: tiempo por workflow, pasos autónomos, aprobaciones, fallos, reintentos y ahorro estimado.
+- Cloud Logging, Monitoring, Trace, and Error Reporting.
+- Correlation ID shared across frontend, coordinator, agents, Pub/Sub, and core.
+- Business metrics: time per workflow, autonomous steps, approvals, failures, retries, and estimated savings.
 
-### Entrega
+### Delivery
 
 - Monorepo.
-- Docker por aplicación.
+- Docker per application.
 - Artifact Registry.
-- Cloud Build para CI/CD.
-- Terraform para infraestructura mínima reproducible.
-- Configuración local con Docker Compose para PostgreSQL y emuladores cuando existan.
+- Cloud Build for CI/CD.
+- Terraform for minimal reproducible infrastructure.
+- Local setup with Docker Compose for PostgreSQL and emulators when available.
 
-Estructura:
+Structure:
 
 ```text
 vextis/
@@ -162,7 +162,7 @@ vextis/
 └── compose.yaml
 ```
 
-## Diagrama de ejecución
+## Execution diagram
 
 ```text
 Angular Web
@@ -186,61 +186,61 @@ Cloud SQL + pgvector    Pub/Sub
                           v
                   Enterprise Core API
 
-Cloud Storage conserva documentos y artefactos.
-OpenTelemetry conecta toda la trazabilidad.
+Cloud Storage holds documents and artifacts.
+OpenTelemetry connects all tracing.
 ```
 
-## Por qué no elegir una sola tecnología
+## Why not pick a single technology
 
-### Solo Java
+### Java only
 
-Es viable y ADK Java existe, pero Python tiene actualmente el camino más completo para ADK 2, workflows en grafo, RAG, ejemplos, evaluaciones y nuevas capacidades de agentes. Todo Java reduce operaciones, pero aumenta el tiempo de experimentación agentiva.
+Viable, and ADK Java exists, but Python currently has the more complete path for ADK 2, graph workflows, RAG, examples, evaluations, and new agent capabilities. All-Java reduces operational surface but increases agentive experimentation time.
 
-### Solo .NET
+### .NET only
 
-.NET es excelente para software empresarial y Cloud Run lo soporta. También existe Google GenAI SDK para C#. Sin embargo, el ecosistema actual de Google ADK y las guías del hackathon son más fuertes en Python, Java y Go. No aporta una ventaja suficiente frente a Java dentro de una hackathon centrada en Google.
+.NET is excellent for enterprise software and Cloud Run supports it. A Google GenAI SDK for C# also exists. However, the current Google ADK ecosystem and the hackathon guides are stronger in Python, Java, and Go. It doesn't offer a decisive advantage over Java within a Google-centered hackathon.
 
-### Solo Django/Python
+### Django/Python only
 
-Es la ruta más rápida y puede escalar horizontalmente. Sin embargo, mezclar el runtime probabilístico del agente con las reglas y transacciones del ERP reduce la claridad de los límites y exige más disciplina para mantener un dominio grande. Django Admin sí puede ser útil para herramientas internas, pero no justifica convertirlo en el núcleo del producto.
+The fastest path, and it can scale horizontally. However, mixing the agent's probabilistic runtime with the ERP's rules and transactions reduces boundary clarity and demands more discipline to keep a large domain maintainable. Django Admin can be useful for internal tools, but doesn't justify making it the product's core.
 
 ### Go
 
-Go sería excelente para servicios eficientes, pero no ofrece una ventaja decisiva para este alcance frente a Java en modelado empresarial ni frente a Python en velocidad de construcción de IA.
+Go would be excellent for efficient services, but doesn't offer a decisive advantage for this scope over Java in business modeling, nor over Python in AI build speed.
 
-## Regla para la hackathon
+## Hackathon rule
 
-La arquitectura objetivo es Java + Python, pero la entrega se protege con una regla:
+The target architecture is Java + Python, but delivery is protected by a rule:
 
-> Si al finalizar el **21 de agosto** no existe un flujo vertical desplegado que atraviese Angular, core, Pub/Sub y un agente, se implementarán temporalmente las herramientas de negocio dentro del servicio Python, conservando los contratos GraphQL/OpenAPI y límites de módulos. La separación física a Java se retomará después de la entrega.
+> If by the end of **August 21** there is no deployed vertical slice spanning Angular, core, Pub/Sub, and an agent, the business tools will be temporarily implemented inside the Python service, keeping the GraphQL/OpenAPI contracts and module boundaries. The physical separation into Java will resume after delivery.
 >
-> Esta fecha depende de que los créditos de Google Cloud ya estén activos — si al 19 de agosto siguen sin pedirse, correr la fecha de este checkpoint el mismo número de días que se demoró la aprobación, no dejarla fija en el calendario.
+> This date depends on the Google Cloud credits already being active — if by August 19 they still haven't been requested, push this checkpoint's date by the same number of days the approval was delayed, rather than keeping it fixed on the calendar.
 
-Esto preserva la visión sin sacrificar una demo funcional.
+This preserves the vision without sacrificing a working demo.
 
-## Uso de Claude
+## Use of Claude
 
-Claude puede seguir siendo asistente de desarrollo para diseño, generación de código, pruebas y revisión. No condiciona el stack de producción.
+Claude can continue to be a development assistant for design, code generation, tests, and review. It does not drive the production stack.
 
-En runtime, Gemini debe ser el modelo principal y visible porque es un requisito de la competencia. Si se integra Claude como modelo secundario, debe existir una razón medible —por ejemplo, evaluación cruzada— y no debe ocultar ni diluir el uso de Gemini y Google ADK.
+At runtime, Gemini must be the primary, visible model because it is a competition requirement. If Claude is integrated as a secondary model, there must be a measurable reason — for example, cross-evaluation — and it must not hide or dilute the use of Gemini and Google ADK.
 
-## Lo que no se incorpora inicialmente
+## What is not adopted initially
 
 - Kubernetes/GKE.
 - Kafka.
 - Service mesh.
-- Una base de datos por módulo.
+- One database per module.
 - Elasticsearch.
-- Redis/Memorystore sin un cuello de botella demostrado.
+- Redis/Memorystore without a demonstrated bottleneck.
 - Microfrontends.
-- Event sourcing completo.
+- Full event sourcing.
 
-Estas tecnologías pueden ser válidas más adelante, pero no resuelven un riesgo actual del MVP.
+These technologies may be valid later, but they don't address a current MVP risk.
 
-## Evolución enterprise
+## Enterprise evolution
 
-1. **Hackathon:** Cloud Run, Cloud SQL, Pub/Sub, Storage, Agent Engine/Memory Bank y un solo entorno.
-2. **Primeros clientes:** alta disponibilidad, backups, réplicas, Memorystore si se mide su necesidad, entornos separados y políticas IAM endurecidas.
-3. **Escala:** AlloyDB/Spanner según patrones reales, Vertex AI Search para corpus grandes, partición de módulos con presión independiente y GKE solo si Cloud Run deja de encajar.
+1. **Hackathon:** Cloud Run, Cloud SQL, Pub/Sub, Storage, Agent Engine/Memory Bank, and a single environment.
+2. **First customers:** high availability, backups, replicas, Memorystore if its need is measured, separate environments, and hardened IAM policies.
+3. **Scale:** AlloyDB/Spanner based on real patterns, Vertex AI Search for large corpora, module partitioning under independent pressure, and GKE only if Cloud Run stops fitting.
 
-La escalabilidad se conservará mediante contratos, idempotencia, observabilidad y límites de dominio. No depende de comenzar con microservicios o Kubernetes.
+Scalability will be preserved through contracts, idempotency, observability, and domain boundaries. It does not depend on starting with microservices or Kubernetes.

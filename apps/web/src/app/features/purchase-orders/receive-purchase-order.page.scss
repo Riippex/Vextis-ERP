@@ -1,0 +1,366 @@
+:host {
+  display: block;
+}
+
+.page-header {
+  max-width: 52rem;
+  padding: 1rem 0 2.5rem;
+}
+
+.page-header > a {
+  margin-left: -0.75rem;
+}
+
+.page-header__eyebrow,
+.evidence__eyebrow {
+  color: var(--vxt-brand-violet);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin: 2rem 0 0.5rem;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+h3,
+p,
+dd {
+  color: var(--vxt-text-primary);
+}
+
+h1 {
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  letter-spacing: -0.045em;
+  line-height: 1;
+  margin: 0;
+}
+
+.page-header > p:last-child,
+.evidence__empty p,
+.timeline p {
+  color: var(--vxt-text-secondary);
+  line-height: 1.6;
+}
+
+.workspace {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: minmax(0, 1fr) minmax(20rem, 0.85fr);
+}
+
+.intake-card,
+.evidence {
+  background: var(--vxt-surface);
+  border: 1px solid var(--vxt-border);
+}
+
+.intake-card mat-icon[mat-card-avatar] {
+  align-items: center;
+  background: var(--vxt-brand-violet-tint);
+  color: var(--vxt-brand-violet);
+  display: flex;
+  justify-content: center;
+}
+
+.intake-form {
+  display: grid;
+  gap: 0.5rem 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding-top: 1.5rem;
+}
+
+.intake-form__wide {
+  grid-column: 1 / -1;
+}
+
+.intake-form__actions {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 0.5rem;
+}
+
+.intake-form__actions button,
+.intake-form__actions mat-spinner {
+  display: inline-flex;
+}
+
+.intake-form__actions button {
+  gap: 0.5rem;
+}
+
+.feedback {
+  align-items: center;
+  border-radius: 0.75rem;
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 0.85rem 1rem;
+}
+
+.feedback--error {
+  background: color-mix(in srgb, var(--vxt-status-critical) 12%, transparent);
+  color: var(--vxt-status-critical);
+}
+
+.evidence {
+  border-radius: 0.75rem;
+  min-height: 30rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
+}
+
+.evidence__heading {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.evidence__heading h2,
+.evidence__eyebrow {
+  margin-top: 0;
+}
+
+.status {
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 0.4rem 0.65rem;
+}
+
+.status--received {
+  background: var(--vxt-brand-violet-tint);
+  color: var(--vxt-brand-violet);
+}
+
+.receipt-details {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 2rem 0;
+}
+
+.receipt-details div {
+  min-width: 0;
+}
+
+.receipt-details dt {
+  color: var(--vxt-muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.receipt-details dd {
+  font-size: 0.9rem;
+  margin: 0.3rem 0 0;
+  overflow-wrap: anywhere;
+}
+
+.timeline {
+  list-style: none;
+  margin: 1.25rem 0 2rem;
+  padding: 0;
+}
+
+.timeline li {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: auto 1fr;
+}
+
+.timeline__marker {
+  background: var(--vxt-status-good);
+  border-radius: 50%;
+  box-shadow: 0 0 0 0.35rem color-mix(in srgb, var(--vxt-status-good) 16%, transparent);
+  height: 0.65rem;
+  margin-top: 0.35rem;
+  width: 0.65rem;
+}
+
+.timeline p {
+  margin: 0.35rem 0;
+}
+
+.timeline time {
+  color: var(--vxt-muted);
+  font-size: 0.78rem;
+}
+
+.plan {
+  background: color-mix(in srgb, var(--vxt-brand-violet) 6%, var(--vxt-surface));
+  border: 1px solid color-mix(in srgb, var(--vxt-brand-violet) 20%, var(--vxt-border));
+  border-radius: 0.75rem;
+  margin: 1.5rem 0 2rem;
+  padding: 1rem;
+}
+
+.plan__heading {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.plan__heading h3,
+.plan__heading .evidence__eyebrow {
+  margin: 0;
+}
+
+.plan__heading > span,
+.plan > time {
+  color: var(--vxt-muted);
+  font-size: 0.75rem;
+}
+
+.plan__steps {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 1rem 0;
+  padding: 0;
+}
+
+.plan__steps li {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: 1.75rem 1fr;
+}
+
+.plan__steps li > span {
+  align-items: center;
+  background: var(--vxt-brand-violet);
+  border-radius: 50%;
+  color: white;
+  display: flex;
+  font-size: 0.75rem;
+  height: 1.75rem;
+  justify-content: center;
+  width: 1.75rem;
+}
+
+.plan__steps p {
+  color: var(--vxt-text-secondary);
+  margin: 0.25rem 0;
+}
+
+.plan__steps small {
+  align-items: center;
+  color: var(--vxt-status-critical);
+  display: inline-flex;
+  gap: 0.25rem;
+}
+
+.plan__steps small mat-icon {
+  font-size: 1rem;
+  height: 1rem;
+  width: 1rem;
+}
+
+.extracted-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.extracted-facts div {
+  background: var(--vxt-surface);
+  border: 1px solid var(--vxt-border);
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.75rem;
+}
+
+.extracted-facts dt,
+.readiness span,
+.readiness small {
+  color: var(--vxt-muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+}
+
+.extracted-facts dd {
+  font-size: 0.85rem;
+  margin: 0.2rem 0 0;
+}
+
+.readiness {
+  border: 1px solid var(--vxt-border);
+  border-radius: 0.75rem;
+  margin: 1.5rem 0 2rem;
+  padding: 1rem;
+}
+
+.readiness ul {
+  display: grid;
+  gap: 0.75rem;
+  list-style: none;
+  padding: 0;
+}
+
+.readiness li {
+  align-items: flex-start;
+  background: color-mix(in srgb, var(--vxt-status-good) 8%, transparent);
+  border-radius: 0.6rem;
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem;
+}
+
+.readiness li > mat-icon {
+  color: var(--vxt-status-good);
+}
+
+.readiness__check--review {
+  background: color-mix(in srgb, var(--vxt-status-critical) 8%, transparent) !important;
+}
+
+.readiness__check--review > mat-icon {
+  color: var(--vxt-status-critical) !important;
+}
+
+.readiness p {
+  color: var(--vxt-text-secondary);
+  margin: 0.25rem 0 0;
+}
+
+.evidence__empty {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  justify-content: center;
+  margin: auto;
+  max-width: 25rem;
+  text-align: center;
+}
+
+.evidence__empty > mat-icon {
+  color: var(--vxt-brand-violet);
+  font-size: 3rem;
+  height: 3rem;
+  width: 3rem;
+}
+
+@media (max-width: 56rem) {
+  .workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 38rem) {
+  .intake-form,
+  .receipt-details {
+    grid-template-columns: 1fr;
+  }
+
+  .intake-form > *,
+  .intake-form__wide {
+    grid-column: 1;
+  }
+
+  .intake-form__actions button {
+    width: 100%;
+  }
+}

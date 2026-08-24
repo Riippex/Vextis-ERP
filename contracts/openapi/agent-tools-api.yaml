@@ -6,6 +6,105 @@ info:
 servers:
   - url: /internal/agent-tools/v1
 paths:
+  /workflows/{executionId}/planning:
+    post:
+      operationId: startExecutionPlanning
+      security:
+        - serviceBearer: []
+      parameters:
+        - name: executionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StartPlanningRequest"
+      responses:
+        "200":
+          description: Execution moved to planning, or the idempotent result was returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanningContext"
+        "401":
+          description: Missing or invalid service credential
+        "403":
+          description: Agent is not authorized for this tool or tenant
+        "409":
+          description: Event context does not match the execution or the transition is invalid
+  /workflows/{executionId}/plan:
+    post:
+      operationId: recordExecutionPlan
+      security:
+        - serviceBearer: []
+      parameters:
+        - name: executionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordPlanRequest"
+      responses:
+        "200":
+          description: Structured plan recorded and execution moved to running
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowExecution"
+        "401":
+          description: Missing or invalid service credential
+        "403":
+          description: Agent is not authorized for this tool or tenant
+        "409":
+          description: Execution context or state does not allow recording the plan
+  /workflows/{executionId}/readiness:
+    post:
+      operationId: evaluateOrderReadiness
+      security:
+        - serviceBearer: []
+      parameters:
+        - name: executionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Authoritative read-only checks were evaluated and recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowExecution"
+        "401":
+          description: Missing or invalid service credential
+        "403":
+          description: Agent is not authorized for this tenant
+        "409":
+          description: The execution has no structured order facts or cannot be evaluated
   /inventory/reservations:
     post:
       operationId: reserveStock
@@ -55,7 +154,20 @@ paths:
         "403":
           description: Agent is not authorized to register quote assets
 components:
+  securitySchemes:
+    serviceBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque-service-token
   parameters:
+    TenantId:
+      name: X-Tenant-Id
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 100
     AgentId:
       name: X-Agent-Id
       in: header
@@ -76,6 +188,127 @@ components:
         type: string
         minLength: 16
   schemas:
+    StartPlanningRequest:
+      type: object
+      additionalProperties: false
+      required: [eventId, documentUri]
+      properties:
+        eventId:
+          type: string
+          format: uuid
+        documentUri:
+          type: string
+          pattern: "^gs://"
+          maxLength: 1000
+    PlanningContext:
+      type: object
+      additionalProperties: false
+      required:
+        [id, state, correlationId, updatedAt, goal, purchaseOrderNumber, customerName, documentUri, readinessEvaluated]
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum: [PLANNING, RUNNING, WAITING_APPROVAL, COMPLETED, FAILED]
+        correlationId:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        goal:
+          type: string
+          maxLength: 500
+        purchaseOrderNumber:
+          type: string
+          maxLength: 100
+        customerName:
+          type: string
+          maxLength: 200
+        documentUri:
+          type: string
+          pattern: "^gs://"
+          maxLength: 1000
+        readinessEvaluated:
+          type: boolean
+    RecordPlanRequest:
+      type: object
+      additionalProperties: false
+      required: [modelId, summary, orderLines, requestedPaymentTermsDays, steps]
+      properties:
+        modelId:
+          type: string
+          minLength: 1
+          maxLength: 150
+        summary:
+          type: string
+          minLength: 1
+          maxLength: 500
+        orderLines:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/ExtractedOrderLine"
+        requestedPaymentTermsDays:
+          type: integer
+          minimum: 0
+          maximum: 365
+        steps:
+          type: array
+          minItems: 1
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/PlanStep"
+    ExtractedOrderLine:
+      type: object
+      additionalProperties: false
+      required: [sku, quantity]
+      properties:
+        sku:
+          type: string
+          minLength: 1
+          maxLength: 100
+          pattern: "^[A-Za-z0-9._-]+$"
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+    PlanStep:
+      type: object
+      additionalProperties: false
+      required: [sequence, department, objective, requiresApproval]
+      properties:
+        sequence:
+          type: integer
+          minimum: 1
+          maximum: 5
+        department:
+          type: string
+          enum: [CRM_SALES, INVENTORY_OPERATIONS, FINANCE_BILLING]
+        objective:
+          type: string
+          minLength: 1
+          maxLength: 500
+        requiresApproval:
+          type: boolean
+    WorkflowExecution:
+      type: object
+      additionalProperties: false
+      required: [id, state, correlationId, updatedAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        state:
+          type: string
+          enum: [RECEIVED, PLANNING, RUNNING, WAITING_APPROVAL, COMPLETED, FAILED]
+        correlationId:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
     ReserveStockRequest:
       type: object
       additionalProperties: false

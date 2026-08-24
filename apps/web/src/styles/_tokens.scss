@@ -1,0 +1,78 @@
+// Vextis — design tokens (global visual identity)
+//
+// Origin: reference mockup (`/tmp/vextis-ui`) validated with the Claude Skill
+// "dataviz" (palette run through scripts/validate_palette.js in light and dark mode).
+//
+// Hard rules — don't break these without re-running the validator:
+// 1. `--vxt-cat-*` (categorical) and `--vxt-status-*` are EXCLUSIVE to chart
+//    series and execution states (RUNNING/WAITING_APPROVAL/FAILED, etc).
+//    Never used for UI chrome (backgrounds, text, brand).
+// 2. `--vxt-brand-*` (blue→violet) is EXCLUSIVE to brand identity: logo,
+//    login, navigation accents, CTAs. Never replaces the chart's
+//    red/green/yellow.
+// 3. Everything else (`--vxt-surface`, `--vxt-page`, `--vxt-text-*`, etc.) is
+//    neutral chrome and does change between light/dark mode.
+
+:root {
+  // Vextis brand — logo, login, accents. Do not use in dataviz.
+  --vxt-brand-blue: #2568c9;
+  --vxt-brand-violet: #7c5cff;
+  --vxt-brand-gradient: linear-gradient(135deg, #2568c9 0%, #6a4fe0 60%, #7c5cff 100%);
+  --vxt-brand-violet-tint: rgba(124, 92, 255, 0.14);
+
+  // Chrome — light mode
+  --vxt-surface: #fcfcfb;
+  --vxt-page: #f9f9f7;
+  --vxt-text-primary: #0b0b0b;
+  --vxt-text-secondary: #52514e;
+  --vxt-muted: #898781;
+  --vxt-gridline: #e1e0d9;
+  --vxt-baseline: #c3c2b7;
+  --vxt-success-text: #006300;
+  --vxt-border: rgba(11, 11, 11, 0.08);
+
+  // Dataviz — categorical (light mode), validated palette (references/palette.md)
+  --vxt-cat-1: #2a78d6; // blue
+  --vxt-cat-2: #eb6834; // orange
+  --vxt-cat-3: #1baf7a; // aqua
+  --vxt-cat-4: #eda100; // yellow
+  --vxt-cat-5: #e87ba4; // magenta
+  --vxt-cat-6: #008300; // green
+  --vxt-cat-7: #4a3aa7; // violet
+  --vxt-cat-8: #e34948; // red
+
+  // Dataviz — status (constant across modes; fixed semantic meaning)
+  --vxt-status-good: #0ca30c;
+  --vxt-status-warning: #fab219;
+  --vxt-status-serious: #ec835a;
+  --vxt-status-critical: #d03b3b;
+
+  color-scheme: light;
+}
+
+html.dark {
+  --vxt-brand-violet-tint: rgba(124, 92, 255, 0.22);
+
+  // Chrome — dark mode
+  --vxt-surface: #1a1a19;
+  --vxt-page: #0d0d0d;
+  --vxt-text-primary: #ffffff;
+  --vxt-text-secondary: #c3c2b7;
+  --vxt-muted: #898781;
+  --vxt-gridline: #2c2c2a;
+  --vxt-baseline: #383835;
+  --vxt-success-text: #0ca30c;
+  --vxt-border: rgba(255, 255, 255, 0.08);
+
+  // Dataviz — categorical (dark mode)
+  --vxt-cat-1: #3987e5;
+  --vxt-cat-2: #d95926;
+  --vxt-cat-3: #199e70;
+  --vxt-cat-4: #c98500;
+  --vxt-cat-5: #d55181;
+  --vxt-cat-6: #008300;
+  --vxt-cat-7: #9085e9;
+  --vxt-cat-8: #e66767;
+
+  color-scheme: dark;
+}

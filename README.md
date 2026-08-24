@@ -1,16 +1,16 @@
 # Vextis ERP
 
-Vextis es una plataforma CRM/ERP agentiva para coordinar procesos empresariales entre **CRM y Ventas**, **Inventario y Operaciones** y **Finanzas y Facturación**.
+Vextis is an agentive CRM/ERP platform that coordinates business processes across **CRM and Sales**, **Inventory and Operations**, and **Finance and Billing**.
 
-El producto combina las capacidades de los tres tracks de All Things Agentic Hackathon en una sola experiencia:
+The product combines the capabilities of all three All Things Agentic Hackathon tracks in a single experience:
 
-- **Collaborative Partner:** entiende objetivos, recupera contexto y solicita aclaraciones.
-- **Taskmaster:** ejecuta workflows empresariales asíncronos de principio a fin.
-- **Fortified Enterprise Fleet:** registra, autoriza, observa y audita los agentes.
+- **Collaborative Partner:** understands goals, retrieves context, and asks for clarification.
+- **Taskmaster:** executes end-to-end asynchronous business workflows.
+- **Fortified Enterprise Fleet:** registers, authorizes, observes, and audits agents.
 
-La categoría oficial de inscripción es **Fortified Enterprise Fleet**.
+The official entry category is **Fortified Enterprise Fleet**.
 
-## Arquitectura oficial
+## Official architecture
 
 ```text
 Angular Web
@@ -28,11 +28,11 @@ Cloud SQL PostgreSQL + pgvector                        v
                                                 +-------------------> Model Armor
 ```
 
-- **Java** es la única autoridad para mutaciones de CRM, inventario y facturación.
-- **Python** coordina agentes, RAG, memoria y workflows, pero no escribe directamente en las tablas empresariales.
-- **GraphQL SDL, OpenAPI, AsyncAPI y JSON Schema** son los contratos entre Angular, Java y Python.
-- **PostgreSQL** conserva datos transaccionales, estados durables, auditoría, outbox, idempotencia y vectores del RAG.
-- **Cloud Storage** conserva documentos y artefactos originales.
+- **Java** is the sole authority for CRM, inventory, and billing mutations.
+- **Python** coordinates agents, RAG, memory, and workflows, but does not write directly to business tables.
+- **GraphQL SDL, OpenAPI, AsyncAPI, and JSON Schema** are the contracts between Angular, Java, and Python.
+- **PostgreSQL** holds transactional data, durable state, audit, outbox, idempotency, and RAG vectors.
+- **Cloud Storage** holds documents and original artifacts.
 
 ## Monorepo
 
@@ -40,14 +40,14 @@ Cloud SQL PostgreSQL + pgvector                        v
 apps/web/                         Angular
 services/enterprise-core/         Java + Spring Boot
 services/agent-runtime/           Python + Google ADK
-contracts/                        GraphQL, OpenAPI interno, AsyncAPI y JSON Schema
-infra/                            Terraform, despliegue y datos semilla
-docs/                             Arquitectura, decisiones y coordinación
+contracts/                        GraphQL, internal OpenAPI, AsyncAPI, and JSON Schema
+infra/                            Terraform, deployment, and seed data
+docs/                             Architecture, decisions, and coordination
 ```
 
-## Desarrollo local
+## Local development
 
-Requisitos: Java 17+ para iniciar Gradle (el wrapper descarga el toolchain Java 21), Node.js 24, pnpm 11, uv y Docker Desktop.
+Requirements: Java 17+ to start Gradle (the wrapper downloads the Java 21 toolchain), Node.js 24, pnpm 11, uv, and Docker Desktop.
 
 ```powershell
 Copy-Item .env.example .env
@@ -58,27 +58,33 @@ Copy-Item .env.example .env
 ```
 
 - Angular: `http://localhost:4200`.
-- GraphQL público: `http://localhost:8080/graphql`.
-- Health del Agent Runtime: `http://localhost:8081/health`.
-- Verificación completa: `./tools/check.ps1`.
+- Public GraphQL: `http://localhost:8080/graphql`.
+- Agent Runtime health: `http://localhost:8081/health`.
+- Full verification: `./tools/check.ps1`.
 
-Gradle Wrapper y `uv` descargan sus runtimes declarados. No se requiere una instalación global de Gradle ni Python 3.13.
+Gradle Wrapper and `uv` download their declared runtimes. No global Gradle or Python 3.13 install is required.
 
-## Fuentes de verdad
+## Sources of truth
 
-La documentación pública se consulta en este orden:
+Public documentation is consulted in this order:
 
-1. [`docs/TECH_STACK.md`](./docs/TECH_STACK.md): tecnologías y responsabilidades de cada runtime.
-2. [`docs/REPO_STRUCTURE.md`](./docs/REPO_STRUCTURE.md): estructura y reglas de dependencia.
-3. [`docs/CONTRACTS.md`](./docs/CONTRACTS.md): modelo, APIs, eventos y reglas de integración.
+1. [`docs/TECH_STACK.md`](./docs/TECH_STACK.md): technologies and responsibilities of each runtime.
+2. [`docs/REPO_STRUCTURE.md`](./docs/REPO_STRUCTURE.md): structure and dependency rules.
+3. [`docs/CONTRACTS.md`](./docs/CONTRACTS.md): model, APIs, events, and integration rules.
 
-Si dos documentos se contradicen, la decisión más reciente registrada en `docs/adr/` debe resolver el conflicto antes de escribir código. No se implementan supuestos silenciosos.
+If two documents contradict each other, the most recently recorded decision in `docs/adr/` resolves the conflict before writing code. No silent assumptions are implemented.
 
-## Estado
+## Status
 
-El repositorio está en fase de arquitectura y scaffolding. El objetivo inmediato es un flujo vertical desplegado que atraviese Angular, Enterprise Core, Pub/Sub y Agent Runtime antes de ampliar funcionalidades.
+The repository is in the architecture and scaffolding phase. The immediate goal is a deployed vertical slice spanning Angular, Enterprise Core, Pub/Sub, and Agent Runtime before expanding functionality.
 
-## Referencia oficial
+## License
+
+Copyright © 2026 Rafael Patiño Díaz.
+
+Vextis ERP is distributed under the [Apache License 2.0](./LICENSE). See also the attribution file [NOTICE](./NOTICE). Third-party dependencies retain their own licenses.
+
+## Official reference
 
 - Hackathon: https://allthingsagentichackathon.devpost.com/
 - Video: https://www.youtube.com/watch?v=5Xw3LtPeByE

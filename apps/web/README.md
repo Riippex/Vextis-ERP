@@ -1,17 +1,17 @@
 # Web
 
-Aplicación Angular de Vextis.
+Vextis's Angular application.
 
-Responsabilidades:
+Responsibilities:
 
-- Inbox de órdenes.
-- CRM, inventario y facturación.
-- Mission Control, timeline, aprobaciones y resultados.
-- Autenticación y presentación de capacidades autorizadas.
+- Order inbox.
+- CRM, inventory, and billing.
+- Mission Control, timeline, approvals, and results.
+- Authentication and presentation of authorized capabilities.
 
-Consume exclusivamente la API GraphQL pública del Enterprise Core mediante operaciones y tipos generados desde `contracts/graphql/public-api.graphqls`. No accede a PostgreSQL, Pub/Sub ni Gemini.
+Consumes exclusively Enterprise Core's public GraphQL API via operations and types generated from `contracts/graphql/public-api.graphqls`. Does not access PostgreSQL, Pub/Sub, or Gemini.
 
-Comandos:
+Commands:
 
 ```powershell
 pnpm generate:graphql

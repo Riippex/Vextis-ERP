@@ -5,6 +5,9 @@ spring:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/vextis}
     username: ${POSTGRES_USER:vextis}
     password: ${POSTGRES_PASSWORD:vextis_local_only}
+    hikari:
+      maximum-pool-size: ${VEXTIS_DB_POOL_MAX_SIZE:4}
+      minimum-idle: ${VEXTIS_DB_POOL_MIN_IDLE:0}
   jpa:
     open-in-view: false
     hibernate:
@@ -29,3 +32,20 @@ management:
     health:
       probes:
         enabled: true
+
+vextis:
+  exposure: ${VEXTIS_EXPOSURE:INTERNAL}
+  firebase:
+    project-id: ${VEXTIS_FIREBASE_PROJECT_ID:${GOOGLE_CLOUD_PROJECT:}}
+  demo:
+    tenant-id: ${VEXTIS_DEMO_TENANT_ID:demo-tenant}
+    actor-id: ${VEXTIS_DEMO_ACTOR_ID:demo-user}
+  agent-tools:
+    service-token: ${VEXTIS_AGENT_TOOLS_TOKEN:}
+    coordinator-agent-id: ${VEXTIS_COORDINATOR_AGENT_ID:coordinator-agent}
+  pubsub:
+    enabled: ${VEXTIS_PUBSUB_ENABLED:false}
+    project-id: ${GOOGLE_CLOUD_PROJECT:}
+    topic-id: ${VEXTIS_PUBSUB_TOPIC_ID:order-events}
+    batch-size: ${VEXTIS_OUTBOX_BATCH_SIZE:10}
+    fixed-delay: ${VEXTIS_OUTBOX_FIXED_DELAY:2s}
