@@ -1,6 +1,7 @@
 ## Description
 
-Briefly explain what this PR does and why. Link the issue it resolves.
+Briefly explain what this PR does and why. Link the issue it resolves, or replace
+the placeholder with `N/A` when no issue exists.
 
 Closes #
 
@@ -26,6 +27,7 @@ changes, whether you exercised the feature in a browser.
 
 ## Quality Checklist
 
+- [ ] This task PR targets `develop` (promotion PRs are the only exception)
 - [ ] Follows the coding standards in `CONTRIBUTING.md`
 - [ ] Tests pass locally
 - [ ] Added/updated tests for the change

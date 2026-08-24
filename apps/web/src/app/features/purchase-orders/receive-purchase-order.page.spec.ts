@@ -14,7 +14,8 @@ describe('ReceivePurchaseOrderPage', () => {
             id: '77cc63cc-3c91-4d80-a918-605b7f231cf8',
             purchaseOrderNumber: 'PO-2026-001',
             customerName: 'Acme Colombia',
-            documentUri: 'gs://vextis-demo/orders/po-2026-001.pdf',
+            documentUri:
+              'gs://vextis-erp-hackathon-assets/demo/purchase-orders/PO-2026-001.pdf',
             receivedAt: '2026-08-21T03:30:00Z',
           },
           execution: {

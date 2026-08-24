@@ -38,7 +38,7 @@ dependencies {
     implementation("com.google.cloud.sql:postgres-socket-factory:1.29.0")
     implementation("com.google.firebase:firebase-admin:9.10.0")
     implementation("org.springframework.boot:spring-boot-starter-security")
-    implementation("org.flywaydb:flyway-core")
+    implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.flywaydb:flyway-database-postgresql")
     runtimeOnly("org.postgresql:postgresql")
 

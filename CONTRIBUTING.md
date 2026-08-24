@@ -115,20 +115,28 @@ cd apps/web; pnpm lint; pnpm test; pnpm build
 
 ## Pull Request Process
 
-1. Fork the repo (or branch, if you have write access) from `develop`:
+The canonical workflow, including automation authority and release promotion, is
+documented in [`docs/runbooks/pull-requests.md`](docs/runbooks/pull-requests.md).
+
+1. Update `develop`, then fork the repo or create a short-lived branch from it:
    ```bash
+   git checkout develop
+   git pull --ff-only origin develop
    git checkout -b feat/your-feature-name
    ```
 2. Make your changes following the [Coding Standards](#coding-standards)
    below.
 3. Ensure tests pass locally (`./tools/check.ps1`).
-4. Open a PR using the PR template and fill in all sections.
+4. Push the branch and open a non-draft PR targeting `develop` using the PR
+   template. Finishing a versioned task includes creating or updating this PR.
 5. **A required reviewer must approve before merging.** Only
    [@Riippex](https://github.com/Riippex) and
    [@Rapd33](https://github.com/Rapd33) count as required reviewers — either
    one's approval is sufficient. See `.github/CODEOWNERS`.
 6. Once approved and CI passes, a maintainer will merge it. Direct pushes to
    `main` and `develop` are blocked by branch protection.
+7. Promotion from `develop` to `main` uses a separate, explicitly requested
+   release PR because merging `main` can trigger component deployments.
 
 ---
 
