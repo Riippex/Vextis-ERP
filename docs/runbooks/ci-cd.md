@@ -3,11 +3,17 @@
 ## Environments and branches
 
 - Local development remains the default developer environment.
-- `develop` integrates changes and runs the complete validation suite.
+- Short-lived task branches open pull requests to `develop`; completing a
+  versioned task includes creating or updating that PR.
+- `develop` integrates approved changes and runs the complete validation suite.
+- Promotion from `develop` to `main` is a separate PR and release decision.
 - `main` is the only branch that can automatically deploy to `hackathon`.
 - Pull requests never receive Google Cloud credentials.
 - Production and a separate Google Cloud `dev` environment are intentionally out
   of scope for the hackathon.
+
+The complete branch, review, agent-automation, and promotion procedure is in
+[`pull-requests.md`](pull-requests.md).
 
 ## Continuous integration
 
