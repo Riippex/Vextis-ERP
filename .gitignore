@@ -34,6 +34,7 @@ secrets/
 *.jks
 *service-account*.json
 application_default_credentials.json
+gha-creds-*.json
 application-local.yml
 application-local.yaml
 application-local.properties

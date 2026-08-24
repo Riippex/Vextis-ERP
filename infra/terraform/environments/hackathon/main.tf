@@ -83,3 +83,15 @@ module "storage" {
   cloud_build_service_account_email     = module.iam.cloud_build_email
   labels                                = local.labels
 }
+
+module "github_oidc" {
+  source = "../../modules/github-oidc"
+
+  project_id                        = var.project_id
+  cloud_build_service_account_email = module.iam.cloud_build_email
+  github_repository_id              = "1338929025"
+  github_repository_owner_id        = "221794453"
+  deploy_branch                     = "develop"
+
+  depends_on = [module.iam]
+}

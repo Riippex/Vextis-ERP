@@ -82,3 +82,9 @@ resource "google_storage_bucket_iam_member" "cloud_build_source_viewer" {
   role   = "roles/storage.objectViewer"
   member = "serviceAccount:${var.cloud_build_service_account_email}"
 }
+
+resource "google_storage_bucket_iam_member" "cloud_build_source_creator" {
+  bucket = google_storage_bucket.build_source.name
+  role   = "roles/storage.objectCreator"
+  member = "serviceAccount:${var.cloud_build_service_account_email}"
+}

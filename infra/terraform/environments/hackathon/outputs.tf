@@ -61,3 +61,7 @@ output "assets_bucket_name" {
 output "build_source_bucket_name" {
   value = module.storage.build_source_bucket_name
 }
+
+output "github_workload_identity_provider" {
+  value = module.github_oidc.workload_identity_provider_name
+}
