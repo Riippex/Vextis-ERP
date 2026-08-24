@@ -1,0 +1,150 @@
+<div class="landing">
+  <header class="nav">
+    <a class="brand" routerLink="/" aria-label="Vextis home">
+      <span class="brand__mark" aria-hidden="true">
+        <svg viewBox="0 0 40 40" fill="none">
+          <defs>
+            <linearGradient id="landingLogoGradient" x1="4" y1="8" x2="36" y2="10">
+              <stop offset="0%" stop-color="#2568c9" />
+              <stop offset="100%" stop-color="#7c5cff" />
+            </linearGradient>
+          </defs>
+          <path
+            d="M6 9c0-1.7 1.3-3 3-3s3 1.3 3 3c0 .9-.4 1.7-1 2.3l7 12.1 12-6.7c-.6-.5-1-1.3-1-2.1 0-1.7 1.3-3 3-3s3 1.3 3 3-1.3 3-3 3c-.3 0-.6 0-.9-.1L18.6 30.4c-.5.9-1.5 1.5-2.6 1.5-1.7 0-3-1.3-3-3 0-.5.1-1 .4-1.4L6.7 12.6C6.3 12 6 11 6 9Z"
+            fill="url(#landingLogoGradient)"
+          />
+        </svg>
+      </span>
+      <span>Vextis</span>
+    </a>
+
+    <nav class="nav__links" aria-label="Primary navigation">
+      <a href="#platform">Platform</a>
+      <a href="#architecture">Architecture</a>
+      <a mat-stroked-button routerLink="/login">Sign in</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero__copy">
+        <p class="kicker"><span></span> Agentic operations, enterprise control</p>
+        <h1 id="hero-title">Your business,<br /><em>working as one.</em></h1>
+        <p class="hero__lead">
+          Vextis unifies CRM, inventory, and finance with a governed fleet of AI agents that
+          understands, coordinates, and documents every operational decision.
+        </p>
+        <div class="hero__actions">
+          <a mat-flat-button routerLink="/login">
+            Enter the workspace
+            <mat-icon>arrow_forward</mat-icon>
+          </a>
+          <a class="text-link" href="#platform">Explore the platform</a>
+        </div>
+        <div class="hero__proof" aria-label="Core product qualities">
+          <span><mat-icon>verified_user</mat-icon> Human approval</span>
+          <span><mat-icon>history</mat-icon> End-to-end audit</span>
+          <span><mat-icon>cloud_done</mat-icon> Google Cloud native</span>
+        </div>
+      </div>
+
+      <div class="mission" aria-label="Example agent workflow">
+        <div class="mission__header">
+          <span><i></i> Mission control</span>
+          <span class="mission__status">Live workflow</span>
+        </div>
+        <div class="mission__request">
+          <span class="mission__icon"><mat-icon>description</mat-icon></span>
+          <div>
+            <small>Incoming purchase order</small>
+            <strong>Northstar Retail · PO-2048</strong>
+          </div>
+          <span class="mission__amount">$48,900</span>
+        </div>
+        <div class="mission__rail" aria-hidden="true"></div>
+        <div class="mission__departments">
+          <div><mat-icon>handshake</mat-icon><span>CRM</span><b>Customer verified</b></div>
+          <div><mat-icon>inventory_2</mat-icon><span>Inventory</span><b>Stock reserved</b></div>
+          <div><mat-icon>account_balance</mat-icon><span>Finance</span><b>Credit approved</b></div>
+        </div>
+        <div class="mission__result">
+          <mat-icon>auto_awesome</mat-icon>
+          <div><small>Agent recommendation</small><strong>Ready for human approval</strong></div>
+          <span>3/3 checks</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="stack" aria-label="Technology stack">
+      <span>Built for the Google Cloud agent ecosystem</span>
+      <div>
+        <b>Gemini</b><b>Vertex AI</b><b>Google ADK</b><b>Cloud Run</b><b>Firebase</b>
+      </div>
+    </section>
+
+    <section id="platform" class="platform section">
+      <div class="section__intro">
+        <p class="kicker"><span></span> One system, three modes of agency</p>
+        <h2>Agents that collaborate,<br />execute, and stay accountable.</h2>
+        <p>
+          Vextis brings the three hackathon tracks into one operational surface instead of
+          treating them as disconnected demos.
+        </p>
+      </div>
+
+      <div class="capabilities">
+        @for (capability of capabilities; track capability.eyebrow; let index = $index) {
+          <article class="capability">
+            <div class="capability__number">0{{ index + 1 }}</div>
+            <mat-icon>{{ capability.icon }}</mat-icon>
+            <p>{{ capability.eyebrow }}</p>
+            <h3>{{ capability.title }}</h3>
+            <span>{{ capability.description }}</span>
+          </article>
+        }
+      </div>
+    </section>
+
+    <section id="architecture" class="architecture section">
+      <div class="architecture__copy">
+        <p class="kicker kicker--light"><span></span> Clean boundaries by design</p>
+        <h2>AI coordinates.<br />The core decides.</h2>
+        <p>
+          Probabilistic agent reasoning never becomes an alternate transactional authority.
+          Every mutation travels through the same Java business rules, policies, and audit path.
+        </p>
+        <ul>
+          <li><mat-icon>check</mat-icon> Angular experience with Firebase identity</li>
+          <li><mat-icon>check</mat-icon> Spring Enterprise Core as business authority</li>
+          <li><mat-icon>check</mat-icon> Google ADK runtime for agents and Gemini</li>
+        </ul>
+      </div>
+
+      <div class="architecture__diagram" aria-label="Vextis architecture flow">
+        <div class="architecture__node architecture__node--web">
+          <small>Experience</small><strong>Angular Web</strong><span>Firebase Hosting + Auth</span>
+        </div>
+        <mat-icon>south</mat-icon>
+        <div class="architecture__node architecture__node--core">
+          <small>Business authority</small><strong>Enterprise Core</strong><span>Java · Spring · GraphQL</span>
+        </div>
+        <div class="architecture__branches">
+          <div><mat-icon>storage</mat-icon><strong>Cloud SQL</strong><small>PostgreSQL</small></div>
+          <div><mat-icon>smart_toy</mat-icon><strong>Agent Runtime</strong><small>ADK · Gemini</small></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="closing section">
+      <p class="kicker"><span></span> Vextis mission control</p>
+      <h2>Turn operational complexity<br />into coordinated action.</h2>
+      <a mat-flat-button routerLink="/login">Open the workspace <mat-icon>arrow_forward</mat-icon></a>
+    </section>
+  </main>
+
+  <footer>
+    <a class="brand" routerLink="/"><span>Vextis</span></a>
+    <p>Agentic CRM + ERP · Built on Google Cloud</p>
+    <span>© 2026 Rafael Patiño Díaz</span>
+  </footer>
+</div>
