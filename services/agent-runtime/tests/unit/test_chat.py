@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 import pytest
 from fastapi.testclient import TestClient
 from google.genai import types
+from pydantic import SecretStr
 
 from vextis_agents.app import chat as chat_module
 from vextis_agents.app.config import Settings
@@ -36,7 +37,7 @@ class FakeRunner:
 def _settings() -> Settings:
     return Settings(
         chat_enabled=True,
-        core_callback_token="s3cret-core-callback-token",
+        core_callback_token=SecretStr("s3cret-core-callback-token"),
         gemini_model="gemini-test",
         google_cloud_project="vextis-test",
     )

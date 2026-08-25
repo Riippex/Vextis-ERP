@@ -57,7 +57,7 @@ def _build_app(session_client: FakeSessionClient, bridges: list[FakeBridge]) -> 
 
 def test_valid_token_forwards_agent_events_and_client_audio() -> None:
     session_client = FakeSessionClient(
-        LiveSessionValidation(valid=True, tenant_id="demo-tenant", conversation_id="conv-1")
+        LiveSessionValidation(valid=True, tenantId="demo-tenant", conversationId="conv-1")
     )
     bridges: list[FakeBridge] = []
     client = TestClient(_build_app(session_client, bridges))
