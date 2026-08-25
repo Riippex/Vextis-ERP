@@ -126,6 +126,12 @@ public class PurchaseOrderWorkflowService implements RegisterReceivedPurchaseOrd
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<ExecutionOverview.DepartmentVolume> volumeByDepartment(String tenantId) {
+        return repository.findExecutionVolumeByDepartment(tenantId);
+    }
+
+    @Override
     @Transactional
     public PlanningContext startPlanning(StartPlanningCommand command) {
         if (command.actor().type() != Actor.Type.AGENT) {

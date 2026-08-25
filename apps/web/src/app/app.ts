@@ -12,7 +12,10 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { FirebaseAuthService } from './core/auth/firebase-auth.service';
+import { WorkspaceSearchStore } from './core/search/workspace-search.store';
 import { ThemeService } from './core/theme/theme.service';
+import { AskVextisPanelComponent } from './shared/ask-vextis/ask-vextis-panel.component';
+import { AskVextisTriggerComponent } from './shared/ask-vextis/ask-vextis-trigger.component';
 
 export function isApplicationRoute(url: string): boolean {
   const primaryPath = url.split(/[?#]/, 1)[0] ?? '';
@@ -43,7 +46,16 @@ export function workspaceRouteContext(url: string): WorkspaceRouteContext {
 
 @Component({
   selector: 'vxt-root',
-  imports: [MatButtonModule, MatIconModule, MatToolbarModule, RouterLink, RouterLinkActive, RouterOutlet],
+  imports: [
+    AskVextisPanelComponent,
+    AskVextisTriggerComponent,
+    MatButtonModule,
+    MatIconModule,
+    MatToolbarModule,
+    RouterLink,
+    RouterLinkActive,
+    RouterOutlet,
+  ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -52,8 +64,10 @@ export class App {
   private readonly router = inject(Router);
   private readonly auth = inject(FirebaseAuthService);
   private readonly theme = inject(ThemeService);
+  private readonly workspaceSearch = inject(WorkspaceSearchStore);
 
   protected readonly isDark = this.theme.isDark;
+  protected readonly searchQuery = this.workspaceSearch.query;
   protected readonly sidebarCollapsed = signal(
     globalThis.matchMedia?.('(max-width: 58rem)').matches ?? false,
   );
@@ -76,6 +90,11 @@ export class App {
 
   protected toggleTheme(): void {
     this.theme.toggle();
+  }
+
+  protected onSearchInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.workspaceSearch.setQuery(input.value);
   }
 
   protected async signOut(): Promise<void> {

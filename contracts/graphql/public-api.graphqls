@@ -2,6 +2,7 @@ type Query {
   health: Health!
   execution(id: ID!): Execution
   missionControl: MissionControl!
+  askVextisConversation(id: ID!): AskVextisConversation
 }
 
 type MissionControl {
@@ -10,6 +11,12 @@ type MissionControl {
   stockItems: [StockItemOverview!]!
   stockReservations: [StockReservationOverview!]!
   creditProfiles: [CreditProfileOverview!]!
+  executionVolumeByDepartment: [DepartmentExecutionVolume!]!
+}
+
+type DepartmentExecutionVolume {
+  department: PlanningDepartment!
+  count: Int!
 }
 
 type MissionControlExecution {
@@ -54,6 +61,42 @@ type Mutation {
   upsertCreditProfile(input: UpsertCreditProfileInput!): CreditProfileOverview!
   createLiveSession(input: CreateLiveSessionInput!): LiveSession!
   closeLiveSession(id: ID!): Boolean!
+  askVextis(input: AskVextisMessageInput!): AskVextisMessageResult!
+}
+
+input AskVextisMessageInput {
+  conversationId: ID
+  message: String!
+}
+
+type AskVextisMessageResult {
+  conversationId: ID!
+  messageId: ID!
+  reply: String!
+  createdAt: String!
+}
+
+type AskVextisConversation {
+  id: ID!
+  messages: [AskVextisMessage!]!
+}
+
+type AskVextisMessage {
+  id: ID!
+  sender: AskVextisMessageSender!
+  content: String!
+  kind: AskVextisMessageKind!
+  createdAt: String!
+}
+
+enum AskVextisMessageSender {
+  USER
+  ASSISTANT
+}
+
+enum AskVextisMessageKind {
+  TEXT
+  VOICE_TRANSCRIPT
 }
 
 input PreparePurchaseOrderUploadInput {

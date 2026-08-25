@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     agent_tools_token: SecretStr | None = None
     coordinator_agent_id: str = "coordinator-agent"
     pubsub_push_enabled: bool = False
+    chat_enabled: bool = False
+    core_callback_token: SecretStr | None = None
+    live_enabled: bool = False
+    live_model: str | None = None
     gemini_model: str | None = None
     google_cloud_project: str | None = Field(default=None, validation_alias="GOOGLE_CLOUD_PROJECT")
     google_cloud_location: str = Field(

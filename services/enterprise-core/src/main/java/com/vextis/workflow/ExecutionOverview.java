@@ -8,6 +8,8 @@ public interface ExecutionOverview {
 
     List<ExecutionSummary> findRecent(String tenantId, int limit);
 
+    List<DepartmentVolume> volumeByDepartment(String tenantId);
+
     record ExecutionSummary(
             UUID id,
             String purchaseOrderNumber,
@@ -16,5 +18,12 @@ public interface ExecutionOverview {
             String correlationId,
             Instant updatedAt
     ) {
+    }
+
+    /**
+     * An execution counts once per department it has a plan step in, so totals across
+     * departments can exceed the execution count for multi-department orders.
+     */
+    record DepartmentVolume(String department, int count) {
     }
 }

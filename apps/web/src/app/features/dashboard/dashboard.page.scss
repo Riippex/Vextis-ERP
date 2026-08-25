@@ -43,7 +43,7 @@
 }
 
 .metrics-surface .metric-card {
-  border-radius: 1.35rem;
+  border-radius: var(--vxt-radius-lg);
   box-shadow: none;
 }
 
@@ -69,6 +69,37 @@
 
 .department-grid--dashboard {
   margin-top: 1rem;
+}
+
+.charts-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.chart-card {
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-card__body {
+  height: 16rem;
+  padding: 0.5rem 1.3rem 1.3rem;
+}
+
+.chart-card__empty {
+  align-items: center;
+  color: var(--vxt-text-secondary);
+  display: flex;
+  height: 100%;
+  justify-content: center;
+  margin: 0;
+}
+
+@media (max-width: 62rem) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .correlation {

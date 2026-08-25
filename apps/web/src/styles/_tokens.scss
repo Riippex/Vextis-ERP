@@ -47,6 +47,20 @@
   --vxt-status-serious: #ec835a;
   --vxt-status-critical: #d03b3b;
 
+  // Workspace rail — the merged sidebar+toolbar chrome. Constant across
+  // light/dark page mode (a Cloud-Console-style rail stays dark either way),
+  // so it is not redefined under html.dark below.
+  --vxt-rail-bg: #121118;
+  --vxt-rail-bg-elevated: #1d1c26;
+  --vxt-rail-text: #f6f5f4;
+  --vxt-rail-text-muted: #a7a5b2;
+  --vxt-rail-border: rgba(255, 255, 255, 0.08);
+
+  // Radius scale — chrome surfaces only (never dataviz marks).
+  --vxt-radius-sm: 0.75rem;
+  --vxt-radius-md: 1rem;
+  --vxt-radius-lg: 1.5rem;
+
   color-scheme: light;
 }
 

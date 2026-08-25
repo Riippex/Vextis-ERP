@@ -64,7 +64,7 @@ h1 {
 .data-card {
   background: color-mix(in srgb, var(--vxt-surface) 94%, transparent);
   border: 1px solid var(--vxt-border);
-  border-radius: 1.25rem;
+  border-radius: var(--vxt-radius-lg);
   box-shadow: 0 1rem 3rem color-mix(in srgb, #08080f 8%, transparent);
 }
 

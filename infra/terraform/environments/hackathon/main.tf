@@ -86,6 +86,7 @@ module "iam" {
   cloud_sql_instance_name     = module.cloud_sql.instance_name
   database_password_secret_id = module.cloud_sql.password_secret_id
   agent_tools_secret_id       = "vextis-agent-tools-token"
+  core_callback_secret_id     = "vextis-core-callback-token"
   labels                      = local.labels
 }
 
@@ -114,8 +115,10 @@ module "cloud_run" {
   database_name                                = module.cloud_sql.database_name
   database_password_secret_id                  = module.cloud_sql.password_secret_id
   agent_tools_secret_id                        = module.iam.agent_tools_secret_id
+  core_callback_secret_id                      = module.iam.core_callback_secret_id
   pubsub_topic_id                              = "order-events"
   gemini_model                                 = var.gemini_model
+  live_model                                   = var.live_model
   assets_bucket_name                           = local.assets_bucket_name
   labels                                       = local.labels
 
