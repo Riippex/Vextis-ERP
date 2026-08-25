@@ -55,7 +55,10 @@ class AdkGeminiPlanGenerator:
             role="user",
             parts=[
                 types.Part(text=prompt),
-                types.Part.from_uri(file_uri=context.document_uri, mime_type="application/pdf"),
+                types.Part.from_uri(
+                    file_uri=context.document_uri,
+                    mime_type=_document_mime_type(context.document_uri),
+                ),
             ],
         )
         final_text: str | None = None
@@ -81,3 +84,14 @@ class AdkGeminiPlanGenerator:
             raise PlanGenerationUnavailableError("Gemini planning failed") from exception
         finally:
             await runner.close()
+
+
+def _document_mime_type(document_uri: str) -> str:
+    normalized = document_uri.lower()
+    if normalized.endswith(".pdf"):
+        return "application/pdf"
+    if normalized.endswith((".jpg", ".jpeg")):
+        return "image/jpeg"
+    if normalized.endswith(".png"):
+        return "image/png"
+    raise PlanGenerationUnavailableError("Purchase order document type is unsupported")

@@ -40,6 +40,12 @@ export type PlanningDepartment =
   | 'FINANCE_BILLING'
   | 'INVENTORY_OPERATIONS';
 
+export type PreparePurchaseOrderUploadInput = {
+  contentType: string;
+  fileName: string;
+  sizeBytes: number;
+};
+
 export type ReadinessStatus =
   | 'READY'
   | 'REVIEW_REQUIRED';
@@ -128,6 +134,13 @@ export type FindExecutionQueryVariables = Exact<{
 
 
 export type FindExecutionQuery = { execution: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, orderLines: Array<{ sku: string, quantity: number }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null, approval: { id: string, recommendation: string, status: ApprovalStatus, requestedBy: string, requestedAt: string, expiresAt: string, decidedBy: string | null, decidedAt: string | null, reason: string | null } | null } | null };
+
+export type PreparePurchaseOrderUploadMutationVariables = Exact<{
+  input: PreparePurchaseOrderUploadInput;
+}>;
+
+
+export type PreparePurchaseOrderUploadMutation = { preparePurchaseOrderUpload: { uploadUrl: string, documentUri: string, expiresAt: string, formFields: Array<{ name: string, value: string }> } };
 
 export type ReceivePurchaseOrderMutationVariables = Exact<{
   input: ReceivePurchaseOrderInput;
@@ -387,6 +400,30 @@ export const FindExecutionDocument = gql`
   })
   export class FindExecutionGQL extends Apollo.Query<FindExecutionQuery, FindExecutionQueryVariables> {
     document = FindExecutionDocument;
+
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const PreparePurchaseOrderUploadDocument = gql`
+    mutation PreparePurchaseOrderUpload($input: PreparePurchaseOrderUploadInput!) {
+  preparePurchaseOrderUpload(input: $input) {
+    uploadUrl
+    documentUri
+    expiresAt
+    formFields {
+      name
+      value
+    }
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class PreparePurchaseOrderUploadGQL extends Apollo.Mutation<PreparePurchaseOrderUploadMutation, PreparePurchaseOrderUploadMutationVariables> {
+    document = PreparePurchaseOrderUploadDocument;
 
     constructor(apollo: Apollo.Apollo) {
       super(apollo);

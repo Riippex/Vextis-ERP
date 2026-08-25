@@ -5,6 +5,7 @@ import com.vextis.crm.CustomerLookup;
 import com.vextis.inventory.StockLookup;
 import com.vextis.inventory.StockReservation;
 import com.vextis.workflow.application.port.PurchaseOrderWorkflowRepository;
+import com.vextis.workflow.application.port.PurchaseOrderDocumentStorage;
 import com.vextis.workflow.ExecutionOverview;
 import com.vextis.workflow.domain.Actor;
 import com.vextis.workflow.domain.ApprovalDecision;
@@ -34,6 +35,8 @@ class PurchaseOrderWorkflowServiceTests {
 
     private final InMemoryRepository repository = new InMemoryRepository();
     private final StockReservation reservations = org.mockito.Mockito.mock(StockReservation.class);
+    private final PurchaseOrderDocumentStorage documents =
+            org.mockito.Mockito.mock(PurchaseOrderDocumentStorage.class);
     private final PurchaseOrderWorkflowService service = new PurchaseOrderWorkflowService(
             repository,
             Clock.fixed(NOW, ZoneOffset.UTC),
@@ -44,10 +47,12 @@ class PurchaseOrderWorkflowServiceTests {
                     CreditLookup.CreditStanding.GOOD, 30)),
             reservations
     );
+    private final ReceivePurchaseOrderUseCase intake =
+            new PurchaseOrderDocumentService(documents, service);
 
     @Test
     void receivesPurchaseOrderWithAuditReadyExecution() {
-        PurchaseOrderReceipt receipt = service.receive(command("receive-po-001"));
+        PurchaseOrderReceipt receipt = intake.receive(command("receive-po-001"));
 
         assertThat(receipt.purchaseOrder().purchaseOrderNumber()).isEqualTo("PO-2026-001");
         assertThat(receipt.purchaseOrder().receivedAt()).isEqualTo(NOW);
@@ -59,12 +64,14 @@ class PurchaseOrderWorkflowServiceTests {
         });
         assertThat(repository.savedActor).isEqualTo(new Actor(Actor.Type.USER, "demo-user"));
         assertThat(repository.savedIdempotencyKey).isEqualTo("receive-po-001");
+        org.mockito.Mockito.verify(documents)
+                .assertReady("demo-tenant", "gs://vextis-demo/orders/po-2026-001.pdf");
     }
 
     @Test
     void returnsSameReceiptWhenIdempotencyKeyIsRepeated() {
-        PurchaseOrderReceipt first = service.receive(command("same-key"));
-        PurchaseOrderReceipt second = service.receive(command("same-key"));
+        PurchaseOrderReceipt first = intake.receive(command("same-key"));
+        PurchaseOrderReceipt second = intake.receive(command("same-key"));
 
         assertThat(second).isEqualTo(first);
         assertThat(repository.saveCount).isEqualTo(1);
@@ -73,7 +80,7 @@ class PurchaseOrderWorkflowServiceTests {
 
     @Test
     void rejectsReusingIdempotencyKeyForDifferentInput() {
-        service.receive(command("same-key"));
+        intake.receive(command("same-key"));
 
         ReceivePurchaseOrderCommand conflicting = new ReceivePurchaseOrderCommand(
                 "demo-tenant",
@@ -84,7 +91,7 @@ class PurchaseOrderWorkflowServiceTests {
                 "same-key"
         );
 
-        assertThatThrownBy(() -> service.receive(conflicting))
+        assertThatThrownBy(() -> intake.receive(conflicting))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("Idempotency key was already used for a different purchase order");
         assertThat(repository.saveCount).isEqualTo(1);
@@ -92,7 +99,7 @@ class PurchaseOrderWorkflowServiceTests {
 
     @Test
     void startsPlanningFromTrustedEventContextAndIsIdempotent() {
-        PurchaseOrderReceipt received = service.receive(command("receive-po-001"));
+        PurchaseOrderReceipt received = intake.receive(command("receive-po-001"));
         UUID eventId = UUID.fromString("8b962f0a-1850-4fcc-a6f5-97e45c67a16e");
         StartPlanningCommand planning = new StartPlanningCommand(
                 "demo-tenant",
@@ -117,7 +124,7 @@ class PurchaseOrderWorkflowServiceTests {
 
     @Test
     void recordsStructuredPlanAndMovesExecutionToRunningIdempotently() {
-        PurchaseOrderReceipt received = service.receive(command("receive-po-001"));
+        PurchaseOrderReceipt received = intake.receive(command("receive-po-001"));
         UUID eventId = UUID.fromString("8b962f0a-1850-4fcc-a6f5-97e45c67a16e");
         PlanningContext planning = service.startPlanning(new StartPlanningCommand(
                 "demo-tenant",
@@ -159,7 +166,7 @@ class PurchaseOrderWorkflowServiceTests {
 
     @Test
     void evaluatesAuthoritativeReadinessWithoutChangingBusinessState() {
-        PurchaseOrderReceipt received = service.receive(command("receive-po-001"));
+        PurchaseOrderReceipt received = intake.receive(command("receive-po-001"));
         UUID eventId = UUID.fromString("8b962f0a-1850-4fcc-a6f5-97e45c67a16e");
         PlanningContext planning = service.startPlanning(new StartPlanningCommand(
                 "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"), received.execution().id(),
@@ -185,7 +192,7 @@ class PurchaseOrderWorkflowServiceTests {
 
     @Test
     void requestsAndDecidesHumanApprovalWithDurableIdentity() {
-        PurchaseOrderReceipt received = service.receive(command("receive-po-001"));
+        PurchaseOrderReceipt received = intake.receive(command("receive-po-001"));
         UUID eventId = UUID.fromString("8b962f0a-1850-4fcc-a6f5-97e45c67a16e");
         PlanningContext planning = service.startPlanning(new StartPlanningCommand(
                 "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"), received.execution().id(),
@@ -232,7 +239,7 @@ class PurchaseOrderWorkflowServiceTests {
 
     @Test
     void rejectsReservationBeforeHumanApproval() {
-        PurchaseOrderReceipt received = service.receive(command("receive-po-001"));
+        PurchaseOrderReceipt received = intake.receive(command("receive-po-001"));
 
         assertThatThrownBy(() -> service.reserve(new ReserveApprovedStockCommand(
                 "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"),
@@ -245,7 +252,7 @@ class PurchaseOrderWorkflowServiceTests {
 
     @Test
     void rejectsPlanningWhenCorrelationDoesNotMatch() {
-        PurchaseOrderReceipt received = service.receive(command("receive-po-001"));
+        PurchaseOrderReceipt received = intake.receive(command("receive-po-001"));
 
         StartPlanningCommand planning = new StartPlanningCommand(
                 "demo-tenant",

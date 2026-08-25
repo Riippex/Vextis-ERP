@@ -49,3 +49,6 @@ vextis:
     topic-id: ${VEXTIS_PUBSUB_TOPIC_ID:order-events}
     batch-size: ${VEXTIS_OUTBOX_BATCH_SIZE:10}
     fixed-delay: ${VEXTIS_OUTBOX_FIXED_DELAY:2s}
+  documents:
+    bucket-name: ${VEXTIS_DOCUMENTS_BUCKET:}
+    signing-service-account: ${VEXTIS_DOCUMENTS_SIGNING_SERVICE_ACCOUNT:}

@@ -74,6 +74,47 @@ h1 {
   grid-column: 1 / -1;
 }
 
+.document-picker {
+  align-items: center;
+  background: color-mix(in srgb, var(--vxt-brand-violet) 5%, var(--vxt-surface));
+  border: 1px dashed color-mix(in srgb, var(--vxt-brand-violet) 45%, var(--vxt-border));
+  border-radius: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  gap: 1rem;
+  min-height: 5.5rem;
+  padding: 1rem 1.25rem;
+  transition: border-color 160ms ease, background 160ms ease;
+}
+
+.document-picker:hover {
+  background: color-mix(in srgb, var(--vxt-brand-violet) 9%, var(--vxt-surface));
+  border-color: var(--vxt-brand-violet);
+}
+
+.document-picker > input {
+  height: 1px;
+  opacity: 0;
+  position: absolute;
+  width: 1px;
+}
+
+.document-picker > mat-icon {
+  color: var(--vxt-brand-violet);
+  font-size: 2rem;
+  height: 2rem;
+  width: 2rem;
+}
+
+.document-picker > span {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.document-picker small {
+  color: var(--vxt-text-secondary);
+}
+
 .intake-form__actions {
   display: flex;
   justify-content: flex-end;

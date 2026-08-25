@@ -3,6 +3,8 @@ package com.vextis.workflow.api.graphql;
 import com.vextis.workflow.application.FindExecutionUseCase;
 import com.vextis.workflow.application.ReceivePurchaseOrderCommand;
 import com.vextis.workflow.application.ReceivePurchaseOrderUseCase;
+import com.vextis.workflow.application.PreparePurchaseOrderUploadCommand;
+import com.vextis.workflow.application.PreparePurchaseOrderUploadUseCase;
 import com.vextis.workflow.application.DecideApprovalUseCase;
 import com.vextis.shared.security.CurrentActorProvider;
 import com.vextis.workflow.domain.ExecutionState;
@@ -11,6 +13,7 @@ import com.vextis.workflow.domain.ExtractedOrderLine;
 import com.vextis.workflow.domain.PlanningDepartment;
 import com.vextis.workflow.domain.PurchaseOrderReceipt;
 import com.vextis.workflow.domain.PurchaseOrderSource;
+import com.vextis.workflow.domain.PurchaseOrderUpload;
 import com.vextis.workflow.domain.TimelineEntryType;
 import com.vextis.workflow.domain.WorkflowExecution;
 import com.vextis.workflow.domain.WorkflowPlan;
@@ -54,6 +57,9 @@ class PurchaseOrderGraphQlControllerTests {
     private ReceivePurchaseOrderUseCase receivePurchaseOrder;
 
     @MockitoBean
+    private PreparePurchaseOrderUploadUseCase preparePurchaseOrderUpload;
+
+    @MockitoBean
     private FindExecutionUseCase findExecution;
 
     @MockitoBean
@@ -61,6 +67,46 @@ class PurchaseOrderGraphQlControllerTests {
 
     @MockitoBean
     private CurrentActorProvider currentActor;
+
+    @Test
+    @WithMockUser(username = "firebase-user-123")
+    void preparesTenantScopedPurchaseOrderUpload() {
+        when(currentActor.currentActorId()).thenReturn("firebase-user-123");
+        when(preparePurchaseOrderUpload.prepare(any(PreparePurchaseOrderUploadCommand.class)))
+                .thenReturn(new PurchaseOrderUpload(
+                        "https://storage.googleapis.com/signed-upload",
+                        "gs://vextis-demo/purchase-orders/tenant/document.pdf",
+                        NOW.plusSeconds(600),
+                        List.of(new PurchaseOrderUpload.FormField("Content-Type", "application/pdf"))));
+
+        graphQlTester.document("""
+                        mutation PreparePurchaseOrderUpload($input: PreparePurchaseOrderUploadInput!) {
+                          preparePurchaseOrderUpload(input: $input) {
+                            uploadUrl
+                            documentUri
+                            expiresAt
+                            formFields { name value }
+                          }
+                        }
+                        """)
+                .variable("input", Map.of(
+                        "fileName", "customer-order.pdf",
+                        "contentType", "application/pdf",
+                        "sizeBytes", 2048))
+                .execute()
+                .path("preparePurchaseOrderUpload.documentUri")
+                .entity(String.class)
+                .isEqualTo("gs://vextis-demo/purchase-orders/tenant/document.pdf")
+                .path("preparePurchaseOrderUpload.formFields[0].value")
+                .entity(String.class)
+                .isEqualTo("application/pdf");
+
+        ArgumentCaptor<PreparePurchaseOrderUploadCommand> command =
+                ArgumentCaptor.forClass(PreparePurchaseOrderUploadCommand.class);
+        verify(preparePurchaseOrderUpload).prepare(command.capture());
+        assertThat(command.getValue().actor().id()).isEqualTo("firebase-user-123");
+        assertThat(command.getValue().tenantId()).isEqualTo("demo-tenant");
+    }
 
     @Test
     @WithMockUser(username = "firebase-user-123")
