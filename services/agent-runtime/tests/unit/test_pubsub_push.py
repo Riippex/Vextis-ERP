@@ -1,3 +1,6 @@
+import logging
+
+import pytest
 from fastapi.testclient import TestClient
 
 from tests.unit.event_factory import approval_decided_event, pubsub_push_body
@@ -177,7 +180,8 @@ def test_malformed_event_is_acknowledged_without_calling_tool() -> None:
     assert tool.event is None
 
 
-def test_transient_core_failure_requests_pubsub_retry() -> None:
+def test_transient_core_failure_requests_pubsub_retry(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.WARNING)
     tool = PlanningToolStub(unavailable=True)
     app = create_app(
         Settings(pubsub_push_enabled=True),
@@ -192,9 +196,12 @@ def test_transient_core_failure_requests_pubsub_retry() -> None:
     )
 
     assert response.status_code == 503
+    assert "dependency=enterprise_core reason=temporary" in caplog.text
+    assert "gs://" not in caplog.text
 
 
-def test_transient_gemini_failure_requests_pubsub_retry() -> None:
+def test_transient_gemini_failure_requests_pubsub_retry(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.WARNING)
     tool = PlanningToolStub()
     generator = PlanGeneratorStub(unavailable=True)
     app = create_app(
@@ -212,6 +219,8 @@ def test_transient_gemini_failure_requests_pubsub_retry() -> None:
     assert response.status_code == 503
     assert generator.calls == 1
     assert tool.plan is None
+    assert "dependency=gemini reason=temporary" in caplog.text
+    assert "gs://" not in caplog.text
 
 
 def test_replay_after_readiness_resumes_approval_without_duplicate_gemini_call() -> None:
