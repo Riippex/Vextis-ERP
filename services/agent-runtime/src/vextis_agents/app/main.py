@@ -1,8 +1,10 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+from vextis_agents.app.chat import create_chat_router
 from vextis_agents.app.config import Settings, get_settings
 from vextis_agents.app.pubsub import create_pubsub_router
+from vextis_agents.live.ws_router import create_live_router
 from vextis_agents.tools.core_api.planning import EnterpriseCorePlanningClient, PlanningTool
 from vextis_agents.workflows.order_to_cash.gemini_planner import AdkGeminiPlanGenerator
 from vextis_agents.workflows.order_to_cash.handler import (
@@ -52,6 +54,12 @@ def create_app(
                 WorkflowApprovalDecidedHandler(tool),
             )
         )
+
+    if settings.chat_enabled:
+        application.include_router(create_chat_router(settings))
+
+    if settings.live_enabled:
+        application.include_router(create_live_router(settings))
 
     return application
 

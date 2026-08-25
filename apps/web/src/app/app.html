@@ -71,8 +71,19 @@
         <span>{{ routeContext().subtitle }}</span>
       </div>
 
+      <label class="shell__search">
+        <mat-icon>search</mat-icon>
+        <input
+          type="search"
+          placeholder="Search customer, order, SKU…"
+          [value]="searchQuery()"
+          (input)="onSearchInput($event)"
+        />
+      </label>
+
       <div class="shell__actions">
         <span class="shell__environment">Hackathon workspace</span>
+        <vxt-ask-vextis-trigger />
         <button
           mat-icon-button
           type="button"
@@ -90,6 +101,8 @@
     <main class="shell__content">
       <router-outlet />
     </main>
+
+    <vxt-ask-vextis-panel />
   </div>
 } @else {
   <main class="shell__content shell__content--bare">

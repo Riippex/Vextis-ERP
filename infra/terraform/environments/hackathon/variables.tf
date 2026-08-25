@@ -27,3 +27,14 @@ variable "gemini_model" {
   type        = string
   default     = "gemini-3.5-flash"
 }
+
+variable "live_model" {
+  description = <<-EOT
+    Vertex AI Gemini Live-capable model used for Ask Vextis voice sessions.
+    Live requires a distinct model variant from `gemini_model` — verify the
+    current Live-capable model id available in this project/region in Vertex
+    AI before relying on this default.
+  EOT
+  type        = string
+  default     = "gemini-3.5-flash-live"
+}

@@ -23,6 +23,11 @@ variable "agent_tools_secret_id" {
   type        = string
 }
 
+variable "core_callback_secret_id" {
+  description = "Secret shared by the public Enterprise Core and Agent Runtime for the Ask Vextis chat callback."
+  type        = string
+}
+
 variable "labels" {
   description = "Labels applied to IAM-adjacent resources."
   type        = map(string)

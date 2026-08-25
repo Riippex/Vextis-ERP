@@ -1,0 +1,73 @@
+@if (store.open()) {
+  <button type="button" class="ask-vextis-backdrop" aria-label="Close Ask Vextis" (click)="close()"></button>
+}
+
+<aside
+  class="ask-vextis-panel"
+  [class.ask-vextis-panel--open]="store.open()"
+  [attr.aria-hidden]="!store.open()"
+  tabindex="-1"
+  aria-label="Ask Vextis"
+  (keydown)="onKeydown($event)"
+>
+  <header class="ask-vextis-panel__header">
+    <div class="ask-vextis-panel__title">
+      <mat-icon>auto_awesome</mat-icon>
+      <div>
+        <strong>Ask Vextis</strong>
+        <span>Powered by Gemini</span>
+      </div>
+    </div>
+    <button mat-icon-button type="button" aria-label="Close Ask Vextis" (click)="close()">
+      <mat-icon>close</mat-icon>
+    </button>
+  </header>
+
+  <div class="ask-vextis-panel__messages" #messageList>
+    @if (store.messages().length === 0) {
+      <div class="ask-vextis-panel__empty">
+        <mat-icon>forum</mat-icon>
+        <p>Ask about an order, a customer, or inventory — Vextis' agents answer with live data.</p>
+      </div>
+    } @else {
+      @for (message of store.messages(); track message.id) {
+        <div class="ask-vextis-message" [class.ask-vextis-message--user]="message.sender === 'USER'">
+          <p>{{ message.content }}</p>
+        </div>
+      }
+    }
+    @if (store.error(); as error) {
+      <p class="ask-vextis-panel__error">{{ error }}</p>
+    }
+  </div>
+
+  <form class="ask-vextis-panel__composer" (submit)="$event.preventDefault(); send()">
+    <button
+      mat-icon-button
+      type="button"
+      disabled
+      aria-label="Voice input (coming soon)"
+      title="Voice input — coming soon"
+    >
+      <mat-icon>mic</mat-icon>
+    </button>
+    <button
+      mat-icon-button
+      type="button"
+      disabled
+      aria-label="Live conversation (coming soon)"
+      title="Live conversation — coming soon"
+    >
+      <mat-icon>graphic_eq</mat-icon>
+    </button>
+    <textarea
+      rows="1"
+      placeholder="Message Vextis…"
+      [value]="draft()"
+      (input)="onDraftInput($event)"
+    ></textarea>
+    <button mat-icon-button type="submit" aria-label="Send message" [disabled]="!draft().trim()">
+      <mat-icon>send</mat-icon>
+    </button>
+  </form>
+</aside>

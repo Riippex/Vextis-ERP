@@ -152,6 +152,17 @@ resource "google_secret_manager_secret" "agent_tools_token" {
   }
 }
 
+resource "google_secret_manager_secret" "core_callback_token" {
+  project             = var.project_id
+  secret_id           = var.core_callback_secret_id
+  labels              = var.labels
+  deletion_protection = true
+
+  replication {
+    auto {}
+  }
+}
+
 resource "google_secret_manager_secret_iam_member" "enterprise_core_database_password" {
   project   = var.project_id
   secret_id = var.database_password_secret_id
@@ -176,6 +187,20 @@ resource "google_secret_manager_secret_iam_member" "enterprise_core_agent_tools_
 resource "google_secret_manager_secret_iam_member" "agent_runtime_agent_tools_token" {
   project   = var.project_id
   secret_id = google_secret_manager_secret.agent_tools_token.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.agent_runtime.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "enterprise_core_public_callback_token" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.core_callback_token.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.enterprise_core_public.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "agent_runtime_callback_token" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.core_callback_token.secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.agent_runtime.email}"
 }

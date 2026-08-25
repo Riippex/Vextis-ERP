@@ -1,0 +1,21 @@
+mutation AskVextis($input: AskVextisMessageInput!) {
+  askVextis(input: $input) {
+    conversationId
+    messageId
+    reply
+    createdAt
+  }
+}
+
+query AskVextisConversation($id: ID!) {
+  askVextisConversation(id: $id) {
+    id
+    messages {
+      id
+      sender
+      content
+      kind
+      createdAt
+    }
+  }
+}

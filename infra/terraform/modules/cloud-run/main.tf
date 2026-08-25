@@ -185,6 +185,23 @@ resource "google_cloud_run_v2_service" "enterprise_core_public" {
         value = var.pubsub_topic_id
       }
       env {
+        name  = "VEXTIS_AGENT_RUNTIME_CHAT_URL"
+        value = "${google_cloud_run_v2_service.agent_runtime.uri}/v1/chat/complete"
+      }
+      env {
+        name = "VEXTIS_CORE_CALLBACK_TOKEN"
+        value_source {
+          secret_key_ref {
+            secret  = var.core_callback_secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        name  = "VEXTIS_AGENT_RUNTIME_PUBLIC_WS_URL"
+        value = replace(google_cloud_run_v2_service.agent_runtime.uri, "https://", "wss://")
+      }
+      env {
         name  = "GRAPHQL_GRAPHIQL_ENABLED"
         value = "false"
       }
@@ -226,8 +243,11 @@ resource "google_cloud_run_v2_service" "agent_runtime" {
   labels              = var.labels
 
   template {
-    service_account                  = var.agent_runtime_service_account_email
-    timeout                          = "300s"
+    service_account = var.agent_runtime_service_account_email
+    # 1800s (Cloud Run's max is 3600s), not the default 300s: a Live voice
+    # session's WebSocket is one long-lived request, unlike the short
+    # request/response tool calls this timeout used to only need to cover.
+    timeout                          = "1800s"
     max_instance_request_concurrency = 20
 
     scaling {
@@ -278,6 +298,31 @@ resource "google_cloud_run_v2_service" "agent_runtime" {
         value = "true"
       }
       env {
+        name  = "VEXTIS_CHAT_ENABLED"
+        value = "true"
+      }
+      env {
+        name = "VEXTIS_CORE_CALLBACK_TOKEN"
+        value_source {
+          secret_key_ref {
+            secret  = var.core_callback_secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        # Not yet reachable by a browser: no allUsers invoker binding exists
+        # on this service until the Phase 5 public-exposure change is
+        # separately reviewed and applied. Mounting the route now only
+        # allows already-IAM-authorized private callers to test it.
+        name  = "VEXTIS_LIVE_ENABLED"
+        value = "true"
+      }
+      env {
+        name  = "VEXTIS_LIVE_MODEL"
+        value = var.live_model
+      }
+      env {
         name  = "VEXTIS_GEMINI_MODEL"
         value = var.gemini_model
       }
@@ -312,4 +357,16 @@ resource "google_cloud_run_v2_service_iam_member" "pubsub_invokes_agent_runtime"
   name     = google_cloud_run_v2_service.agent_runtime.name
   role     = "roles/run.invoker"
   member   = "serviceAccount:${var.pubsub_push_service_account_email}"
+}
+
+# Private, service-to-service only: lets the public Enterprise Core call
+# Agent Runtime's /v1/chat/complete for Ask Vextis text messages. This is
+# unrelated to (and does not by itself enable) the public allUsers binding a
+# browser's Live WebSocket would need — that is a separate, later change.
+resource "google_cloud_run_v2_service_iam_member" "enterprise_core_public_invokes_agent_runtime" {
+  project  = var.project_id
+  location = google_cloud_run_v2_service.agent_runtime.location
+  name     = google_cloud_run_v2_service.agent_runtime.name
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${var.enterprise_core_public_service_account_email}"
 }

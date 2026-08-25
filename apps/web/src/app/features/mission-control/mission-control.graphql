@@ -31,5 +31,9 @@ query MissionControl {
       standing
       maxPaymentTermsDays
     }
+    executionVolumeByDepartment {
+      department
+      count
+    }
   }
 }

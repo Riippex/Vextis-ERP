@@ -4,14 +4,20 @@ from vextis_agents.app.config import Settings
 from vextis_agents.workflows.order_to_cash.planning import GeneratedPlan
 
 
-def build_coordinator(settings: Settings) -> LlmAgent:
-    """Build the fleet coordinator only after an explicit model has been configured."""
-    if settings.gemini_model is None:
+def build_coordinator(settings: Settings, *, model: str | None = None) -> LlmAgent:
+    """
+    Build the fleet coordinator only after an explicit model has been
+    configured. `model` overrides `settings.gemini_model` — used for Live
+    voice sessions, which require a Live-capable model variant distinct from
+    the text/planning model.
+    """
+    resolved_model = model or settings.gemini_model
+    if resolved_model is None:
         raise ValueError("VEXTIS_GEMINI_MODEL must be configured before creating the coordinator")
 
     return LlmAgent(
         name="vextis_coordinator",
-        model=settings.gemini_model,
+        model=resolved_model,
         description=(
             "Coordinates Vextis business workflows through authorized Enterprise Core tools."
         ),
