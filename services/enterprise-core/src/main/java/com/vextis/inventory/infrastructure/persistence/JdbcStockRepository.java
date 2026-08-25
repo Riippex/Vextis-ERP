@@ -4,11 +4,10 @@ import com.vextis.inventory.StockDirectory;
 import com.vextis.inventory.StockReservation;
 import com.vextis.inventory.ReservationDirectory;
 import com.vextis.inventory.application.port.StockRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import tools.jackson.databind.ObjectMapper;
 
 import java.sql.Types;
 import java.time.Instant;
@@ -181,7 +180,7 @@ class JdbcStockRepository implements StockRepository, ReservationDirectory {
     private String toJson(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException exception) {
+        } catch (Exception exception) {
             throw new IllegalStateException("Could not serialize inventory reservation event", exception);
         }
     }
