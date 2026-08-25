@@ -3,6 +3,8 @@ package com.vextis.workflow.api.graphql;
 import com.vextis.workflow.application.FindExecutionUseCase;
 import com.vextis.workflow.application.ReceivePurchaseOrderCommand;
 import com.vextis.workflow.application.ReceivePurchaseOrderUseCase;
+import com.vextis.workflow.application.PreparePurchaseOrderUploadCommand;
+import com.vextis.workflow.application.PreparePurchaseOrderUploadUseCase;
 import com.vextis.workflow.application.DecideApprovalCommand;
 import com.vextis.workflow.application.DecideApprovalUseCase;
 import com.vextis.shared.security.CurrentActorProvider;
@@ -12,6 +14,7 @@ import com.vextis.workflow.domain.Actor;
 import com.vextis.workflow.domain.ExecutionTimelineEntry;
 import com.vextis.workflow.domain.ExtractedOrderLine;
 import com.vextis.workflow.domain.PurchaseOrderReceipt;
+import com.vextis.workflow.domain.PurchaseOrderUpload;
 import com.vextis.workflow.domain.PurchaseOrderSource;
 import com.vextis.workflow.domain.WorkflowExecution;
 import com.vextis.workflow.domain.WorkflowPlan;
@@ -36,6 +39,7 @@ import java.util.UUID;
 class PurchaseOrderGraphQlController {
 
     private final ReceivePurchaseOrderUseCase receivePurchaseOrder;
+    private final PreparePurchaseOrderUploadUseCase preparePurchaseOrderUpload;
     private final FindExecutionUseCase findExecution;
     private final DecideApprovalUseCase decideApproval;
     private final CurrentActorProvider currentActor;
@@ -43,16 +47,30 @@ class PurchaseOrderGraphQlController {
 
     PurchaseOrderGraphQlController(
             ReceivePurchaseOrderUseCase receivePurchaseOrder,
+            PreparePurchaseOrderUploadUseCase preparePurchaseOrderUpload,
             FindExecutionUseCase findExecution,
             DecideApprovalUseCase decideApproval,
             CurrentActorProvider currentActor,
             @org.springframework.beans.factory.annotation.Value("${vextis.demo.tenant-id:demo-tenant}") String demoTenantId
     ) {
         this.receivePurchaseOrder = receivePurchaseOrder;
+        this.preparePurchaseOrderUpload = preparePurchaseOrderUpload;
         this.findExecution = findExecution;
         this.decideApproval = decideApproval;
         this.currentActor = currentActor;
         this.demoTenantId = demoTenantId;
+    }
+
+    @MutationMapping
+    PurchaseOrderUploadView preparePurchaseOrderUpload(@Argument @Valid PreparePurchaseOrderUploadInput input) {
+        PurchaseOrderUpload upload = preparePurchaseOrderUpload.prepare(new PreparePurchaseOrderUploadCommand(
+                demoTenantId,
+                new Actor(Actor.Type.USER, currentActor.currentActorId()),
+                input.fileName(),
+                input.contentType(),
+                input.sizeBytes()
+        ));
+        return PurchaseOrderUploadView.from(upload);
     }
 
     @MutationMapping
@@ -96,6 +114,35 @@ class PurchaseOrderGraphQlController {
             @NotBlank @Size(max = 1000) @Pattern(regexp = "^gs://.+") String documentUri,
             @NotBlank @Size(max = 200) String idempotencyKey
     ) {
+    }
+
+    record PreparePurchaseOrderUploadInput(
+            @NotBlank @Size(max = 255) String fileName,
+            @NotBlank @Size(max = 100) String contentType,
+            @jakarta.validation.constraints.Min(1) @jakarta.validation.constraints.Max(10_485_760)
+            int sizeBytes
+    ) {
+    }
+
+    record PurchaseOrderUploadView(
+            String uploadUrl,
+            String documentUri,
+            String expiresAt,
+            List<UploadFormFieldView> formFields
+    ) {
+        static PurchaseOrderUploadView from(PurchaseOrderUpload upload) {
+            return new PurchaseOrderUploadView(
+                    upload.uploadUrl(),
+                    upload.documentUri(),
+                    upload.expiresAt().toString(),
+                    upload.formFields().stream()
+                            .map(field -> new UploadFormFieldView(field.name(), field.value()))
+                            .toList()
+            );
+        }
+    }
+
+    record UploadFormFieldView(String name, String value) {
     }
 
     record PurchaseOrderReceiptView(PurchaseOrderView purchaseOrder, ExecutionView execution) {

@@ -8,6 +8,13 @@ resource "google_storage_bucket" "assets" {
   force_destroy               = false
   labels                      = var.labels
 
+  cors {
+    origin          = var.assets_cors_origins
+    method          = ["POST"]
+    response_header = ["Content-Type", "ETag", "x-goog-hash"]
+    max_age_seconds = 3600
+  }
+
   soft_delete_policy {
     retention_duration_seconds = 604800
   }
@@ -26,6 +33,16 @@ resource "google_storage_bucket" "assets" {
     condition {
       age            = 14
       matches_prefix = ["generated/"]
+    }
+    action {
+      type = "Delete"
+    }
+  }
+
+  lifecycle_rule {
+    condition {
+      age            = var.purchase_order_retention_days
+      matches_prefix = ["purchase-orders/"]
     }
     action {
       type = "Delete"
@@ -69,6 +86,18 @@ resource "google_storage_bucket_iam_member" "enterprise_core_object_user" {
   bucket = google_storage_bucket.assets.name
   role   = "roles/storage.objectUser"
   member = "serviceAccount:${var.enterprise_core_service_account_email}"
+}
+
+resource "google_storage_bucket_iam_member" "enterprise_core_public_object_creator" {
+  bucket = google_storage_bucket.assets.name
+  role   = "roles/storage.objectCreator"
+  member = "serviceAccount:${var.enterprise_core_public_service_account_email}"
+}
+
+resource "google_storage_bucket_iam_member" "enterprise_core_public_object_viewer" {
+  bucket = google_storage_bucket.assets.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${var.enterprise_core_public_service_account_email}"
 }
 
 resource "google_storage_bucket_iam_member" "agent_runtime_object_user" {

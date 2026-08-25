@@ -9,7 +9,11 @@ from google.oauth2.id_token import fetch_id_token_credentials
 from pydantic import BaseModel, ConfigDict, Field
 
 from vextis_agents.app.config import Settings
-from vextis_agents.workflows.order_to_cash.events import PurchaseOrderReceivedV2
+from vextis_agents.workflows.order_to_cash.events import (
+    DomainEvent,
+    PurchaseOrderReceivedV2,
+    WorkflowApprovalDecidedV1,
+)
 from vextis_agents.workflows.order_to_cash.planning import GeneratedPlan, PlanningContext
 
 
@@ -20,6 +24,17 @@ class PlanningResult(BaseModel):
     state: str
     correlation_id: str = Field(alias="correlationId")
     updated_at: str = Field(alias="updatedAt")
+
+
+class ReservationResult(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    id: str
+    order_id: str = Field(alias="orderId")
+    sku: str
+    quantity: int
+    status: str
+    created_at: str = Field(alias="createdAt")
 
 
 class PlanningTool(Protocol):
@@ -40,6 +55,10 @@ class PlanningTool(Protocol):
     async def request_approval(
         self, event: PurchaseOrderReceivedV2, context: PlanningContext, recommendation: str
     ) -> PlanningResult: ...
+
+    async def reserve_stock(
+        self, event: WorkflowApprovalDecidedV1, sku: str, quantity: int
+    ) -> ReservationResult: ...
 
 
 class CoreToolRejectedError(RuntimeError):
@@ -103,7 +122,7 @@ class EnterpriseCorePlanningClient:
 
     async def _headers(
         self,
-        event: PurchaseOrderReceivedV2,
+        event: DomainEvent,
         correlation_id: str,
         idempotency_key: str,
     ) -> dict[str, str]:
@@ -257,4 +276,31 @@ class EnterpriseCorePlanningClient:
             raise CoreToolUnavailableError("Enterprise Core returned a transient failure")
         raise CoreToolRejectedError(
             f"Enterprise Core rejected approval request with {response.status_code}"
+        )
+
+    async def reserve_stock(
+        self, event: WorkflowApprovalDecidedV1, sku: str, quantity: int
+    ) -> ReservationResult:
+        headers = await self._headers(
+            event, event.correlation_id, f"{event.event_id}:reserve:{sku.upper()}"
+        )
+        try:
+            async with httpx.AsyncClient(
+                base_url=self._base_url,
+                timeout=httpx.Timeout(10.0, connect=3.0),
+                transport=self._transport,
+            ) as client:
+                response = await client.post(
+                    "/internal/agent-tools/v1/inventory/reservations",
+                    headers=headers,
+                    json={"orderId": str(event.payload.order_id), "sku": sku, "quantity": quantity},
+                )
+        except httpx.HTTPError as exception:
+            raise CoreToolUnavailableError("Enterprise Core could not be reached") from exception
+        if 200 <= response.status_code < 300:
+            return ReservationResult.model_validate(response.json())
+        if response.status_code >= 500:
+            raise CoreToolUnavailableError("Enterprise Core returned a transient failure")
+        raise CoreToolRejectedError(
+            f"Enterprise Core rejected stock reservation with {response.status_code}"
         )

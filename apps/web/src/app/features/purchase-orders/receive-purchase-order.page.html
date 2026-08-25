@@ -6,8 +6,8 @@
   <p class="page-header__eyebrow">Order-to-cash · Step 1</p>
   <h1>Receive a purchase order</h1>
   <p>
-    Register a document already stored in Cloud Storage. Enterprise Core will create the
-    durable execution, audit record, and event that starts agent planning.
+    Upload a PDF or image to the private Vextis workspace. Enterprise Core verifies the
+    document before creating the durable execution, audit record, and agent event.
   </p>
 </header>
 
@@ -16,7 +16,7 @@
     <mat-card-header>
       <mat-icon mat-card-avatar>upload_file</mat-icon>
       <mat-card-title>Source document</mat-card-title>
-      <mat-card-subtitle>The document must use a <code>gs://</code> URI.</mat-card-subtitle>
+      <mat-card-subtitle>PDF, JPEG, or PNG · maximum 10 MiB.</mat-card-subtitle>
     </mat-card-header>
 
     <mat-card-content>
@@ -37,23 +37,34 @@
           }
         </mat-form-field>
 
-        <mat-form-field appearance="outline" class="intake-form__wide">
-          <mat-label>Cloud Storage document URI</mat-label>
-          <input matInput formControlName="documentUri" autocomplete="off" />
-          <mat-hint>Example: gs://vextis-demo/orders/po-2026-001.pdf</mat-hint>
-          @if (form.controls.documentUri.touched && form.controls.documentUri.invalid) {
-            <mat-error>Enter a valid gs:// document URI.</mat-error>
-          }
-        </mat-form-field>
+        <label class="document-picker intake-form__wide">
+          <input
+            type="file"
+            accept="application/pdf,image/jpeg,image/png"
+            [disabled]="submitting()"
+            (change)="selectDocument($event)"
+          />
+          <mat-icon>{{ selectedFile() ? 'description' : 'cloud_upload' }}</mat-icon>
+          <span>
+            <strong>{{ selectedFile()?.name ?? 'Choose a purchase order document' }}</strong>
+            <small>
+              @if (selectedFile(); as document) {
+                {{ document.type }} · {{ document.size / 1024 | number: '1.0-0' }} KiB
+              } @else {
+                It is uploaded directly to the private Cloud Storage bucket.
+              }
+            </small>
+          </span>
+        </label>
 
         <div class="intake-form__actions intake-form__wide">
-          <button mat-flat-button type="submit" [disabled]="submitting()">
+          <button mat-flat-button type="submit" [disabled]="submitting() || !selectedFile()">
             @if (submitting()) {
               <mat-spinner diameter="18" />
             } @else {
               <mat-icon>play_arrow</mat-icon>
             }
-            {{ submitting() ? 'Receiving…' : 'Receive and create execution' }}
+            {{ submissionLabel() }}
           </button>
         </div>
       </form>

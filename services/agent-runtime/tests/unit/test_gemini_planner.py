@@ -67,7 +67,41 @@ async def test_adk_planner_attaches_document_and_parses_structured_output(
     assert runner.message.parts is not None
     assert runner.message.parts[1].file_data is not None
     assert runner.message.parts[1].file_data.file_uri == context().document_uri
+    assert runner.message.parts[1].file_data.mime_type == "application/pdf"
     assert runner.closed is True
+
+
+@pytest.mark.asyncio
+async def test_adk_planner_uses_image_mime_type_for_verified_storage_uri(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = FakeRunner(
+        """
+        {
+          "summary": "Validate the photographed order.",
+          "steps": [{
+            "sequence": 1,
+            "department": "CRM_SALES",
+            "objective": "Validate customer context.",
+            "requires_approval": false
+          }],
+          "order_lines": [{"sku": "VXT-CHAIR-01", "quantity": 2}],
+          "requested_payment_terms_days": 15
+        }
+        """
+    )
+    monkeypatch.setattr(gemini_planner, "InMemoryRunner", lambda **_: runner)
+    generator = AdkGeminiPlanGenerator(settings())
+    image_context = context().model_copy(
+        update={"document_uri": "gs://vextis-demo/purchase-orders/tenant/order.png"}
+    )
+
+    await generator.generate(image_context)
+
+    assert runner.message is not None
+    assert runner.message.parts is not None
+    assert runner.message.parts[1].file_data is not None
+    assert runner.message.parts[1].file_data.mime_type == "image/png"
 
 
 @pytest.mark.asyncio

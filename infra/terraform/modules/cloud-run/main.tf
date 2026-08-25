@@ -169,6 +169,14 @@ resource "google_cloud_run_v2_service" "enterprise_core_public" {
         value = "PUBLIC"
       }
       env {
+        name  = "VEXTIS_DOCUMENTS_BUCKET"
+        value = var.assets_bucket_name
+      }
+      env {
+        name  = "VEXTIS_DOCUMENTS_SIGNING_SERVICE_ACCOUNT"
+        value = var.enterprise_core_public_service_account_email
+      }
+      env {
         name  = "VEXTIS_PUBSUB_ENABLED"
         value = "true"
       }

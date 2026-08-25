@@ -23,6 +23,21 @@ variable "enterprise_core_service_account_email" {
   type        = string
 }
 
+variable "enterprise_core_public_service_account_email" {
+  description = "Public Enterprise Core identity allowed to create and verify purchase-order objects."
+  type        = string
+}
+
+variable "assets_cors_origins" {
+  description = "Browser origins allowed to upload directly to the private assets bucket."
+  type        = list(string)
+}
+
+variable "purchase_order_retention_days" {
+  description = "Days to retain uploaded source purchase orders before automatic deletion."
+  type        = number
+}
+
 variable "agent_runtime_service_account_email" {
   description = "Agent Runtime identity allowed to manage application objects."
   type        = string

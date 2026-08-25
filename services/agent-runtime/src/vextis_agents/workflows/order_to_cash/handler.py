@@ -1,5 +1,8 @@
-from vextis_agents.tools.core_api.planning import PlanningResult, PlanningTool
-from vextis_agents.workflows.order_to_cash.events import PurchaseOrderReceivedV2
+from vextis_agents.tools.core_api.planning import PlanningResult, PlanningTool, ReservationResult
+from vextis_agents.workflows.order_to_cash.events import (
+    PurchaseOrderReceivedV2,
+    WorkflowApprovalDecidedV1,
+)
 from vextis_agents.workflows.order_to_cash.planning import PlanGenerator
 
 
@@ -29,3 +32,16 @@ class PurchaseOrderReceivedHandler:
             "a human reviews the CRM, inventory, and finance evidence."
         )
         return await self._planning_tool.request_approval(event, context, recommendation)
+
+
+class WorkflowApprovalDecidedHandler:
+    def __init__(self, planning_tool: PlanningTool) -> None:
+        self._planning_tool = planning_tool
+
+    async def handle(self, event: WorkflowApprovalDecidedV1) -> list[ReservationResult]:
+        if event.payload.status == "REJECTED":
+            return []
+        return [
+            await self._planning_tool.reserve_stock(event, line.sku, line.quantity)
+            for line in event.payload.order_lines or []
+        ]

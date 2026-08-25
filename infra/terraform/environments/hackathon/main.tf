@@ -1,10 +1,17 @@
 locals {
+  assets_bucket_name = "vextis-erp-hackathon-assets"
   labels = {
     application = "vextis"
     environment = "hackathon"
     managed_by  = "terraform"
     cost_center = "hackathon"
   }
+}
+
+resource "google_project_service" "iam_credentials" {
+  project            = var.project_id
+  service            = "iamcredentials.googleapis.com"
+  disable_on_destroy = false
 }
 
 resource "google_project_service" "firebase_management" {
@@ -109,6 +116,7 @@ module "cloud_run" {
   agent_tools_secret_id                        = module.iam.agent_tools_secret_id
   pubsub_topic_id                              = "order-events"
   gemini_model                                 = var.gemini_model
+  assets_bucket_name                           = local.assets_bucket_name
   labels                                       = local.labels
 
   depends_on = [module.iam]
@@ -131,14 +139,21 @@ module "pubsub" {
 module "storage" {
   source = "../../modules/storage"
 
-  project_id                            = var.project_id
-  region                                = var.region
-  assets_bucket_name                    = "vextis-erp-hackathon-assets"
-  build_source_bucket_name              = "vextis-erp-hackathon-build-source"
-  enterprise_core_service_account_email = module.iam.enterprise_core_email
-  agent_runtime_service_account_email   = module.iam.agent_runtime_email
-  cloud_build_service_account_email     = module.iam.cloud_build_email
-  labels                                = local.labels
+  project_id                                   = var.project_id
+  region                                       = var.region
+  assets_bucket_name                           = local.assets_bucket_name
+  build_source_bucket_name                     = "vextis-erp-hackathon-build-source"
+  enterprise_core_service_account_email        = module.iam.enterprise_core_email
+  enterprise_core_public_service_account_email = module.iam.enterprise_core_public_email
+  agent_runtime_service_account_email          = module.iam.agent_runtime_email
+  cloud_build_service_account_email            = module.iam.cloud_build_email
+  assets_cors_origins = [
+    "http://localhost:4200",
+    "https://vextis-erp.firebaseapp.com",
+    "https://vextis-erp.web.app",
+  ]
+  purchase_order_retention_days = 30
+  labels                        = local.labels
 }
 
 module "github_oidc" {

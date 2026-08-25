@@ -27,6 +27,7 @@ describe('FinanceBillingPage', () => {
       executions: [],
       customers: [{ id: customerId, legalName: 'Acme Colombia', active: true }],
       stockItems: [],
+      stockReservations: [],
       creditProfiles: [],
     }),
     loading: signal(false),

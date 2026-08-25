@@ -143,7 +143,10 @@ paths:
   /inventory/reservations:
     post:
       operationId: reserveStock
+      security:
+        - serviceBearer: []
       parameters:
+        - $ref: "#/components/parameters/TenantId"
         - $ref: "#/components/parameters/AgentId"
         - $ref: "#/components/parameters/CorrelationId"
         - $ref: "#/components/parameters/IdempotencyKey"
@@ -160,6 +163,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Reservation"
+        "401":
+          description: Missing or invalid service credential
         "403":
           description: Agent is not authorized for this tool or scope
         "409":
@@ -367,12 +372,16 @@ components:
         sku:
           type: string
           minLength: 1
+          maxLength: 100
+          pattern: "^[A-Za-z0-9._-]+$"
         quantity:
           type: integer
           minimum: 1
+          maximum: 1000000
     Reservation:
       type: object
-      required: [id, orderId, sku, quantity, status]
+      additionalProperties: false
+      required: [id, orderId, sku, quantity, status, createdAt]
       properties:
         id:
           type: string
@@ -387,6 +396,9 @@ components:
         status:
           type: string
           enum: [RESERVED, RELEASED, FULFILLED]
+        createdAt:
+          type: string
+          format: date-time
     RegisterQuoteAssetRequest:
       type: object
       additionalProperties: false

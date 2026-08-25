@@ -8,6 +8,7 @@ type MissionControl {
   executions: [MissionControlExecution!]!
   customers: [CustomerOverview!]!
   stockItems: [StockItemOverview!]!
+  stockReservations: [StockReservationOverview!]!
   creditProfiles: [CreditProfileOverview!]!
 }
 
@@ -45,6 +46,7 @@ enum CreditStanding {
 }
 
 type Mutation {
+  preparePurchaseOrderUpload(input: PreparePurchaseOrderUploadInput!): PurchaseOrderUpload!
   receivePurchaseOrder(input: ReceivePurchaseOrderInput!): PurchaseOrderReceipt!
   decideApproval(input: DecideApprovalInput!): Execution!
   upsertCustomer(input: UpsertCustomerInput!): CustomerOverview!
@@ -52,6 +54,24 @@ type Mutation {
   upsertCreditProfile(input: UpsertCreditProfileInput!): CreditProfileOverview!
   createLiveSession(input: CreateLiveSessionInput!): LiveSession!
   closeLiveSession(id: ID!): Boolean!
+}
+
+input PreparePurchaseOrderUploadInput {
+  fileName: String!
+  contentType: String!
+  sizeBytes: Int!
+}
+
+type PurchaseOrderUpload {
+  uploadUrl: String!
+  documentUri: String!
+  expiresAt: String!
+  formFields: [UploadFormField!]!
+}
+
+type UploadFormField {
+  name: String!
+  value: String!
 }
 
 input UpsertCustomerInput {
@@ -90,6 +110,21 @@ type Execution {
   plan: ExecutionPlan
   readiness: ExecutionReadiness
   approval: WorkflowApproval
+}
+
+type StockReservationOverview {
+  id: ID!
+  orderId: ID!
+  sku: String!
+  quantity: Int!
+  status: StockReservationStatus!
+  createdAt: String!
+}
+
+enum StockReservationStatus {
+  RESERVED
+  RELEASED
+  FULFILLED
 }
 
 type WorkflowApproval {

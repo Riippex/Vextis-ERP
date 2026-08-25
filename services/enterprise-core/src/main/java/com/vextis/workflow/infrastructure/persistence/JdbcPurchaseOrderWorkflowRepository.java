@@ -108,6 +108,15 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
     }
 
     @Override
+    public Optional<WorkflowExecution> findExecutionBySourceId(String tenantId, UUID sourceId) {
+        return jdbc.query(
+                "SELECT id FROM workflow_executions WHERE tenant_id = :tenantId AND source_id = :sourceId",
+                Map.of("tenantId", tenantId, "sourceId", sourceId),
+                (rs, row) -> rs.getObject("id", UUID.class)
+        ).stream().findFirst().flatMap(id -> findExecution(tenantId, id));
+    }
+
+    @Override
     public List<ExecutionOverview.ExecutionSummary> findRecentExecutions(String tenantId, int limit) {
         return jdbc.query(
                 """
@@ -712,6 +721,11 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("approval_id", approval.id().toString());
         payload.put("execution_id", execution.id().toString());
+        if ("workflow.approval.decided".equals(eventType)) {
+            payload.put("order_id", execution.sourceId().toString());
+            payload.put("order_lines", execution.plan().orderLines().stream().map(line -> Map.of(
+                    "sku", line.sku(), "quantity", line.quantity())).toList());
+        }
         payload.put("status", approval.status().name());
         payload.put("recommendation", approval.recommendation());
         payload.put("evidence", execution.readiness().checks().stream().map(check -> Map.of(

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vextis.dev/schemas/events/inventory-reservation-created.v1.json",
+  "title": "InventoryReservationCreatedV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_type", "event_version", "occurred_at", "producer", "tenant_id", "correlation_id", "causation_id", "actor", "payload"],
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_type": { "const": "inventory.reservation.created" },
+    "event_version": { "const": 1 },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "producer": { "const": "enterprise-core" },
+    "tenant_id": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "correlation_id": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "causation_id": { "type": "string", "format": "uuid" },
+    "actor": {
+      "type": "object", "additionalProperties": false, "required": ["type", "id"],
+      "properties": { "type": { "const": "AGENT" }, "id": { "type": "string", "minLength": 1, "maxLength": 150 } }
+    },
+    "payload": {
+      "type": "object", "additionalProperties": false,
+      "required": ["reservation_id", "order_id", "sku", "quantity", "status"],
+      "properties": {
+        "reservation_id": { "type": "string", "format": "uuid" },
+        "order_id": { "type": "string", "format": "uuid" },
+        "sku": { "type": "string", "maxLength": 100 },
+        "quantity": { "type": "integer", "minimum": 1 },
+        "status": { "const": "RESERVED" }
+      }
+    }
+  }
+}

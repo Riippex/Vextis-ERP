@@ -1,0 +1,11 @@
+mutation PreparePurchaseOrderUpload($input: PreparePurchaseOrderUploadInput!) {
+  preparePurchaseOrderUpload(input: $input) {
+    uploadUrl
+    documentUri
+    expiresAt
+    formFields {
+      name
+      value
+    }
+  }
+}

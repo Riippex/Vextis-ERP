@@ -12,7 +12,7 @@ describe('InventoryOperationsPage', () => {
     of({ data: { setStockAvailability: { sku: 'VXT-DESK-01', availableQuantity: 18 } } }),
   );
   const store = {
-    data: signal({ executions: [], customers: [], stockItems: [], creditProfiles: [] }),
+    data: signal({ executions: [], customers: [], stockItems: [], stockReservations: [], creditProfiles: [] }),
     loading: signal(false),
     error: signal<string | null>(null),
     refresh: vi.fn(),
