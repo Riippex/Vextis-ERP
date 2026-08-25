@@ -46,8 +46,19 @@ def create_pubsub_router(
                 event.payload.execution_id,
             )
             return Response(status_code=status.HTTP_204_NO_CONTENT)
-        except (CoreToolUnavailableError, PlanGenerationUnavailableError):
-            logger.warning("Transient planning failure for event %s", event.event_id)
+        except CoreToolUnavailableError as exception:
+            logger.warning(
+                "Transient planning failure for event %s dependency=enterprise_core reason=%s",
+                event.event_id,
+                exception,
+            )
+            return Response(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
+        except PlanGenerationUnavailableError as exception:
+            logger.warning(
+                "Transient planning failure for event %s dependency=gemini reason=%s",
+                event.event_id,
+                exception,
+            )
             return Response(status_code=status.HTTP_503_SERVICE_UNAVAILABLE)
 
         return Response(status_code=status.HTTP_204_NO_CONTENT)
