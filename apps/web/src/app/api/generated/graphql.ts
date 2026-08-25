@@ -14,6 +14,19 @@ export type ApprovalStatus =
   | 'PENDING'
   | 'REJECTED';
 
+export type AskVextisMessageInput = {
+  conversationId?: string | number | null | undefined;
+  message: string;
+};
+
+export type AskVextisMessageKind =
+  | 'TEXT'
+  | 'VOICE_TRANSCRIPT';
+
+export type AskVextisMessageSender =
+  | 'ASSISTANT'
+  | 'USER';
+
 export type CreditStanding =
   | 'BLOCKED'
   | 'GOOD'
@@ -119,7 +132,7 @@ export type SetStockAvailabilityMutation = { setStockAvailability: { sku: string
 export type MissionControlQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type MissionControlQuery = { missionControl: { executions: Array<{ id: string, purchaseOrderNumber: string, customerName: string, state: ExecutionState, correlationId: string, updatedAt: string }>, customers: Array<{ id: string, legalName: string, active: boolean }>, stockItems: Array<{ sku: string, availableQuantity: number }>, stockReservations: Array<{ id: string, orderId: string, sku: string, quantity: number, status: StockReservationStatus, createdAt: string }>, creditProfiles: Array<{ customerId: string, customerName: string, standing: CreditStanding, maxPaymentTermsDays: number }> } };
+export type MissionControlQuery = { missionControl: { executions: Array<{ id: string, purchaseOrderNumber: string, customerName: string, state: ExecutionState, correlationId: string, updatedAt: string }>, customers: Array<{ id: string, legalName: string, active: boolean }>, stockItems: Array<{ sku: string, availableQuantity: number }>, stockReservations: Array<{ id: string, orderId: string, sku: string, quantity: number, status: StockReservationStatus, createdAt: string }>, creditProfiles: Array<{ customerId: string, customerName: string, standing: CreditStanding, maxPaymentTermsDays: number }>, executionVolumeByDepartment: Array<{ department: PlanningDepartment, count: number }> } };
 
 export type DecideApprovalMutationVariables = Exact<{
   input: DecideApprovalInput;
@@ -148,6 +161,20 @@ export type ReceivePurchaseOrderMutationVariables = Exact<{
 
 
 export type ReceivePurchaseOrderMutation = { receivePurchaseOrder: { purchaseOrder: { id: string, purchaseOrderNumber: string, customerName: string, documentUri: string, receivedAt: string }, execution: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, orderLines: Array<{ sku: string, quantity: number }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null, approval: { id: string, recommendation: string, status: ApprovalStatus, requestedBy: string, requestedAt: string, expiresAt: string, decidedBy: string | null, decidedAt: string | null, reason: string | null } | null } } };
+
+export type AskVextisMutationVariables = Exact<{
+  input: AskVextisMessageInput;
+}>;
+
+
+export type AskVextisMutation = { askVextis: { conversationId: string, messageId: string, reply: string, createdAt: string } };
+
+export type AskVextisConversationQueryVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type AskVextisConversationQuery = { askVextisConversation: { id: string, messages: Array<{ id: string, sender: AskVextisMessageSender, content: string, kind: AskVextisMessageKind, createdAt: string }> } | null };
 
 export const HealthDocument = gql`
     query Health {
@@ -260,6 +287,10 @@ export const MissionControlDocument = gql`
       customerName
       standing
       maxPaymentTermsDays
+    }
+    executionVolumeByDepartment {
+      department
+      count
     }
   }
 }
@@ -498,6 +529,52 @@ export const ReceivePurchaseOrderDocument = gql`
   })
   export class ReceivePurchaseOrderGQL extends Apollo.Mutation<ReceivePurchaseOrderMutation, ReceivePurchaseOrderMutationVariables> {
     document = ReceivePurchaseOrderDocument;
+
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const AskVextisDocument = gql`
+    mutation AskVextis($input: AskVextisMessageInput!) {
+  askVextis(input: $input) {
+    conversationId
+    messageId
+    reply
+    createdAt
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class AskVextisGQL extends Apollo.Mutation<AskVextisMutation, AskVextisMutationVariables> {
+    document = AskVextisDocument;
+
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const AskVextisConversationDocument = gql`
+    query AskVextisConversation($id: ID!) {
+  askVextisConversation(id: $id) {
+    id
+    messages {
+      id
+      sender
+      content
+      kind
+      createdAt
+    }
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class AskVextisConversationGQL extends Apollo.Query<AskVextisConversationQuery, AskVextisConversationQueryVariables> {
+    document = AskVextisConversationDocument;
 
     constructor(apollo: Apollo.Apollo) {
       super(apollo);

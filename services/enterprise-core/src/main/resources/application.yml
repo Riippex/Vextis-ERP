@@ -52,3 +52,7 @@ vextis:
   documents:
     bucket-name: ${VEXTIS_DOCUMENTS_BUCKET:}
     signing-service-account: ${VEXTIS_DOCUMENTS_SIGNING_SERVICE_ACCOUNT:}
+  agent-runtime:
+    chat-url: ${VEXTIS_AGENT_RUNTIME_CHAT_URL:}
+    callback-token: ${VEXTIS_CORE_CALLBACK_TOKEN:}
+    public-websocket-base-url: ${VEXTIS_AGENT_RUNTIME_PUBLIC_WS_URL:}

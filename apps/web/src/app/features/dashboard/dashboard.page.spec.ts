@@ -2,8 +2,9 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 
+import { WorkspaceSearchStore } from '../../core/search/workspace-search.store';
 import { MissionControlStore } from '../mission-control/mission-control.store';
-import { DashboardPage } from './dashboard.page';
+import { DashboardPage, ordersCompletedPerWeek, toDepartmentVolumeSlices } from './dashboard.page';
 
 describe('DashboardPage', () => {
   const store = {
@@ -34,6 +35,10 @@ describe('DashboardPage', () => {
           maxPaymentTermsDays: 30,
         },
       ],
+      executionVolumeByDepartment: [
+        { department: 'CRM_SALES' as const, count: 2 },
+        { department: 'INVENTORY_OPERATIONS' as const, count: 1 },
+      ],
     }),
     loading: signal(false),
     error: signal<string | null>(null),
@@ -57,5 +62,50 @@ describe('DashboardPage', () => {
     expect(fixture.nativeElement.querySelector('a[href="/app/crm"]')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('a[href="/app/inventory"]')).toBeTruthy();
     expect(fixture.nativeElement.querySelector('a[href="/app/finance"]')).toBeTruthy();
+    expect(fixture.nativeElement.textContent).toContain('Orders completed per week');
+    expect(fixture.nativeElement.textContent).toContain('Execution volume by department');
+  });
+
+  it('filters recent workflow activity by the shared workspace search query', () => {
+    const fixture = TestBed.createComponent(DashboardPage);
+    fixture.detectChanges();
+
+    const search = TestBed.inject(WorkspaceSearchStore);
+    search.setQuery('does-not-match-anything');
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.textContent).not.toContain('PO-2026-001');
+    expect(fixture.nativeElement.textContent).toContain('No workflows match your search.');
+  });
+});
+
+describe('ordersCompletedPerWeek', () => {
+  it('buckets only completed executions into the last six ISO weeks', () => {
+    const now = new Date();
+    const completed = {
+      state: 'COMPLETED',
+      updatedAt: now.toISOString(),
+    };
+    const running = { state: 'RUNNING', updatedAt: now.toISOString() };
+
+    const series = ordersCompletedPerWeek([completed, completed, running]);
+
+    expect(series).toHaveLength(6);
+    expect(series.at(-1)?.value).toBe(2);
+    expect(series.reduce((total, point) => total + point.value, 0)).toBe(2);
+  });
+});
+
+describe('toDepartmentVolumeSlices', () => {
+  it('maps department codes to display labels', () => {
+    expect(
+      toDepartmentVolumeSlices([
+        { department: 'CRM_SALES', count: 3 },
+        { department: 'UNKNOWN_DEPARTMENT', count: 1 },
+      ]),
+    ).toEqual([
+      { label: 'CRM & Sales', value: 3 },
+      { label: 'UNKNOWN_DEPARTMENT', value: 1 },
+    ]);
   });
 });

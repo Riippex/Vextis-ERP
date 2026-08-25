@@ -1,0 +1,28 @@
+package com.vextis.conversation.application.port;
+
+import com.vextis.conversation.domain.ChatMessage;
+import com.vextis.conversation.domain.Conversation;
+import com.vextis.conversation.domain.MessageKind;
+import com.vextis.conversation.domain.MessageSender;
+
+import java.time.Instant;
+import java.util.Optional;
+import java.util.UUID;
+
+public interface ConversationRepository {
+
+    UUID startConversation(String tenantId, Instant startedAt);
+
+    boolean existsForTenant(String tenantId, UUID conversationId);
+
+    ChatMessage appendMessage(
+            String tenantId,
+            UUID conversationId,
+            MessageSender sender,
+            String content,
+            MessageKind kind,
+            Instant occurredAt
+    );
+
+    Optional<Conversation> findById(String tenantId, UUID conversationId);
+}

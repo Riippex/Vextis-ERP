@@ -142,6 +142,23 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
     }
 
     @Override
+    public List<ExecutionOverview.DepartmentVolume> findExecutionVolumeByDepartment(String tenantId) {
+        return jdbc.query(
+                """
+                SELECT step.department, COUNT(DISTINCT step.execution_id) AS execution_count
+                FROM workflow_execution_plan_steps step
+                JOIN workflow_executions execution ON execution.id = step.execution_id
+                WHERE execution.tenant_id = :tenantId
+                GROUP BY step.department
+                ORDER BY step.department
+                """,
+                Map.of("tenantId", tenantId),
+                (rs, row) -> new ExecutionOverview.DepartmentVolume(
+                        rs.getString("department"), rs.getInt("execution_count"))
+        );
+    }
+
+    @Override
     public Optional<WorkflowExecution> findExecutionResult(
             String tenantId,
             String operation,

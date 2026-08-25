@@ -11,14 +11,17 @@
   transition: grid-template-columns 180ms ease;
 }
 
+// The sidebar and toolbar share one dark rail surface (Cloud-Console style):
+// same background/text tokens, no internal border between them, so the
+// top-left corner where they meet reads as one continuous shape.
 .shell__sidebar,
 .shell__toolbar {
-  background: color-mix(in srgb, var(--vxt-surface) 97%, transparent);
-  color: var(--vxt-text-primary);
+  background: var(--vxt-rail-bg);
+  color: var(--vxt-rail-text);
 }
 
 .shell__sidebar {
-  border-right: 1px solid var(--vxt-border);
+  border-right: 1px solid var(--vxt-rail-border);
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
@@ -68,7 +71,7 @@
 }
 
 .shell__nav-section {
-  color: var(--vxt-muted);
+  color: var(--vxt-rail-text-muted);
   font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -80,8 +83,8 @@
 .shell__nav a {
   align-items: center;
   border: 1px solid transparent;
-  border-radius: 0.8rem;
-  color: var(--vxt-text-secondary);
+  border-radius: var(--vxt-radius-sm);
+  color: var(--vxt-rail-text-muted);
   display: flex;
   gap: 0.75rem;
   min-height: 2.7rem;
@@ -92,14 +95,14 @@
 }
 
 .shell__nav a:hover {
-  background: color-mix(in srgb, var(--vxt-brand-violet) 7%, transparent);
-  color: var(--vxt-text-primary);
+  background: var(--vxt-rail-bg-elevated);
+  color: var(--vxt-rail-text);
 }
 
 .shell__nav a.shell__nav-link--active {
-  background: var(--vxt-brand-violet-tint);
-  border-color: color-mix(in srgb, var(--vxt-brand-violet) 18%, transparent);
-  color: var(--vxt-brand-violet);
+  background: color-mix(in srgb, var(--vxt-brand-violet) 26%, var(--vxt-rail-bg-elevated));
+  border-color: color-mix(in srgb, var(--vxt-brand-violet) 45%, transparent);
+  color: var(--vxt-rail-text);
   font-weight: 700;
 }
 
@@ -113,9 +116,9 @@
 
 .shell__agent-status {
   align-items: center;
-  border: 1px solid var(--vxt-border);
-  border-radius: 1rem;
-  color: var(--vxt-text-secondary);
+  border: 1px solid var(--vxt-rail-border);
+  border-radius: var(--vxt-radius-md);
+  color: var(--vxt-rail-text-muted);
   display: grid;
   font-size: 0.72rem;
   gap: 0.65rem;
@@ -132,7 +135,7 @@
 }
 
 .shell__agent-status strong {
-  color: var(--vxt-text-primary);
+  color: var(--vxt-rail-text);
   font-size: 0.76rem;
 }
 
@@ -145,7 +148,7 @@
 }
 
 .shell__toolbar {
-  border-bottom: 1px solid var(--vxt-border);
+  border-bottom: 1px solid var(--vxt-rail-border);
   display: flex;
   gap: 0.85rem;
   grid-column: 2;
@@ -168,8 +171,44 @@
 
 .shell__page-context span,
 .shell__environment {
-  color: var(--vxt-text-secondary);
+  color: var(--vxt-rail-text-muted);
   font-size: 0.72rem;
+}
+
+.shell__search {
+  align-items: center;
+  background: var(--vxt-rail-bg-elevated);
+  border: 1px solid var(--vxt-rail-border);
+  border-radius: 999px;
+  display: flex;
+  flex: 1 1 auto;
+  gap: 0.5rem;
+  margin-left: 1.5rem;
+  max-width: 24rem;
+  padding: 0.45rem 0.9rem;
+}
+
+.shell__search mat-icon {
+  color: var(--vxt-rail-text-muted);
+  flex: 0 0 1.1rem;
+  font-size: 1.1rem;
+  height: 1.1rem;
+  width: 1.1rem;
+}
+
+.shell__search input {
+  background: none;
+  border: none;
+  color: var(--vxt-rail-text);
+  flex: 1;
+  font: inherit;
+  font-size: 0.85rem;
+  outline: none;
+  width: 100%;
+}
+
+.shell__search input::placeholder {
+  color: var(--vxt-rail-text-muted);
 }
 
 .shell__actions {
@@ -180,7 +219,7 @@
 }
 
 .shell__environment {
-  border: 1px solid var(--vxt-border);
+  border: 1px solid var(--vxt-rail-border);
   border-radius: 999px;
   font-weight: 600;
   margin-right: 0.35rem;
@@ -249,7 +288,8 @@
     grid-column: 1;
   }
 
-  .shell__environment {
+  .shell__environment,
+  .shell__search {
     display: none;
   }
 }

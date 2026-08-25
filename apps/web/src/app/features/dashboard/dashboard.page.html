@@ -64,6 +64,31 @@
       </div>
     </section>
 
+    <section aria-label="Trends">
+      <div class="charts-grid">
+        <div class="panel chart-card">
+          <div class="panel__header">
+            <h2>Orders completed per week</h2>
+          </div>
+          <div class="chart-card__body">
+            <vxt-line-chart [points]="ordersCompletedPerWeek()" />
+          </div>
+        </div>
+        <div class="panel chart-card">
+          <div class="panel__header">
+            <h2>Execution volume by department</h2>
+          </div>
+          <div class="chart-card__body">
+            @if (executionVolumeByDepartment().length) {
+              <vxt-donut-chart [slices]="executionVolumeByDepartment()" />
+            } @else {
+              <p class="chart-card__empty">No structured plans recorded yet.</p>
+            }
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section>
       <div class="section-heading">
         <div>
@@ -110,9 +135,9 @@
         <h2>Recent workflow activity</h2>
         <span class="data-row__meta">Tenant-scoped · live from Core</span>
       </div>
-      @if (data.executions.length) {
+      @if (filteredExecutions().length) {
         <div class="data-list">
-          @for (execution of data.executions; track execution.id) {
+          @for (execution of filteredExecutions(); track execution.id) {
             <div class="data-row">
               <div>
                 <div class="data-row__primary">{{ execution.purchaseOrderNumber }}</div>
@@ -127,6 +152,11 @@
               <span class="data-row__meta correlation">{{ execution.correlationId }}</span>
             </div>
           }
+        </div>
+      } @else if (data.executions.length) {
+        <div class="state-panel">
+          <mat-icon>search_off</mat-icon>
+          <span>No workflows match your search.</span>
         </div>
       } @else {
         <div class="state-panel">

@@ -58,7 +58,9 @@ class MissionControlGraphQlController {
                 reservations.findAll(demoTenantId).stream().map(StockReservationOverviewView::from).toList(),
                 credit.findAll(demoTenantId).stream()
                         .map(profile -> CreditProfileOverviewView.from(profile, customersById.get(profile.customerId())))
-                        .toList()
+                        .toList(),
+                executions.volumeByDepartment(demoTenantId).stream()
+                        .map(DepartmentExecutionVolumeView::from).toList()
         );
     }
 
@@ -67,7 +69,8 @@ class MissionControlGraphQlController {
             List<CustomerOverviewView> customers,
             List<StockItemOverviewView> stockItems,
             List<StockReservationOverviewView> stockReservations,
-            List<CreditProfileOverviewView> creditProfiles
+            List<CreditProfileOverviewView> creditProfiles,
+            List<DepartmentExecutionVolumeView> executionVolumeByDepartment
     ) {
     }
 
@@ -121,6 +124,12 @@ class MissionControlGraphQlController {
             String customerName = customer == null ? "Unknown customer" : customer.legalName();
             return new CreditProfileOverviewView(
                     profile.customerId(), customerName, profile.standing(), profile.maxPaymentTermsDays());
+        }
+    }
+
+    record DepartmentExecutionVolumeView(String department, int count) {
+        static DepartmentExecutionVolumeView from(ExecutionOverview.DepartmentVolume volume) {
+            return new DepartmentExecutionVolumeView(volume.department(), volume.count());
         }
     }
 }

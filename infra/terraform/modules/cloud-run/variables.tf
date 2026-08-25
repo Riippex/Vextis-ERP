@@ -58,6 +58,11 @@ variable "agent_tools_secret_id" {
   type        = string
 }
 
+variable "core_callback_secret_id" {
+  description = "Secret Manager identifier for the Ask Vextis chat callback token."
+  type        = string
+}
+
 variable "pubsub_topic_id" {
   description = "Transactional outbox destination topic."
   type        = string
@@ -65,6 +70,11 @@ variable "pubsub_topic_id" {
 
 variable "gemini_model" {
   description = "Vertex AI Gemini model used for planning."
+  type        = string
+}
+
+variable "live_model" {
+  description = "Vertex AI Gemini Live-capable model used for Ask Vextis voice sessions."
   type        = string
 }
 

@@ -193,6 +193,39 @@ paths:
           description: Generated asset registered against the quote
         "403":
           description: Agent is not authorized to register quote assets
+  /live-sessions/{sessionId}/validate:
+    post:
+      operationId: validateLiveSession
+      description: >-
+        Called by Agent Runtime when a browser opens the Live WebSocket, to check the
+        opaque session token the browser presented. The caller does not know the
+        tenant in advance (the token is the only thing the browser hands it); the
+        tenant is returned in the response once the token is confirmed valid.
+      security:
+        - serviceBearer: []
+      parameters:
+        - name: sessionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/LiveSessionToken"
+      responses:
+        "200":
+          description: Session token was checked; see the valid field for the outcome
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LiveSessionValidation"
+        "401":
+          description: Missing or invalid service credential
+        "403":
+          description: Agent is not authorized for this tool
+        "404":
+          description: Session does not exist
 components:
   securitySchemes:
     serviceBearer:
@@ -222,6 +255,13 @@ components:
         type: string
     IdempotencyKey:
       name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 16
+    LiveSessionToken:
+      name: X-Live-Session-Token
       in: header
       required: true
       schema:
@@ -398,6 +438,21 @@ components:
           enum: [RESERVED, RELEASED, FULFILLED]
         createdAt:
           type: string
+          format: date-time
+    LiveSessionValidation:
+      type: object
+      additionalProperties: false
+      required: [valid]
+      properties:
+        valid:
+          type: boolean
+        tenantId:
+          type: [string, "null"]
+        conversationId:
+          type: [string, "null"]
+          format: uuid
+        expiresAt:
+          type: [string, "null"]
           format: date-time
     RegisterQuoteAssetRequest:
       type: object
