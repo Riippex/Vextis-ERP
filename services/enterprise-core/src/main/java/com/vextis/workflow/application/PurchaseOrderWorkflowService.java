@@ -28,7 +28,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Service
-public class PurchaseOrderWorkflowService implements ReceivePurchaseOrderUseCase, FindExecutionUseCase,
+public class PurchaseOrderWorkflowService implements RegisterReceivedPurchaseOrder, FindExecutionUseCase,
         StartPlanningUseCase, RecordPlanUseCase, EvaluateReadinessUseCase,
         RequestApprovalUseCase, DecideApprovalUseCase, ReserveApprovedStockUseCase, ExecutionOverview {
 
@@ -64,7 +64,7 @@ public class PurchaseOrderWorkflowService implements ReceivePurchaseOrderUseCase
 
     @Override
     @Transactional
-    public PurchaseOrderReceipt receive(ReceivePurchaseOrderCommand command) {
+    public PurchaseOrderReceipt register(ReceivePurchaseOrderCommand command) {
         repository.acquireIdempotencyLock(command.tenantId(), RECEIVE_OPERATION, command.idempotencyKey());
 
         Optional<PurchaseOrderReceipt> existing = repository.findReceipt(

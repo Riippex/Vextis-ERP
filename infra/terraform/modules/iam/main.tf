@@ -185,3 +185,9 @@ resource "google_service_account_iam_member" "pubsub_can_sign_push_tokens" {
   role               = "roles/iam.serviceAccountTokenCreator"
   member             = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-pubsub.iam.gserviceaccount.com"
 }
+
+resource "google_service_account_iam_member" "enterprise_core_public_can_sign_upload_urls" {
+  service_account_id = google_service_account.enterprise_core_public.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.enterprise_core_public.email}"
+}

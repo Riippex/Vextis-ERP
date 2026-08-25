@@ -68,6 +68,11 @@ variable "gemini_model" {
   type        = string
 }
 
+variable "assets_bucket_name" {
+  description = "Private Cloud Storage bucket for purchase-order documents."
+  type        = string
+}
+
 variable "labels" {
   description = "Labels applied to Cloud Run services."
   type        = map(string)

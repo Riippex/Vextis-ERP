@@ -1,4 +1,5 @@
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
+import { HttpClient } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -9,11 +10,12 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
-import { Subscription, switchMap, takeWhile, timer } from 'rxjs';
+import { map, Subscription, switchMap, takeWhile, timer } from 'rxjs';
 
 import {
   FindExecutionGQL,
   DecideApprovalGQL,
+  PreparePurchaseOrderUploadGQL,
   ReceivePurchaseOrderGQL,
   type FindExecutionQuery,
   type ReceivePurchaseOrderMutation,
@@ -26,6 +28,7 @@ type Execution = NonNullable<FindExecutionQuery['execution']>;
   selector: 'vxt-receive-purchase-order-page',
   imports: [
     DatePipe,
+    DecimalPipe,
     MatButtonModule,
     MatCardModule,
     MatFormFieldModule,
@@ -42,6 +45,8 @@ type Execution = NonNullable<FindExecutionQuery['execution']>;
 export class ReceivePurchaseOrderPage {
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly receivePurchaseOrder = inject(ReceivePurchaseOrderGQL);
+  private readonly preparePurchaseOrderUpload = inject(PreparePurchaseOrderUploadGQL);
+  private readonly http = inject(HttpClient);
   private readonly findExecution = inject(FindExecutionGQL);
   private readonly decideApprovalMutation = inject(DecideApprovalGQL);
   private readonly destroyRef = inject(DestroyRef);
@@ -52,14 +57,12 @@ export class ReceivePurchaseOrderPage {
   protected readonly deciding = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly receipt = signal<PurchaseOrderReceipt | null>(null);
+  protected readonly selectedFile = signal<File | null>(null);
+  protected readonly submissionStage = signal<'idle' | 'authorizing' | 'uploading' | 'receiving'>('idle');
 
   protected readonly form = this.formBuilder.group({
     purchaseOrderNumber: ['PO-2026-001', [Validators.required, Validators.maxLength(100)]],
     customerName: ['Acme Colombia', [Validators.required, Validators.maxLength(200)]],
-    documentUri: [
-      'gs://vextis-erp-hackathon-assets/demo/purchase-orders/PO-2026-001.pdf',
-      [Validators.required, Validators.pattern(/^gs:\/\/.+/), Validators.maxLength(1000)],
-    ],
     idempotencyKey: [this.newIdempotencyKey(), [Validators.required, Validators.maxLength(200)]],
   });
 
@@ -68,19 +71,57 @@ export class ReceivePurchaseOrderPage {
   });
 
   protected submit(): void {
-    if (this.form.invalid || this.submitting()) {
+    const document = this.selectedFile();
+    if (this.form.invalid || document === null || this.submitting()) {
       this.form.markAllAsTouched();
+      if (document === null) {
+        this.errorMessage.set('Choose a PDF, JPEG, or PNG purchase order first.');
+      }
       return;
     }
 
     this.submitting.set(true);
+    this.submissionStage.set('authorizing');
     this.errorMessage.set(null);
-    this.receivePurchaseOrder
-      .mutate({ variables: { input: this.form.getRawValue() } })
+    const routing = this.form.getRawValue();
+    this.preparePurchaseOrderUpload
+      .mutate({
+        variables: {
+          input: {
+            fileName: document.name,
+            contentType: document.type,
+            sizeBytes: document.size,
+          },
+        },
+      })
+      .pipe(
+        switchMap(({ data }) => {
+          const upload = data?.preparePurchaseOrderUpload;
+          if (!upload) {
+            throw new Error('Enterprise Core did not authorize the document upload.');
+          }
+          this.submissionStage.set('uploading');
+          const formData = new FormData();
+          for (const field of upload.formFields) {
+            formData.append(field.name, field.value);
+          }
+          formData.append('file', document);
+          return this.http
+            .post(upload.uploadUrl, formData, { responseType: 'text' })
+            .pipe(map(() => upload.documentUri));
+        }),
+        switchMap((documentUri) => {
+          this.submissionStage.set('receiving');
+          return this.receivePurchaseOrder.mutate({
+            variables: { input: { ...routing, documentUri } },
+          });
+        }),
+      )
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: ({ data }) => {
           this.submitting.set(false);
+          this.submissionStage.set('idle');
           if (!data) {
             this.errorMessage.set('Enterprise Core did not return a receipt. Try again.');
             return;
@@ -90,6 +131,7 @@ export class ReceivePurchaseOrderPage {
         },
         error: (error: unknown) => {
           this.submitting.set(false);
+          this.submissionStage.set('idle');
           this.errorMessage.set(this.toActionableMessage(error));
         },
       });
@@ -99,13 +141,49 @@ export class ReceivePurchaseOrderPage {
     this.monitoringSubscription?.unsubscribe();
     this.monitoring.set(false);
     this.receipt.set(null);
+    this.selectedFile.set(null);
     this.errorMessage.set(null);
     this.form.reset({
       purchaseOrderNumber: '',
       customerName: '',
-      documentUri: '',
       idempotencyKey: this.newIdempotencyKey(),
     });
+  }
+
+  protected selectDocument(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const document = input.files?.[0] ?? null;
+    this.errorMessage.set(null);
+    if (document === null) {
+      this.selectedFile.set(null);
+      return;
+    }
+    if (!['application/pdf', 'image/jpeg', 'image/png'].includes(document.type)) {
+      input.value = '';
+      this.selectedFile.set(null);
+      this.errorMessage.set('Only PDF, JPEG, and PNG purchase orders are supported.');
+      return;
+    }
+    if (document.size < 1 || document.size > 10 * 1024 * 1024) {
+      input.value = '';
+      this.selectedFile.set(null);
+      this.errorMessage.set('The purchase order must be smaller than 10 MiB.');
+      return;
+    }
+    this.selectedFile.set(document);
+  }
+
+  protected submissionLabel(): string {
+    switch (this.submissionStage()) {
+      case 'authorizing':
+        return 'Authorizing upload…';
+      case 'uploading':
+        return 'Uploading securely…';
+      case 'receiving':
+        return 'Creating execution…';
+      default:
+        return 'Upload and create execution';
+    }
   }
 
   protected decideApproval(decision: 'APPROVE' | 'REJECT'): void {
