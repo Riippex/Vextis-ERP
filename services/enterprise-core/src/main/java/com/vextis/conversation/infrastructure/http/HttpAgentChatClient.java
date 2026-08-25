@@ -21,11 +21,13 @@ class HttpAgentChatClient implements AgentChatClient {
     private final Supplier<IdTokenProvider> idTokenProvider;
 
     HttpAgentChatClient(
-            RestClient.Builder restClientBuilder,
             @Value("${vextis.agent-runtime.chat-url:}") String chatUrl,
             @Value("${vextis.agent-runtime.callback-token:}") String callbackToken
     ) {
-        this.restClient = restClientBuilder.build();
+        // Built directly rather than injected: RestClient is stateless/thread-safe
+        // and nothing else in this service shares a RestClient.Builder bean, so
+        // there is no need to depend on Spring Boot's RestClient autoconfiguration.
+        this.restClient = RestClient.create();
         this.chatUrl = chatUrl;
         this.callbackToken = callbackToken;
         this.idTokenProvider = memoizedIdTokenProvider();
