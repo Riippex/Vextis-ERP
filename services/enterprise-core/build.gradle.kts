@@ -35,6 +35,7 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.modulith:spring-modulith-starter-core")
     implementation("com.google.cloud:google-cloud-pubsub")
+    implementation("com.google.cloud:google-cloud-storage")
     implementation("com.google.cloud.sql:postgres-socket-factory:1.29.0")
     implementation("com.google.firebase:firebase-admin:9.10.0")
     implementation("org.springframework.boot:spring-boot-starter-security")

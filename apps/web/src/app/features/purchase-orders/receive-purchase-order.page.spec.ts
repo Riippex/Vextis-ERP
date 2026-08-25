@@ -1,16 +1,18 @@
 import { TestBed } from '@angular/core/testing';
+import { HttpClient } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
 
 import {
   DecideApprovalGQL,
   FindExecutionGQL,
+  PreparePurchaseOrderUploadGQL,
   ReceivePurchaseOrderGQL,
 } from '../../api/generated/graphql';
 import { ReceivePurchaseOrderPage } from './receive-purchase-order.page';
 
 describe('ReceivePurchaseOrderPage', () => {
-  const mutate = vi.fn().mockReturnValue(
+  const receiveMutate = vi.fn().mockReturnValue(
     of({
       data: {
         receivePurchaseOrder: {
@@ -45,6 +47,20 @@ describe('ReceivePurchaseOrderPage', () => {
       },
     }),
   );
+  const prepareMutate = vi.fn().mockReturnValue(
+    of({
+      data: {
+        preparePurchaseOrderUpload: {
+          uploadUrl: 'https://storage.googleapis.com/signed-upload',
+          documentUri:
+            'gs://vextis-erp-hackathon-assets/purchase-orders/tenant/document.pdf',
+          expiresAt: '2026-08-21T03:40:00Z',
+          formFields: [{ name: 'Content-Type', value: 'application/pdf' }],
+        },
+      },
+    }),
+  );
+  const upload = vi.fn().mockReturnValue(of(''));
   const fetch = vi.fn().mockReturnValue(
     of({
       data: {
@@ -131,13 +147,17 @@ describe('ReceivePurchaseOrderPage', () => {
   );
 
   beforeEach(async () => {
-    mutate.mockClear();
+    receiveMutate.mockClear();
+    prepareMutate.mockClear();
+    upload.mockClear();
     fetch.mockClear();
     await TestBed.configureTestingModule({
       imports: [ReceivePurchaseOrderPage],
       providers: [
         provideRouter([]),
-        { provide: ReceivePurchaseOrderGQL, useValue: { mutate } },
+        { provide: ReceivePurchaseOrderGQL, useValue: { mutate: receiveMutate } },
+        { provide: PreparePurchaseOrderUploadGQL, useValue: { mutate: prepareMutate } },
+        { provide: HttpClient, useValue: { post: upload } },
         { provide: FindExecutionGQL, useValue: { fetch } },
         { provide: DecideApprovalGQL, useValue: { mutate: vi.fn() } },
       ],
@@ -148,6 +168,16 @@ describe('ReceivePurchaseOrderPage', () => {
     const fixture = TestBed.createComponent(ReceivePurchaseOrderPage);
     fixture.detectChanges();
 
+    const fileInput = fixture.nativeElement.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    Object.defineProperty(fileInput, 'files', {
+      configurable: true,
+      value: [new File(['purchase order'], 'customer-order.pdf', { type: 'application/pdf' })],
+    });
+    fileInput.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
     const submit = fixture.nativeElement.querySelector(
       'button[type="submit"]',
     ) as HTMLButtonElement;
@@ -155,7 +185,16 @@ describe('ReceivePurchaseOrderPage', () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     fixture.detectChanges();
 
-    expect(mutate).toHaveBeenCalledOnce();
+    expect(prepareMutate).toHaveBeenCalledOnce();
+    expect(upload).toHaveBeenCalledOnce();
+    expect(receiveMutate).toHaveBeenCalledOnce();
+    expect(upload.mock.calls[0]?.[0]).toBe('https://storage.googleapis.com/signed-upload');
+    const formData = upload.mock.calls[0]?.[1] as FormData;
+    expect(formData.get('Content-Type')).toBe('application/pdf');
+    expect(formData.get('file')).toBeInstanceOf(File);
+    expect(receiveMutate.mock.calls[0]?.[0].variables.input.documentUri).toBe(
+      'gs://vextis-erp-hackathon-assets/purchase-orders/tenant/document.pdf',
+    );
     expect(fetch).toHaveBeenCalledOnce();
     expect(fixture.nativeElement.textContent).toContain('Enterprise Core receipt');
     expect(fixture.nativeElement.textContent).toContain('corr-001');
@@ -167,5 +206,25 @@ describe('ReceivePurchaseOrderPage', () => {
     expect(fixture.nativeElement.textContent).toContain('VXT-CHAIR-01');
     expect(fixture.nativeElement.textContent).toContain('Order readiness');
     expect(fixture.nativeElement.textContent).toContain('Credit standing is good');
+  });
+
+  it('rejects unsupported files before requesting an upload policy', () => {
+    const fixture = TestBed.createComponent(ReceivePurchaseOrderPage);
+    fixture.detectChanges();
+
+    const fileInput = fixture.nativeElement.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    Object.defineProperty(fileInput, 'files', {
+      configurable: true,
+      value: [new File(['svg'], 'order.svg', { type: 'image/svg+xml' })],
+    });
+    fileInput.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    expect(prepareMutate).not.toHaveBeenCalled();
+    expect(fixture.nativeElement.textContent).toContain(
+      'Only PDF, JPEG, and PNG purchase orders are supported.',
+    );
   });
 });
