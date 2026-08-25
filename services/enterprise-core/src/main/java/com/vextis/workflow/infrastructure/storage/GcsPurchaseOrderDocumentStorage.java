@@ -10,6 +10,7 @@ import com.google.cloud.storage.PostPolicyV4;
 import com.google.cloud.storage.Storage;
 import com.vextis.workflow.application.port.PurchaseOrderDocumentStorage;
 import com.vextis.workflow.domain.PurchaseOrderUpload;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -41,6 +42,7 @@ class GcsPurchaseOrderDocumentStorage implements PurchaseOrderDocumentStorage {
     private final String bucketName;
     private final Supplier<ServiceAccountSigner> signerProvider;
 
+    @Autowired
     GcsPurchaseOrderDocumentStorage(
             Storage storage,
             @Value("${vextis.documents.bucket-name:}") String bucketName,
