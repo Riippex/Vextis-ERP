@@ -9,6 +9,35 @@ import { DashboardPage, ordersCompletedPerWeek, toDepartmentVolumeSlices } from 
 describe('DashboardPage', () => {
   const store = {
     data: signal({
+      agents: [
+        {
+          agentId: 'vextis_inventory_agent',
+          version: '1.0.0',
+          displayName: 'Inventory Agent',
+          department: 'INVENTORY_OPERATIONS',
+          purpose: 'Provides authoritative SKU availability.',
+          framework: 'GOOGLE_ADK',
+          modelId: 'gemini-3.5-flash',
+          promptVersion: '1.0.0',
+          serviceIdentity: 'coordinator-agent',
+          status: 'ACTIVE' as const,
+          capabilities: ['stock lookup'],
+          allowedTools: ['get_stock'],
+        },
+      ],
+      recentAgentActivities: [
+        {
+          conversationId: '6b1a6e4a-2f0a-4e3b-8f0a-9b8b6a2c1d10',
+          messageId: 'f83c9fc5-d498-42ea-b8db-e0475cb493f4',
+          agentId: 'vextis_inventory_agent',
+          agentVersion: '1.0.0',
+          displayName: 'Inventory Agent',
+          modelId: 'gemini-3.5-flash',
+          promptVersion: '1.0.0',
+          tools: ['get_stock'],
+          occurredAt: '2026-08-26T12:00:00Z',
+        },
+      ],
       executions: [
         {
           id: '8d3f290d-1322-44a2-8bd7-3b325f170e07',
@@ -64,6 +93,12 @@ describe('DashboardPage', () => {
     expect(fixture.nativeElement.querySelector('a[href="/app/finance"]')).toBeTruthy();
     expect(fixture.nativeElement.textContent).toContain('Orders completed per week');
     expect(fixture.nativeElement.textContent).toContain('Execution volume by department');
+    expect(fixture.nativeElement.textContent).toContain('Enterprise agent registry');
+    expect(fixture.nativeElement.textContent).toContain('Inventory Agent');
+    expect(fixture.nativeElement.textContent).toContain('gemini-3.5-flash');
+    expect(fixture.nativeElement.textContent).toContain('get_stock');
+    expect(fixture.nativeElement.textContent).toContain('Recent agent activity');
+    expect(fixture.nativeElement.textContent).toContain('Validated and snapshotted by Core');
   });
 
   it('filters recent workflow activity by the shared workspace search query', () => {

@@ -4,6 +4,7 @@ import com.vextis.conversation.application.AskVextisCommand;
 import com.vextis.conversation.application.AskVextisResult;
 import com.vextis.conversation.application.AskVextisUseCase;
 import com.vextis.conversation.application.FindConversationUseCase;
+import com.vextis.conversation.domain.AgentActivityEvidence;
 import com.vextis.conversation.domain.ChatMessage;
 import com.vextis.conversation.domain.Conversation;
 import com.vextis.conversation.domain.MessageKind;
@@ -53,14 +54,17 @@ class AskVextisGraphQlControllerTests {
     @WithMockUser(username = "firebase-user-123")
     void postsAMessageAsTheAuthenticatedActor() {
         when(currentActor.currentActorId()).thenReturn("firebase-user-123");
+        AgentActivityEvidence evidence = evidence();
         when(askVextis.postMessage(any(AskVextisCommand.class))).thenReturn(
-                new AskVextisResult(CONVERSATION_ID, UUID.randomUUID(), "Here is the order status.", NOW));
+                new AskVextisResult(
+                        CONVERSATION_ID, UUID.randomUUID(), "Here is the order status.", NOW, List.of(evidence)));
 
         graphQlTester.document("""
                         mutation AskVextis($input: AskVextisMessageInput!) {
                           askVextis(input: $input) {
                             conversationId
                             reply
+                            agentActivities { agentId displayName tools }
                           }
                         }
                         """)
@@ -71,7 +75,13 @@ class AskVextisGraphQlControllerTests {
                 .isEqualTo(CONVERSATION_ID.toString())
                 .path("askVextis.reply")
                 .entity(String.class)
-                .isEqualTo("Here is the order status.");
+                .isEqualTo("Here is the order status.")
+                .path("askVextis.agentActivities[0].agentId")
+                .entity(String.class)
+                .isEqualTo("vextis_inventory_agent")
+                .path("askVextis.agentActivities[0].tools[0]")
+                .entity(String.class)
+                .isEqualTo("get_stock");
 
         ArgumentCaptor<AskVextisCommand> command = ArgumentCaptor.forClass(AskVextisCommand.class);
         verify(askVextis).postMessage(command.capture());
@@ -85,14 +95,17 @@ class AskVextisGraphQlControllerTests {
     void returnsPersistedConversationHistory() {
         when(findConversation.findById(eq("demo-tenant"), eq(CONVERSATION_ID))).thenReturn(Optional.of(
                 new Conversation(CONVERSATION_ID, "demo-tenant", List.of(
-                        new ChatMessage(UUID.randomUUID(), MessageSender.USER, "Hello", MessageKind.TEXT, NOW),
-                        new ChatMessage(UUID.randomUUID(), MessageSender.ASSISTANT, "Hi there", MessageKind.TEXT, NOW)))));
+                        new ChatMessage(
+                                UUID.randomUUID(), MessageSender.USER, "Hello", MessageKind.TEXT, NOW, List.of()),
+                        new ChatMessage(
+                                UUID.randomUUID(), MessageSender.ASSISTANT, "Hi there", MessageKind.TEXT, NOW,
+                                List.of(evidence()))))));
 
         graphQlTester.document("""
                         query AskVextisConversation($id: ID!) {
                           askVextisConversation(id: $id) {
                             id
-                            messages { sender content }
+                            messages { sender content agentActivities { agentId tools } }
                           }
                         }
                         """)
@@ -103,7 +116,10 @@ class AskVextisGraphQlControllerTests {
                 .isEqualTo("USER")
                 .path("askVextisConversation.messages[1].content")
                 .entity(String.class)
-                .isEqualTo("Hi there");
+                .isEqualTo("Hi there")
+                .path("askVextisConversation.messages[1].agentActivities[0].agentId")
+                .entity(String.class)
+                .isEqualTo("vextis_inventory_agent");
     }
 
     @Test
@@ -120,5 +136,11 @@ class AskVextisGraphQlControllerTests {
                 .execute()
                 .path("askVextisConversation")
                 .valueIsNull();
+    }
+
+    private static AgentActivityEvidence evidence() {
+        return new AgentActivityEvidence(
+                "vextis_inventory_agent", "1.0.0", "Inventory Agent", "gemini-3.5-flash", "1.0.0",
+                List.of("get_stock"));
     }
 }

@@ -1,8 +1,10 @@
 package com.vextis.workflow.api.internal;
 
+import com.vextis.agentregistry.AgentDirectory;
 import com.vextis.inventory.StockReservation;
 import com.vextis.workflow.application.ReserveApprovedStockCommand;
 import com.vextis.workflow.application.ReserveApprovedStockUseCase;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -12,6 +14,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -34,6 +38,18 @@ class AgentInventoryToolControllerTests {
     @MockitoBean
     private ReserveApprovedStockUseCase reserveStock;
 
+    @MockitoBean
+    private AgentDirectory agents;
+
+    @BeforeEach
+    void authorizeInventoryAgent() {
+        when(agents.findActive("demo-tenant", "vextis_inventory_agent")).thenReturn(Optional.of(
+                new AgentDirectory.AgentRegistration(
+                        "vextis_inventory_agent", "1.0.0", "Inventory Agent",
+                        "INVENTORY_OPERATIONS", "purpose", "GOOGLE_ADK", "gemini-3.5-flash",
+                        "1.0.0", "coordinator-agent", "ACTIVE", List.of(), List.of("reserve_stock"))));
+    }
+
     @Test
     void authenticatedCoordinatorCanReserveApprovedStock() throws Exception {
         when(reserveStock.reserve(any(ReserveApprovedStockCommand.class))).thenReturn(
@@ -53,7 +69,7 @@ class AgentInventoryToolControllerTests {
 
         verify(reserveStock).reserve(org.mockito.ArgumentMatchers.argThat(command ->
                 command.tenantId().equals("demo-tenant")
-                        && command.actor().id().equals("coordinator-agent")
+                        && command.actor().id().equals("vextis_inventory_agent")
                         && command.correlationId().equals("corr-001")
                         && command.idempotencyKey().endsWith(":reserve:VXT-CHAIR-01")));
     }
@@ -82,7 +98,7 @@ class AgentInventoryToolControllerTests {
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Authorization", authorization)
                 .header("X-Tenant-Id", tenantId)
-                .header("X-Agent-Id", "coordinator-agent")
+                .header("X-Agent-Id", "vextis_inventory_agent")
                 .header("X-Correlation-Id", "corr-001")
                 .header("Idempotency-Key", "95a0c3b0-e693-4a44-a396-147453bbbf02:reserve:VXT-CHAIR-01")
                 .content("""

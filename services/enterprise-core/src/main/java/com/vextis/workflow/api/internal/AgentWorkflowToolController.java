@@ -47,19 +47,22 @@ class AgentWorkflowToolController {
     private final EvaluateReadinessUseCase evaluateReadiness;
     private final RequestApprovalUseCase requestApproval;
     private final AgentToolAuthorizer authorizer;
+    private final AgentAuthorizationDenialRecorder denialRecorder;
 
     AgentWorkflowToolController(
             StartPlanningUseCase startPlanning,
             RecordPlanUseCase recordPlan,
             EvaluateReadinessUseCase evaluateReadiness,
             RequestApprovalUseCase requestApproval,
-            AgentToolAuthorizer authorizer
+            AgentToolAuthorizer authorizer,
+            AgentAuthorizationDenialRecorder denialRecorder
     ) {
         this.startPlanning = startPlanning;
         this.recordPlan = recordPlan;
         this.evaluateReadiness = evaluateReadiness;
         this.requestApproval = requestApproval;
         this.authorizer = authorizer;
+        this.denialRecorder = denialRecorder;
     }
 
     @PostMapping("/{executionId}/planning")
@@ -72,7 +75,9 @@ class AgentWorkflowToolController {
             @RequestHeader("Idempotency-Key") @NotBlank @Size(min = 16, max = 200) String idempotencyKey,
             @RequestBody @Valid StartPlanningRequest request
     ) {
-        authorizer.authorize(authorization, agentId, tenantId);
+        authorizeWorkflow(
+                authorization, agentId, tenantId, correlationId, executionId,
+                AgentAuthorizationDenialRecorder.WorkflowTool.START_EXECUTION_PLANNING);
         try {
             PlanningContext context = startPlanning.startPlanning(new StartPlanningCommand(
                     tenantId,
@@ -101,7 +106,9 @@ class AgentWorkflowToolController {
             @RequestHeader("Idempotency-Key") @NotBlank @Size(min = 16, max = 200) String idempotencyKey,
             @RequestBody @Valid RecordPlanRequest request
     ) {
-        authorizer.authorize(authorization, agentId, tenantId);
+        authorizeWorkflow(
+                authorization, agentId, tenantId, correlationId, executionId,
+                AgentAuthorizationDenialRecorder.WorkflowTool.RECORD_EXECUTION_PLAN);
         try {
             List<WorkflowPlanStep> steps = request.steps().stream().map(PlanStepRequest::toDomain).toList();
             List<ExtractedOrderLine> orderLines = request.orderLines().stream()
@@ -135,7 +142,9 @@ class AgentWorkflowToolController {
             @RequestHeader("X-Correlation-Id") @NotBlank @Size(max = 100) String correlationId,
             @RequestHeader("Idempotency-Key") @NotBlank @Size(min = 16, max = 200) String idempotencyKey
     ) {
-        authorizer.authorize(authorization, agentId, tenantId);
+        authorizeWorkflow(
+                authorization, agentId, tenantId, correlationId, executionId,
+                AgentAuthorizationDenialRecorder.WorkflowTool.EVALUATE_ORDER_READINESS);
         try {
             return ExecutionResponse.from(evaluateReadiness.evaluateReadiness(new EvaluateReadinessCommand(
                     tenantId, new Actor(Actor.Type.AGENT, agentId), executionId, correlationId, idempotencyKey)));
@@ -156,7 +165,9 @@ class AgentWorkflowToolController {
             @RequestHeader("Idempotency-Key") @NotBlank @Size(min = 16, max = 200) String idempotencyKey,
             @RequestBody @Valid RequestApprovalRequest request
     ) {
-        authorizer.authorize(authorization, agentId, tenantId);
+        authorizeWorkflow(
+                authorization, agentId, tenantId, correlationId, executionId,
+                AgentAuthorizationDenialRecorder.WorkflowTool.REQUEST_WORKFLOW_APPROVAL);
         try {
             return ExecutionResponse.from(requestApproval.requestApproval(new RequestApprovalCommand(
                     tenantId, new Actor(Actor.Type.AGENT, agentId), executionId, correlationId,
@@ -172,6 +183,24 @@ class AgentWorkflowToolController {
             @NotNull UUID eventId,
             @NotBlank @Size(max = 1000) @Pattern(regexp = "^gs://.+") String documentUri
     ) {
+    }
+
+    private void authorizeWorkflow(
+            String authorization,
+            String agentId,
+            String tenantId,
+            String correlationId,
+            UUID executionId,
+            AgentAuthorizationDenialRecorder.WorkflowTool tool
+    ) {
+        try {
+            authorizer.authorize(authorization, agentId, tenantId, AgentTool.valueOf(tool.name()));
+        } catch (ResponseStatusException exception) {
+            if (HttpStatus.FORBIDDEN.equals(exception.getStatusCode())) {
+                denialRecorder.recordSafely(tenantId, agentId, correlationId, executionId, tool);
+            }
+            throw exception;
+        }
     }
 
     record RecordPlanRequest(

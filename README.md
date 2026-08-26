@@ -76,7 +76,12 @@ If two documents contradict each other, the most recently recorded decision in `
 
 ## Status
 
-The repository is in the architecture and scaffolding phase. The immediate goal is a deployed vertical slice spanning Angular, Enterprise Core, Pub/Sub, and Agent Runtime before expanding functionality.
+The MVP runs as an end-to-end vertical slice across Angular, Enterprise Core,
+Pub/Sub, and the Agent Runtime. Mission Control exposes the three business
+departments, workflow execution state, and a tenant-scoped registry of approved
+agents with their model, prompt version, runtime identity, capabilities, and
+allowed tools. The registry is descriptive governance metadata; authorization
+remains enforced independently by application policy and Google Cloud IAM.
 
 ## License
 

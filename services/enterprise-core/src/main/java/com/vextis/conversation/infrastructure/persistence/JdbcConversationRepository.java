@@ -1,6 +1,8 @@
 package com.vextis.conversation.infrastructure.persistence;
 
+import com.vextis.conversation.ConversationActivityOverview;
 import com.vextis.conversation.application.port.ConversationRepository;
+import com.vextis.conversation.domain.AgentActivityEvidence;
 import com.vextis.conversation.domain.ChatMessage;
 import com.vextis.conversation.domain.Conversation;
 import com.vextis.conversation.domain.MessageKind;
@@ -8,16 +10,20 @@ import com.vextis.conversation.domain.MessageSender;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.sql.Array;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-class JdbcConversationRepository implements ConversationRepository {
+class JdbcConversationRepository implements ConversationRepository, ConversationActivityOverview {
 
     private final NamedParameterJdbcTemplate jdbc;
 
@@ -47,16 +53,18 @@ class JdbcConversationRepository implements ConversationRepository {
     }
 
     @Override
+    @Transactional
     public ChatMessage appendMessage(
             String tenantId,
             UUID conversationId,
             MessageSender sender,
             String content,
             MessageKind kind,
-            Instant occurredAt
+            Instant occurredAt,
+            List<AgentActivityEvidence> agentActivities
     ) {
         UUID id = UUID.randomUUID();
-        jdbc.update(
+        int inserted = jdbc.update(
                 """
                 INSERT INTO chat_messages (id, conversation_id, sender, kind, content, occurred_at)
                 SELECT :id, :conversationId, :sender, :kind, :content, :occurredAt
@@ -72,7 +80,33 @@ class JdbcConversationRepository implements ConversationRepository {
                         .addValue("kind", kind.name())
                         .addValue("content", content)
                         .addValue("occurredAt", Timestamp.from(occurredAt)));
-        return new ChatMessage(id, sender, content, kind, occurredAt);
+        if (inserted != 1) {
+            throw new IllegalStateException("Conversation was not found for this tenant");
+        }
+        for (int sequence = 0; sequence < agentActivities.size(); sequence++) {
+            AgentActivityEvidence activity = agentActivities.get(sequence);
+            jdbc.update(
+                    """
+                    INSERT INTO chat_message_agent_activities (
+                        message_id, sequence, agent_id, agent_version, display_name,
+                        model_id, prompt_version, tool_names, occurred_at
+                    ) VALUES (
+                        :messageId, :sequence, :agentId, :agentVersion, :displayName,
+                        :modelId, :promptVersion, string_to_array(:toolNames, ','), :occurredAt
+                    )
+                    """,
+                    new MapSqlParameterSource()
+                            .addValue("messageId", id)
+                            .addValue("sequence", sequence)
+                            .addValue("agentId", activity.agentId())
+                            .addValue("agentVersion", activity.agentVersion())
+                            .addValue("displayName", activity.displayName())
+                            .addValue("modelId", activity.modelId())
+                            .addValue("promptVersion", activity.promptVersion())
+                            .addValue("toolNames", String.join(",", activity.tools()))
+                            .addValue("occurredAt", Timestamp.from(occurredAt)));
+        }
+        return new ChatMessage(id, sender, content, kind, occurredAt, agentActivities);
     }
 
     @Override
@@ -85,7 +119,7 @@ class JdbcConversationRepository implements ConversationRepository {
             return Optional.empty();
         }
 
-        List<ChatMessage> messages = jdbc.query(
+        List<ChatMessage> messagesWithoutEvidence = jdbc.query(
                 """
                 SELECT id, sender, kind, content, occurred_at
                 FROM chat_messages
@@ -98,8 +132,84 @@ class JdbcConversationRepository implements ConversationRepository {
                         MessageSender.valueOf(rs.getString("sender")),
                         rs.getString("content"),
                         MessageKind.valueOf(rs.getString("kind")),
-                        rs.getTimestamp("occurred_at").toInstant()));
+                        rs.getTimestamp("occurred_at").toInstant(),
+                        List.of()));
+
+        Map<UUID, List<AgentActivityEvidence>> evidenceByMessage = new HashMap<>();
+        List<MessageEvidence> evidenceRows = jdbc.query(
+                """
+                SELECT activity.message_id, activity.agent_id, activity.agent_version,
+                       activity.display_name, activity.model_id, activity.prompt_version,
+                       activity.tool_names
+                FROM chat_message_agent_activities activity
+                JOIN chat_messages message ON message.id = activity.message_id
+                JOIN conversations conversation ON conversation.id = message.conversation_id
+                WHERE conversation.id = :conversationId
+                  AND conversation.tenant_id = :tenantId
+                ORDER BY activity.sequence ASC
+                """,
+                Map.of("conversationId", conversationId, "tenantId", tenantId),
+                (rs, row) -> new MessageEvidence(
+                        rs.getObject("message_id", UUID.class),
+                        new AgentActivityEvidence(
+                                rs.getString("agent_id"),
+                                rs.getString("agent_version"),
+                                rs.getString("display_name"),
+                                rs.getString("model_id"),
+                                rs.getString("prompt_version"),
+                                toList(rs.getArray("tool_names")))));
+        evidenceRows.forEach(row -> evidenceByMessage
+                .computeIfAbsent(row.messageId(), ignored -> new java.util.ArrayList<>())
+                .add(row.evidence()));
+
+        List<ChatMessage> messages = messagesWithoutEvidence.stream()
+                .map(message -> new ChatMessage(
+                        message.id(), message.sender(), message.content(), message.kind(), message.occurredAt(),
+                        evidenceByMessage.getOrDefault(message.id(), List.of())))
+                .toList();
 
         return Optional.of(new Conversation(conversationId, tenantId, messages));
+    }
+
+    @Override
+    public List<RecentAgentActivity> findRecentAgentActivities(String tenantId, int limit) {
+        if (limit < 1 || limit > 50) {
+            throw new IllegalArgumentException("limit must be between 1 and 50");
+        }
+        return jdbc.query(
+                """
+                SELECT message.conversation_id, activity.message_id, activity.agent_id,
+                       activity.agent_version, activity.display_name, activity.model_id,
+                       activity.prompt_version, activity.tool_names, activity.occurred_at
+                FROM chat_message_agent_activities activity
+                JOIN chat_messages message ON message.id = activity.message_id
+                JOIN conversations conversation ON conversation.id = message.conversation_id
+                WHERE conversation.tenant_id = :tenantId
+                ORDER BY activity.occurred_at DESC, activity.sequence ASC
+                LIMIT :limit
+                """,
+                Map.of("tenantId", tenantId, "limit", limit),
+                (rs, row) -> new RecentAgentActivity(
+                        rs.getObject("conversation_id", UUID.class),
+                        rs.getObject("message_id", UUID.class),
+                        rs.getString("agent_id"),
+                        rs.getString("agent_version"),
+                        rs.getString("display_name"),
+                        rs.getString("model_id"),
+                        rs.getString("prompt_version"),
+                        toList(rs.getArray("tool_names")),
+                        rs.getTimestamp("occurred_at").toInstant())
+        );
+    }
+
+    private static List<String> toList(Array sqlArray) throws SQLException {
+        try {
+            return List.copyOf(java.util.Arrays.asList((String[]) sqlArray.getArray()));
+        } finally {
+            sqlArray.free();
+        }
+    }
+
+    private record MessageEvidence(UUID messageId, AgentActivityEvidence evidence) {
     }
 }

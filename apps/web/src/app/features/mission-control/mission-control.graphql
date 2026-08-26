@@ -1,5 +1,30 @@
 query MissionControl {
   missionControl {
+    agents {
+      agentId
+      version
+      displayName
+      department
+      purpose
+      framework
+      modelId
+      promptVersion
+      serviceIdentity
+      status
+      capabilities
+      allowedTools
+    }
+    recentAgentActivities {
+      conversationId
+      messageId
+      agentId
+      agentVersion
+      displayName
+      modelId
+      promptVersion
+      tools
+      occurredAt
+    }
     executions {
       id
       purchaseOrderNumber

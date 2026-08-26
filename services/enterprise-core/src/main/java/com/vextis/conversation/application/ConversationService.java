@@ -1,28 +1,47 @@
 package com.vextis.conversation.application;
 
+import com.vextis.agentregistry.AgentDirectory;
 import com.vextis.conversation.application.port.AgentChatClient;
 import com.vextis.conversation.application.port.ConversationRepository;
+import com.vextis.conversation.domain.AgentActivityEvidence;
 import com.vextis.conversation.domain.ChatMessage;
 import com.vextis.conversation.domain.Conversation;
 import com.vextis.conversation.domain.MessageKind;
 import com.vextis.conversation.domain.MessageSender;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 @Service
 public class ConversationService implements AskVextisUseCase, FindConversationUseCase {
 
+    private static final Pattern TOOL_NAME = Pattern.compile("[a-z0-9_]{1,100}");
+
     private final ConversationRepository repository;
     private final AgentChatClient agentChat;
+    private final AgentDirectory agents;
     private final Clock clock;
+    private final String trustedServiceIdentity;
 
-    public ConversationService(ConversationRepository repository, AgentChatClient agentChat, Clock clock) {
+    public ConversationService(
+            ConversationRepository repository,
+            AgentChatClient agentChat,
+            AgentDirectory agents,
+            Clock clock,
+            @Value("${vextis.agent-tools.coordinator-agent-id:coordinator-agent}") String trustedServiceIdentity
+    ) {
         this.repository = repository;
         this.agentChat = agentChat;
+        this.agents = agents;
         this.clock = clock;
+        this.trustedServiceIdentity = trustedServiceIdentity;
     }
 
     @Override
@@ -36,19 +55,52 @@ public class ConversationService implements AskVextisUseCase, FindConversationUs
 
         repository.appendMessage(
                 command.tenantId(), conversationId, MessageSender.USER, command.message(),
-                MessageKind.TEXT, clock.instant());
+                MessageKind.TEXT, clock.instant(), List.of());
 
-        String reply = agentChat.complete(command.tenantId(), conversationId, command.message());
+        AgentChatClient.ChatCompletion completion = agentChat.complete(
+                command.tenantId(), conversationId, command.message());
+        List<AgentActivityEvidence> evidence = validateEvidence(command.tenantId(), completion.activities());
 
         ChatMessage assistantMessage = repository.appendMessage(
-                command.tenantId(), conversationId, MessageSender.ASSISTANT, reply,
-                MessageKind.TEXT, clock.instant());
+                command.tenantId(), conversationId, MessageSender.ASSISTANT, completion.reply(),
+                MessageKind.TEXT, clock.instant(), evidence);
 
-        return new AskVextisResult(conversationId, assistantMessage.id(), reply, assistantMessage.occurredAt());
+        return new AskVextisResult(
+                conversationId, assistantMessage.id(), completion.reply(), assistantMessage.occurredAt(), evidence);
     }
 
     @Override
     public Optional<Conversation> findById(String tenantId, UUID conversationId) {
         return repository.findById(tenantId, conversationId);
+    }
+
+    private List<AgentActivityEvidence> validateEvidence(
+            String tenantId,
+            List<AgentChatClient.AgentActivity> claimedActivities
+    ) {
+        Map<String, AgentChatClient.AgentActivity> uniqueActivities = new LinkedHashMap<>();
+        claimedActivities.stream().limit(4).forEach(activity -> {
+            if (activity.agentId() != null) {
+                uniqueActivities.putIfAbsent(activity.agentId(), activity);
+            }
+        });
+        return uniqueActivities.values().stream()
+                .map(activity -> agents.findActive(tenantId, activity.agentId())
+                        .filter(agent -> trustedServiceIdentity.equals(agent.serviceIdentity()))
+                        .map(agent -> new AgentActivityEvidence(
+                                agent.agentId(),
+                                agent.version(),
+                                agent.displayName(),
+                                agent.modelId(),
+                                agent.promptVersion(),
+                                activity.tools().stream()
+                                        .filter(tool -> tool != null && TOOL_NAME.matcher(tool).matches())
+                                        .filter(agent.allowedTools()::contains)
+                                        .distinct()
+                                        .limit(8)
+                                        .toList()))
+                        .orElse(null))
+                .filter(java.util.Objects::nonNull)
+                .toList();
     }
 }

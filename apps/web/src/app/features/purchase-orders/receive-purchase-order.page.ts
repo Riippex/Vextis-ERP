@@ -186,6 +186,11 @@ export class ReceivePurchaseOrderPage {
     }
   }
 
+  protected auditActionLabel(action: string): string {
+    const normalized = action.replaceAll('_', ' ').toLowerCase();
+    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+  }
+
   protected decideApproval(decision: 'APPROVE' | 'REJECT'): void {
     const execution = this.receipt()?.execution;
     if (!execution?.approval || execution.approval.status !== 'PENDING' || this.deciding()) {

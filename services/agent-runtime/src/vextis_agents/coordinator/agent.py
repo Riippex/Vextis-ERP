@@ -1,10 +1,24 @@
 from google.adk.agents import LlmAgent
 
+from vextis_agents.agents.billing import build_billing_agent
+from vextis_agents.agents.crm import build_crm_agent
+from vextis_agents.agents.inventory import build_inventory_agent
 from vextis_agents.app.config import Settings
+from vextis_agents.tools.core_api.business_reads import (
+    BusinessReadTool,
+    EnterpriseCoreBusinessReadClient,
+)
 from vextis_agents.workflows.order_to_cash.planning import GeneratedPlan
 
 
-def build_coordinator(settings: Settings, *, model: str | None = None) -> LlmAgent:
+def build_coordinator(
+    settings: Settings,
+    tenant_id: str | None = None,
+    *,
+    model: str | None = None,
+    correlation_id: str | None = None,
+    core_reads: BusinessReadTool | None = None,
+) -> LlmAgent:
     """
     Build the fleet coordinator only after an explicit model has been
     configured. `model` overrides `settings.gemini_model` — used for Live
@@ -14,6 +28,8 @@ def build_coordinator(settings: Settings, *, model: str | None = None) -> LlmAge
     resolved_model = model or settings.gemini_model
     if resolved_model is None:
         raise ValueError("VEXTIS_GEMINI_MODEL must be configured before creating the coordinator")
+    if tenant_id is not None and core_reads is None:
+        core_reads = EnterpriseCoreBusinessReadClient(settings, tenant_id, correlation_id)
 
     return LlmAgent(
         name="vextis_coordinator",
@@ -22,9 +38,17 @@ def build_coordinator(settings: Settings, *, model: str | None = None) -> LlmAge
             "Coordinates Vextis business workflows through authorized Enterprise Core tools."
         ),
         instruction=(
-            "Coordinate CRM, inventory, and billing tasks. Never invent business state or "
-            "bypass Enterprise Core authorization, approval, idempotency, or audit controls."
+            "Route department-specific analysis to the CRM, inventory, or billing specialist. "
+            "For cross-department questions, coordinate the relevant specialists and clearly "
+            "separate verified facts from recommendations. Never invent business state, claim a "
+            "mutation succeeded, or bypass Enterprise Core authorization, approval, idempotency, "
+            "or audit controls. Enterprise Core is the sole transactional authority."
         ),
+        sub_agents=[
+            build_crm_agent(resolved_model, core_reads),
+            build_inventory_agent(resolved_model, core_reads),
+            build_billing_agent(resolved_model, core_reads),
+        ],
     )
 
 

@@ -20,6 +20,16 @@ describe('AskVextisPanelComponent', () => {
                     messageId: 'msg-1',
                     reply: 'Placeholder reply',
                     createdAt: '2026-08-25T12:00:00Z',
+                    agentActivities: [
+                      {
+                        agentId: 'vextis_inventory_agent',
+                        agentVersion: '1.0.0',
+                        displayName: 'Inventory Agent',
+                        modelId: 'gemini-3.5-flash',
+                        promptVersion: '1.0.0',
+                        tools: ['get_stock'],
+                      },
+                    ],
                   },
                 },
               }),
@@ -55,6 +65,8 @@ describe('AskVextisPanelComponent', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('Hello Vextis');
+    expect(fixture.nativeElement.textContent).toContain('Inventory Agent v1.0.0');
+    expect(fixture.nativeElement.textContent).toContain('get_stock');
     expect(store.messages()).toHaveLength(2);
   });
 

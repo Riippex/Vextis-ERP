@@ -59,6 +59,7 @@ pnpm-debug.log*
 # -----------------------------------------------------------------------------
 target/
 build/
+/services/enterprise-core/build-*/
 .gradle/
 .gradle-user-home/
 out/

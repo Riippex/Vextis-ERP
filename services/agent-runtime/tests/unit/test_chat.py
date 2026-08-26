@@ -11,11 +11,28 @@ from vextis_agents.app.main import create_app
 
 
 class FakeEvent:
-    def __init__(self, output: str) -> None:
-        self.content = types.Content(parts=[types.Part(text=output)])
+    def __init__(
+        self,
+        *,
+        author: str,
+        output: str | None = None,
+        tool: str | None = None,
+    ) -> None:
+        self.author = author
+        parts: list[types.Part] = []
+        if output is not None:
+            parts.append(types.Part(text=output))
+        if tool is not None:
+            parts.append(
+                types.Part(
+                    function_call=types.FunctionCall(name=tool, args={"secret": "not exposed"})
+                )
+            )
+        self.content = types.Content(parts=parts)
+        self._final = output is not None
 
     def is_final_response(self) -> bool:
-        return True
+        return self._final
 
 
 class FakeRunner:
@@ -28,7 +45,8 @@ class FakeRunner:
         message = kwargs["new_message"]
         assert isinstance(message, types.Content)
         self.message = message
-        yield FakeEvent(self.output)
+        yield FakeEvent(author="vextis_inventory_agent", tool="get_stock")
+        yield FakeEvent(author="vextis_coordinator", output=self.output)
 
     async def close(self) -> None:
         self.closed = True
@@ -38,6 +56,7 @@ def _settings() -> Settings:
     return Settings(
         chat_enabled=True,
         core_callback_token=SecretStr("s3cret-core-callback-token"),
+        agent_tools_token=SecretStr("agent-tools-token"),
         gemini_model="gemini-test",
         google_cloud_project="vextis-test",
     )
@@ -61,7 +80,13 @@ def test_complete_chat_returns_the_agent_reply_when_authorized(
     )
 
     assert response.status_code == 200
-    assert response.json() == {"reply": "Order PO-2026-001 is currently in planning."}
+    assert response.json() == {
+        "reply": "Order PO-2026-001 is currently in planning.",
+        "activities": [
+            {"agentId": "vextis_inventory_agent", "tools": ["get_stock"]},
+            {"agentId": "vextis_coordinator", "tools": []},
+        ],
+    }
     assert runner.message is not None
     assert runner.closed is True
 

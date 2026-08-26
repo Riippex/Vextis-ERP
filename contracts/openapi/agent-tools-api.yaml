@@ -1,14 +1,111 @@
 openapi: 3.1.0
 info:
   title: Vextis Agent Tools API
-  version: 0.1.0
-  description: API interna autenticada para invocar casos de uso del Enterprise Core.
+  version: 0.3.0
+  description: >-
+    API interna autenticada para invocar casos de uso del Enterprise Core. The service
+    credential authenticates Agent Runtime, while X-Agent-Id identifies the delegated
+    logical agent whose active registry policy is enforced for each operation.
 servers:
   - url: /internal/agent-tools/v1
 paths:
+  /crm/customers/lookup:
+    get:
+      operationId: lookupCustomerByLegalName
+      x-vextis-tool-policy: lookup_customer
+      description: Returns authoritative tenant-scoped customer context without mutating state.
+      security:
+        - serviceBearer: []
+      parameters:
+        - name: legalName
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Customer context found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerContext"
+        "401":
+          description: Missing or invalid service credential
+        "403":
+          description: Logical agent is inactive, belongs to another service, tenant, or tool policy
+        "404":
+          description: Customer was not found in the tenant
+  /inventory/stock/{sku}:
+    get:
+      operationId: getStockBySku
+      x-vextis-tool-policy: get_stock
+      description: Returns authoritative tenant-scoped stock without reserving or mutating it.
+      security:
+        - serviceBearer: []
+      parameters:
+        - name: sku
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+            pattern: "^[A-Za-z0-9._-]+$"
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Stock context found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockContext"
+        "401":
+          description: Missing or invalid service credential
+        "403":
+          description: Logical agent is inactive, belongs to another service, tenant, or tool policy
+        "404":
+          description: SKU was not found in the tenant
+  /billing/customers/{customerId}/credit:
+    get:
+      operationId: getCustomerCredit
+      x-vextis-tool-policy: get_credit
+      description: Returns authoritative tenant-scoped credit context without mutating it.
+      security:
+        - serviceBearer: []
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Credit context found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreditContext"
+        "401":
+          description: Missing or invalid service credential
+        "403":
+          description: Logical agent is inactive, belongs to another service, tenant, or tool policy
+        "404":
+          description: Credit profile was not found in the tenant
   /workflows/{executionId}/planning:
     post:
       operationId: startExecutionPlanning
+      x-vextis-tool-policy: start_execution_planning
       security:
         - serviceBearer: []
       parameters:
@@ -38,12 +135,13 @@ paths:
         "401":
           description: Missing or invalid service credential
         "403":
-          description: Agent is not authorized for this tool or tenant
+          description: Agent is not authorized; trusted execution context is recorded as denied evidence
         "409":
           description: Event context does not match the execution or the transition is invalid
   /workflows/{executionId}/plan:
     post:
       operationId: recordExecutionPlan
+      x-vextis-tool-policy: record_execution_plan
       security:
         - serviceBearer: []
       parameters:
@@ -73,12 +171,13 @@ paths:
         "401":
           description: Missing or invalid service credential
         "403":
-          description: Agent is not authorized for this tool or tenant
+          description: Agent is not authorized; trusted execution context is recorded as denied evidence
         "409":
           description: Execution context or state does not allow recording the plan
   /workflows/{executionId}/readiness:
     post:
       operationId: evaluateOrderReadiness
+      x-vextis-tool-policy: evaluate_order_readiness
       security:
         - serviceBearer: []
       parameters:
@@ -102,12 +201,13 @@ paths:
         "401":
           description: Missing or invalid service credential
         "403":
-          description: Agent is not authorized for this tenant
+          description: Agent is not authorized; trusted execution context is recorded as denied evidence
         "409":
           description: The execution has no structured order facts or cannot be evaluated
   /workflows/{executionId}/approval:
     post:
       operationId: requestWorkflowApproval
+      x-vextis-tool-policy: request_workflow_approval
       security:
         - serviceBearer: []
       parameters:
@@ -137,12 +237,13 @@ paths:
         "401":
           description: Missing or invalid service credential
         "403":
-          description: Agent is not authorized for this tenant
+          description: Agent is not authorized; trusted execution context is recorded as denied evidence
         "409":
           description: Readiness is missing or the execution is not eligible for approval
   /inventory/reservations:
     post:
       operationId: reserveStock
+      x-vextis-tool-policy: reserve_stock
       security:
         - serviceBearer: []
       parameters:
@@ -245,8 +346,12 @@ components:
       name: X-Agent-Id
       in: header
       required: true
+      description: Active logical agent ID delegated by the authenticated Agent Runtime.
       schema:
         type: string
+        minLength: 1
+        maxLength: 150
+        example: vextis_inventory_agent
     CorrelationId:
       name: X-Correlation-Id
       in: header
@@ -268,6 +373,45 @@ components:
         type: string
         minLength: 16
   schemas:
+    CustomerContext:
+      type: object
+      additionalProperties: false
+      required: [id, legalName, active]
+      properties:
+        id:
+          type: string
+          format: uuid
+        legalName:
+          type: string
+          maxLength: 200
+        active:
+          type: boolean
+    StockContext:
+      type: object
+      additionalProperties: false
+      required: [sku, availableQuantity]
+      properties:
+        sku:
+          type: string
+          maxLength: 100
+        availableQuantity:
+          type: integer
+          minimum: 0
+    CreditContext:
+      type: object
+      additionalProperties: false
+      required: [customerId, standing, maxPaymentTermsDays]
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        standing:
+          type: string
+          enum: [GOOD, REVIEW, BLOCKED]
+        maxPaymentTermsDays:
+          type: integer
+          minimum: 0
+          maximum: 365
     StartPlanningRequest:
       type: object
       additionalProperties: false

@@ -106,6 +106,44 @@
   margin: 0;
 }
 
+.ask-vextis-message__evidence {
+  border-top: 1px solid var(--vxt-border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.6rem;
+  padding-top: 0.55rem;
+}
+
+.ask-vextis-message__agent,
+.ask-vextis-message__tool {
+  align-items: center;
+  border-radius: 999px;
+  display: inline-flex;
+  font-size: 0.66rem;
+  gap: 0.25rem;
+  line-height: 1;
+  padding: 0.3rem 0.45rem;
+}
+
+.ask-vextis-message__agent {
+  background: var(--vxt-brand-violet-tint);
+  color: var(--vxt-brand-violet);
+  font-weight: 700;
+}
+
+.ask-vextis-message__agent mat-icon {
+  font-size: 0.85rem;
+  height: 0.85rem;
+  width: 0.85rem;
+}
+
+.ask-vextis-message__tool {
+  background: color-mix(in srgb, var(--vxt-brand-blue) 9%, transparent);
+  color: var(--vxt-text-secondary);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
 .ask-vextis-message--user {
   align-self: flex-end;
   background: var(--vxt-brand-violet-tint);

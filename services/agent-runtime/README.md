@@ -4,13 +4,19 @@ Python service with Google ADK for multi-agent coordination, Gemini, RAG, memory
 
 Contains:
 
-- Coordinator Agent.
-- CRM Agent.
-- Inventory Agent.
-- Billing Agent.
+- Coordinator Agent with ADK-native delegation.
+- CRM and Sales specialist Agent.
+- Inventory and Operations specialist Agent.
+- Finance and Billing specialist Agent.
 - Workflows, tools, policies, RAG, memory, and evals.
 
 Consumes Pub/Sub and calls Enterprise Core's authenticated API. Has no direct write permissions on business tables.
+
+The three specialists are registered as real ADK subagents of the coordinator and are shared by
+text chat and Live sessions. Each receives one narrow, tenant-bound read tool backed by Enterprise
+Core: exact customer lookup, SKU availability, or customer credit status. Missing records are
+reported explicitly and the specialists cannot claim a mutation occurred. Transactional workflow
+actions continue through authenticated Core tools, human approval, idempotency, and audit.
 
 ## Pub/Sub push consumer
 
@@ -26,6 +32,11 @@ GOOGLE_CLOUD_PROJECT=<project-id>
 GOOGLE_CLOUD_LOCATION=us-central1
 GOOGLE_GENAI_USE_VERTEXAI=true
 ```
+
+`VEXTIS_COORDINATOR_AGENT_ID` identifies the authenticated Agent Runtime service for Live-session
+validation. Business tools additionally send a delegated logical identity (`vextis_coordinator`,
+`vextis_crm_agent`, `vextis_inventory_agent`, or `vextis_billing_agent` by default), and Enterprise
+Core enforces the active registry entry's exact `allowed_tools` policy before invoking a use case.
 
 For the purchase-order slice, Google ADK sends the Cloud Storage PDF to Gemini as untrusted multimodal data and enforces a strict Pydantic output schema. The validated proposal is then recorded through Enterprise Core's authenticated `record_plan` tool; Agent Runtime never writes workflow tables directly.
 

@@ -8,6 +8,16 @@ export interface ChatMessage {
   content: string;
   kind: 'TEXT' | 'VOICE_TRANSCRIPT';
   createdAt: string;
+  agentActivities: AgentActivity[];
+}
+
+export interface AgentActivity {
+  agentId: string;
+  agentVersion: string;
+  displayName: string;
+  modelId: string;
+  promptVersion: string;
+  tools: string[];
 }
 
 /**
@@ -55,7 +65,7 @@ export class AskVextisChatStore {
     }
 
     this.error.set(null);
-    this.pushLocalMessage('USER', trimmed);
+    this.pushLocalMessage('USER', trimmed, undefined, []);
     this.sending.set(true);
 
     this.askVextisMutation
@@ -71,7 +81,12 @@ export class AskVextisChatStore {
           }
           this.conversationId = result.conversationId;
           this.historyLoadedForConversation = result.conversationId;
-          this.pushLocalMessage('ASSISTANT', result.reply, result.createdAt);
+          this.pushLocalMessage(
+            'ASSISTANT',
+            result.reply,
+            result.createdAt,
+            result.agentActivities.map((activity) => ({ ...activity, tools: [...activity.tools] })),
+          );
         },
         error: () => {
           this.sending.set(false);
@@ -88,7 +103,15 @@ export class AskVextisChatStore {
         next: ({ data }) => {
           this.historyLoadedForConversation = conversationId;
           const messages = data?.askVextisConversation?.messages ?? [];
-          this.messages.set(messages.map((message) => ({ ...message })));
+          this.messages.set(
+            messages.map((message) => ({
+              ...message,
+              agentActivities: message.agentActivities.map((activity) => ({
+                ...activity,
+                tools: [...activity.tools],
+              })),
+            })),
+          );
         },
       });
   }
@@ -97,10 +120,18 @@ export class AskVextisChatStore {
     sender: ChatMessage['sender'],
     content: string,
     createdAt = new Date().toISOString(),
+    agentActivities: AgentActivity[] = [],
   ): void {
     this.messages.update((messages) => [
       ...messages,
-      { id: `local-${messages.length}-${Date.now()}`, sender, content, kind: 'TEXT', createdAt },
+      {
+        id: `local-${messages.length}-${Date.now()}`,
+        sender,
+        content,
+        kind: 'TEXT',
+        createdAt,
+        agentActivities,
+      },
     ]);
   }
 }

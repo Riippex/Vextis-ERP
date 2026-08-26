@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 import pytest
 from google.adk.agents import LiveRequestQueue
 from google.genai import types
+from pydantic import SecretStr
 
 from vextis_agents.app.config import Settings
 from vextis_agents.live import bridge as bridge_module
@@ -38,7 +39,7 @@ class FakeRunner:
 
 
 def settings() -> Settings:
-    return Settings(live_model="gemini-live-test")
+    return Settings(live_model="gemini-live-test", agent_tools_token=SecretStr("agent-tools-token"))
 
 
 @pytest.mark.asyncio

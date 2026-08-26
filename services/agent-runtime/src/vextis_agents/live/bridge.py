@@ -20,7 +20,12 @@ class LiveVoiceBridge:
 
     def __init__(self, settings: Settings, tenant_id: str, conversation_id: str) -> None:
         self._runner = InMemoryRunner(
-            agent=build_coordinator(settings, model=settings.live_model),
+            agent=build_coordinator(
+                settings,
+                tenant_id,
+                model=settings.live_model,
+                correlation_id=conversation_id,
+            ),
             app_name="vextis_ask_vextis_live",
         )
         self._queue = LiveRequestQueue()

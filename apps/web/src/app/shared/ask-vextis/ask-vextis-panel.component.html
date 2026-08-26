@@ -33,6 +33,19 @@
       @for (message of store.messages(); track message.id) {
         <div class="ask-vextis-message" [class.ask-vextis-message--user]="message.sender === 'USER'">
           <p>{{ message.content }}</p>
+          @if (message.sender === 'ASSISTANT' && message.agentActivities.length) {
+            <div class="ask-vextis-message__evidence" aria-label="Agent activity used for this answer">
+              @for (activity of message.agentActivities; track activity.agentId + activity.agentVersion) {
+                <span class="ask-vextis-message__agent">
+                  <mat-icon>smart_toy</mat-icon>
+                  {{ activity.displayName }} v{{ activity.agentVersion }}
+                </span>
+                @for (tool of activity.tools; track tool) {
+                  <span class="ask-vextis-message__tool">{{ tool }}</span>
+                }
+              }
+            </div>
+          }
         </div>
       }
     }
