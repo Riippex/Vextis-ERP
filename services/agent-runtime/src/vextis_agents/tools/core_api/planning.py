@@ -112,7 +112,8 @@ class EnterpriseCorePlanningClient:
             raise ValueError("VEXTIS_AGENT_TOOLS_TOKEN is required when Pub/Sub push is enabled")
         self._base_url = settings.enterprise_core_url.rstrip("/")
         self._service_token = settings.agent_tools_token.get_secret_value()
-        self._agent_id = settings.coordinator_agent_id
+        self._coordinator_agent_id = settings.coordinator_logical_agent_id
+        self._inventory_agent_id = settings.inventory_agent_id
         self._transport = transport
         self._identity_token_provider = identity_token_provider
         if settings.enterprise_core_audience and identity_token_provider is None:
@@ -125,11 +126,12 @@ class EnterpriseCorePlanningClient:
         event: DomainEvent,
         correlation_id: str,
         idempotency_key: str,
+        agent_id: str | None = None,
     ) -> dict[str, str]:
         headers = {
             "Authorization": f"Bearer {self._service_token}",
             "X-Tenant-Id": event.tenant_id,
-            "X-Agent-Id": self._agent_id,
+            "X-Agent-Id": agent_id or self._coordinator_agent_id,
             "X-Correlation-Id": correlation_id,
             "Idempotency-Key": idempotency_key,
         }
@@ -282,7 +284,10 @@ class EnterpriseCorePlanningClient:
         self, event: WorkflowApprovalDecidedV1, sku: str, quantity: int
     ) -> ReservationResult:
         headers = await self._headers(
-            event, event.correlation_id, f"{event.event_id}:reserve:{sku.upper()}"
+            event,
+            event.correlation_id,
+            f"{event.event_id}:reserve:{sku.upper()}",
+            self._inventory_agent_id,
         )
         try:
             async with httpx.AsyncClient(

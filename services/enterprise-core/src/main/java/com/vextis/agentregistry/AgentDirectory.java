@@ -1,10 +1,13 @@
 package com.vextis.agentregistry;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface AgentDirectory {
 
     List<AgentRegistration> findAll(String tenantId);
+
+    Optional<AgentRegistration> findActive(String tenantId, String agentId);
 
     record AgentRegistration(
             String agentId,

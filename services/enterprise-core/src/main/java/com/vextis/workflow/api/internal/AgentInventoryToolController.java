@@ -49,7 +49,7 @@ class AgentInventoryToolController {
             @RequestHeader("Idempotency-Key") @NotBlank @Size(min = 16, max = 200) String idempotencyKey,
             @RequestBody @Valid ReserveStockRequest request
     ) {
-        authorizer.authorize(authorization, agentId, tenantId);
+        authorizer.authorize(authorization, agentId, tenantId, AgentTool.RESERVE_STOCK);
         try {
             return ReservationResponse.from(reserveStock.reserve(new ReserveApprovedStockCommand(
                     tenantId, new Actor(Actor.Type.AGENT, agentId), request.orderId(), request.sku(),

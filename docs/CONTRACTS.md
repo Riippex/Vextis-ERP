@@ -108,7 +108,10 @@ Minimum resources:
 
 Executable source: `contracts/openapi/agent-tools-api.yaml`.
 
-Every call includes service identity, `agent_id`, `correlation_id`, and `idempotency_key` when mutating state.
+Every call includes the authenticated service credential, delegated logical `agent_id`,
+`correlation_id`, and `idempotency_key` when mutating state. The service credential authenticates
+Agent Runtime as `coordinator-agent`; `X-Agent-Id` does not replace that credential and identifies
+the active logical registry entry whose exact `allowed_tools` policy Enterprise Core enforces.
 
 The first specialist read slice exposes exact, tenant-scoped lookups for customer legal name,
 SKU availability, and customer credit status. These GET operations are bound to the trusted tenant
@@ -230,12 +233,16 @@ Each agent registers:
 - deployment status;
 - effective service identity or verifiable delegated identity.
 
-The registry is descriptive; authorization is enforced by Enterprise Core and IAM. A registry row grants no permissions.
+The registry is descriptive to users, while Enterprise Core consumes its active status,
+effective service identity, and exact `allowed_tools` values as deterministic policy. A registry
+row alone grants no permissions: the caller must first authenticate as the configured Agent Runtime
+service, belong to the server-bound tenant, and request a tool present in the active logical agent's
+allowlist.
 
 The hackathon registry is persisted in `agent_registry_entries` and exposed read-only through
 Mission Control. It records the approved ADK agent ID and version, department, purpose,
 capabilities, allowed tools, model, prompt version, lifecycle status, and effective service
-identity. Changes to this catalog remain separate from Core authorization policy.
+identity. Only one active version may exist for a logical agent and tenant.
 
 Execution detail exposes the durable `audit_records` associated with its tenant and correlation
 ID. Agent-authored records are enriched for display with the current active registry entry, while

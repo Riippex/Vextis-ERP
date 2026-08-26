@@ -8,6 +8,7 @@ import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Repository
 class JdbcAgentDirectory implements AgentDirectory {
@@ -44,6 +45,36 @@ class JdbcAgentDirectory implements AgentDirectory {
                         toList(rs.getArray("allowed_tools"))
                 )
         );
+    }
+
+    @Override
+    public Optional<AgentRegistration> findActive(String tenantId, String agentId) {
+        return jdbc.query(
+                """
+                SELECT agent_id, version, display_name, department, purpose, framework,
+                       model_id, prompt_version, service_identity, status, capabilities, allowed_tools
+                FROM agent_registry_entries
+                WHERE tenant_id = :tenantId
+                  AND agent_id = :agentId
+                  AND status = 'ACTIVE'
+                LIMIT 1
+                """,
+                Map.of("tenantId", tenantId, "agentId", agentId),
+                (rs, row) -> new AgentRegistration(
+                        rs.getString("agent_id"),
+                        rs.getString("version"),
+                        rs.getString("display_name"),
+                        rs.getString("department"),
+                        rs.getString("purpose"),
+                        rs.getString("framework"),
+                        rs.getString("model_id"),
+                        rs.getString("prompt_version"),
+                        rs.getString("service_identity"),
+                        rs.getString("status"),
+                        toList(rs.getArray("capabilities")),
+                        toList(rs.getArray("allowed_tools"))
+                )
+        ).stream().findFirst();
     }
 
     private static List<String> toList(Array sqlArray) throws SQLException {

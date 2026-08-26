@@ -64,7 +64,9 @@ class EnterpriseCoreBusinessReadClient:
         self._tenant_id = tenant_id
         self._correlation_id = correlation_id or str(uuid4())
         self._service_token = settings.agent_tools_token.get_secret_value()
-        self._agent_id = settings.coordinator_agent_id
+        self._crm_agent_id = settings.crm_agent_id
+        self._inventory_agent_id = settings.inventory_agent_id
+        self._billing_agent_id = settings.billing_agent_id
         self._transport = transport
         self._identity_token_provider = identity_token_provider
         if settings.enterprise_core_audience and identity_token_provider is None:
@@ -77,6 +79,7 @@ class EnterpriseCoreBusinessReadClient:
             raise ValueError("legal_name must contain between 1 and 200 characters")
         response = await self._get(
             "/internal/agent-tools/v1/crm/customers/lookup",
+            agent_id=self._crm_agent_id,
             params={"legalName": legal_name},
         )
         return None if response is None else CustomerContext.model_validate(response.json())
@@ -84,12 +87,16 @@ class EnterpriseCoreBusinessReadClient:
     async def get_stock(self, sku: str) -> StockContext | None:
         if not re.fullmatch(r"[A-Za-z0-9._-]{1,100}", sku):
             raise ValueError("sku must use 1-100 letters, digits, dots, underscores, or hyphens")
-        response = await self._get(f"/internal/agent-tools/v1/inventory/stock/{sku}")
+        response = await self._get(
+            f"/internal/agent-tools/v1/inventory/stock/{sku}",
+            agent_id=self._inventory_agent_id,
+        )
         return None if response is None else StockContext.model_validate(response.json())
 
     async def get_credit(self, customer_id: UUID) -> CreditContext | None:
         response = await self._get(
-            f"/internal/agent-tools/v1/billing/customers/{customer_id}/credit"
+            f"/internal/agent-tools/v1/billing/customers/{customer_id}/credit",
+            agent_id=self._billing_agent_id,
         )
         return None if response is None else CreditContext.model_validate(response.json())
 
@@ -97,12 +104,13 @@ class EnterpriseCoreBusinessReadClient:
         self,
         path: str,
         *,
+        agent_id: str,
         params: dict[str, str] | None = None,
     ) -> httpx.Response | None:
         headers = {
             "Authorization": f"Bearer {self._service_token}",
             "X-Tenant-Id": self._tenant_id,
-            "X-Agent-Id": self._agent_id,
+            "X-Agent-Id": agent_id,
             "X-Correlation-Id": self._correlation_id,
         }
         if self._identity_token_provider is not None:

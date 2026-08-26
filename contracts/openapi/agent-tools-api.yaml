@@ -1,14 +1,18 @@
 openapi: 3.1.0
 info:
   title: Vextis Agent Tools API
-  version: 0.2.0
-  description: API interna autenticada para invocar casos de uso del Enterprise Core.
+  version: 0.3.0
+  description: >-
+    API interna autenticada para invocar casos de uso del Enterprise Core. The service
+    credential authenticates Agent Runtime, while X-Agent-Id identifies the delegated
+    logical agent whose active registry policy is enforced for each operation.
 servers:
   - url: /internal/agent-tools/v1
 paths:
   /crm/customers/lookup:
     get:
       operationId: lookupCustomerByLegalName
+      x-vextis-tool-policy: lookup_customer
       description: Returns authoritative tenant-scoped customer context without mutating state.
       security:
         - serviceBearer: []
@@ -33,12 +37,13 @@ paths:
         "401":
           description: Missing or invalid service credential
         "403":
-          description: Agent is not authorized for this tenant
+          description: Logical agent is inactive, belongs to another service, tenant, or tool policy
         "404":
           description: Customer was not found in the tenant
   /inventory/stock/{sku}:
     get:
       operationId: getStockBySku
+      x-vextis-tool-policy: get_stock
       description: Returns authoritative tenant-scoped stock without reserving or mutating it.
       security:
         - serviceBearer: []
@@ -64,12 +69,13 @@ paths:
         "401":
           description: Missing or invalid service credential
         "403":
-          description: Agent is not authorized for this tenant
+          description: Logical agent is inactive, belongs to another service, tenant, or tool policy
         "404":
           description: SKU was not found in the tenant
   /billing/customers/{customerId}/credit:
     get:
       operationId: getCustomerCredit
+      x-vextis-tool-policy: get_credit
       description: Returns authoritative tenant-scoped credit context without mutating it.
       security:
         - serviceBearer: []
@@ -93,12 +99,13 @@ paths:
         "401":
           description: Missing or invalid service credential
         "403":
-          description: Agent is not authorized for this tenant
+          description: Logical agent is inactive, belongs to another service, tenant, or tool policy
         "404":
           description: Credit profile was not found in the tenant
   /workflows/{executionId}/planning:
     post:
       operationId: startExecutionPlanning
+      x-vextis-tool-policy: start_execution_planning
       security:
         - serviceBearer: []
       parameters:
@@ -134,6 +141,7 @@ paths:
   /workflows/{executionId}/plan:
     post:
       operationId: recordExecutionPlan
+      x-vextis-tool-policy: record_execution_plan
       security:
         - serviceBearer: []
       parameters:
@@ -169,6 +177,7 @@ paths:
   /workflows/{executionId}/readiness:
     post:
       operationId: evaluateOrderReadiness
+      x-vextis-tool-policy: evaluate_order_readiness
       security:
         - serviceBearer: []
       parameters:
@@ -198,6 +207,7 @@ paths:
   /workflows/{executionId}/approval:
     post:
       operationId: requestWorkflowApproval
+      x-vextis-tool-policy: request_workflow_approval
       security:
         - serviceBearer: []
       parameters:
@@ -233,6 +243,7 @@ paths:
   /inventory/reservations:
     post:
       operationId: reserveStock
+      x-vextis-tool-policy: reserve_stock
       security:
         - serviceBearer: []
       parameters:
@@ -335,8 +346,12 @@ components:
       name: X-Agent-Id
       in: header
       required: true
+      description: Active logical agent ID delegated by the authenticated Agent Runtime.
       schema:
         type: string
+        minLength: 1
+        maxLength: 150
+        example: vextis_inventory_agent
     CorrelationId:
       name: X-Correlation-Id
       in: header
