@@ -47,7 +47,7 @@ async def test_client_propagates_trusted_context_to_narrow_tool() -> None:
     assert result.state == "PLANNING"
     assert captured is not None
     assert captured.headers["X-Tenant-Id"] == "demo-tenant"
-    assert captured.headers["X-Agent-Id"] == "coordinator-agent"
+    assert captured.headers["X-Agent-Id"] == "vextis_coordinator"
     assert captured.headers["Idempotency-Key"] == "8b962f0a-1850-4fcc-a6f5-97e45c67a16e"
     assert json.loads(captured.content)["documentUri"].startswith("gs://")
 
@@ -276,6 +276,7 @@ async def test_client_reserves_exact_approved_line_with_stable_context() -> None
     assert captured is not None
     assert captured.url.path.endswith("/inventory/reservations")
     assert captured.headers["X-Correlation-Id"] == "corr-001"
+    assert captured.headers["X-Agent-Id"] == "vextis_inventory_agent"
     assert captured.headers["Idempotency-Key"].endswith(":reserve:VXT-CHAIR-01")
     assert json.loads(captured.content) == {
         "orderId": "77cc63cc-3c91-4d80-a918-605b7f231cf8",

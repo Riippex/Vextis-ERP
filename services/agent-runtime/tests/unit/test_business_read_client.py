@@ -22,7 +22,7 @@ async def test_customer_lookup_sends_trusted_tenant_and_service_identity() -> No
     async def handler(request: httpx.Request) -> httpx.Response:
         assert request.headers["Authorization"] == "Bearer service-secret"
         assert request.headers["X-Tenant-Id"] == "demo-tenant"
-        assert request.headers["X-Agent-Id"] == "coordinator-agent"
+        assert request.headers["X-Agent-Id"] == "vextis_crm_agent"
         assert request.headers["X-Correlation-Id"] == "conversation-001"
         assert request.url.params["legalName"] == "Acme Colombia"
         return httpx.Response(
@@ -82,6 +82,44 @@ async def test_credit_lookup_parses_strict_response() -> None:
     assert result is not None
     assert result.customer_id == customer_id
     assert result.max_payment_terms_days == 30
+
+
+@pytest.mark.asyncio
+async def test_each_read_asserts_the_owning_logical_agent() -> None:
+    seen: list[str] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers["X-Agent-Id"])
+        if "/crm/" in request.url.path:
+            return httpx.Response(
+                200,
+                json={
+                    "id": "09ec135d-9688-47de-ac71-5b8420b97488",
+                    "legalName": "Acme Colombia",
+                    "active": True,
+                },
+            )
+        if "/inventory/" in request.url.path:
+            return httpx.Response(200, json={"sku": "VXT-CHAIR-01", "availableQuantity": 40})
+        return httpx.Response(
+            200,
+            json={
+                "customerId": "09ec135d-9688-47de-ac71-5b8420b97488",
+                "standing": "GOOD",
+                "maxPaymentTermsDays": 30,
+            },
+        )
+
+    client = EnterpriseCoreBusinessReadClient(
+        settings(), "demo-tenant", transport=httpx.MockTransport(respond)
+    )
+    customer_id = UUID("09ec135d-9688-47de-ac71-5b8420b97488")
+
+    await client.lookup_customer("Acme Colombia")
+    await client.get_stock("VXT-CHAIR-01")
+    await client.get_credit(customer_id)
+
+    assert seen == ["vextis_crm_agent", "vextis_inventory_agent", "vextis_billing_agent"]
 
 
 @pytest.mark.asyncio

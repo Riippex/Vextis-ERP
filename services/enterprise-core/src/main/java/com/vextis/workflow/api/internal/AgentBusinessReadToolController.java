@@ -47,7 +47,7 @@ class AgentBusinessReadToolController {
             @RequestHeader("X-Correlation-Id") @NotBlank @Size(max = 100) String correlationId,
             @RequestParam @NotBlank @Size(max = 200) String legalName
     ) {
-        authorizer.authorize(authorization, agentId, tenantId);
+        authorizer.authorize(authorization, agentId, tenantId, AgentTool.LOOKUP_CUSTOMER);
         return customers.findByLegalName(tenantId, legalName)
                 .map(CustomerResponse::from)
                 .orElseThrow(() -> notFound("Customer was not found"));
@@ -62,7 +62,7 @@ class AgentBusinessReadToolController {
             @PathVariable @NotBlank @Size(max = 100)
             @Pattern(regexp = "^[A-Za-z0-9._-]+$") String sku
     ) {
-        authorizer.authorize(authorization, agentId, tenantId);
+        authorizer.authorize(authorization, agentId, tenantId, AgentTool.GET_STOCK);
         return stock.findBySku(tenantId, sku)
                 .map(StockResponse::from)
                 .orElseThrow(() -> notFound("SKU was not found"));
@@ -76,7 +76,7 @@ class AgentBusinessReadToolController {
             @RequestHeader("X-Correlation-Id") @NotBlank @Size(max = 100) String correlationId,
             @PathVariable UUID customerId
     ) {
-        authorizer.authorize(authorization, agentId, tenantId);
+        authorizer.authorize(authorization, agentId, tenantId, AgentTool.GET_CREDIT);
         return credit.findByCustomer(tenantId, customerId)
                 .map(snapshot -> CreditResponse.from(customerId, snapshot))
                 .orElseThrow(() -> notFound("Credit profile was not found"));

@@ -1,5 +1,6 @@
 package com.vextis.workflow.api.internal;
 
+import com.vextis.agentregistry.AgentDirectory;
 import com.vextis.workflow.application.PlanningContext;
 import com.vextis.workflow.application.EvaluateReadinessUseCase;
 import com.vextis.workflow.application.RecordPlanCommand;
@@ -17,6 +18,7 @@ import com.vextis.workflow.domain.TimelineEntryType;
 import com.vextis.workflow.domain.WorkflowExecution;
 import com.vextis.workflow.domain.WorkflowPlan;
 import com.vextis.workflow.domain.WorkflowPlanStep;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -27,6 +29,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -62,6 +65,27 @@ class AgentWorkflowToolControllerTests {
     @MockitoBean
     private AgentAuthorizationDenialRecorder denialRecorder;
 
+    @MockitoBean
+    private AgentDirectory agents;
+
+    @BeforeEach
+    void authorizeCoordinatorTools() {
+        when(agents.findActive("demo-tenant", "vextis_coordinator")).thenReturn(Optional.of(
+                new AgentDirectory.AgentRegistration(
+                        "vextis_coordinator", "1.0.0", "Vextis Coordinator", "CROSS_DEPARTMENT",
+                        "purpose", "GOOGLE_ADK", "gemini-3.5-flash", "1.0.0",
+                        "coordinator-agent", "ACTIVE", List.of(), List.of(
+                        "start_execution_planning",
+                        "record_execution_plan",
+                        "evaluate_order_readiness",
+                        "request_workflow_approval"))));
+        when(agents.findActive("demo-tenant", "vextis_inventory_agent")).thenReturn(Optional.of(
+                new AgentDirectory.AgentRegistration(
+                        "vextis_inventory_agent", "1.0.0", "Inventory Agent", "INVENTORY_OPERATIONS",
+                        "purpose", "GOOGLE_ADK", "gemini-3.5-flash", "1.0.0",
+                        "coordinator-agent", "ACTIVE", List.of(), List.of("get_stock", "reserve_stock"))));
+    }
+
     @Test
     void authenticatedCoordinatorCanStartPlanning() throws Exception {
         when(startPlanning.startPlanning(any(StartPlanningCommand.class))).thenReturn(planningContext());
@@ -94,12 +118,13 @@ class AgentWorkflowToolControllerTests {
 
     @Test
     void auditsAuthenticatedAgentOutsideConfiguredScopeBeforeCallingUseCase() throws Exception {
-        mockMvc.perform(validRequest("Bearer test-service-token", "demo-tenant", "rogue-agent"))
+        mockMvc.perform(validRequest(
+                        "Bearer test-service-token", "demo-tenant", "vextis_inventory_agent"))
                 .andExpect(status().isForbidden());
 
         verify(denialRecorder).recordSafely(
                 "demo-tenant",
-                "rogue-agent",
+                "vextis_inventory_agent",
                 "corr-001",
                 EXECUTION_ID,
                 AgentAuthorizationDenialRecorder.WorkflowTool.START_EXECUTION_PLANNING);
@@ -114,7 +139,7 @@ class AgentWorkflowToolControllerTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer test-service-token")
                         .header("X-Tenant-Id", "demo-tenant")
-                        .header("X-Agent-Id", "coordinator-agent")
+                        .header("X-Agent-Id", "vextis_coordinator")
                         .header("X-Correlation-Id", "corr-001")
                         .header("Idempotency-Key", "8b962f0a-1850-4fcc-a6f5-97e45c67a16e:plan")
                         .content("""
@@ -147,7 +172,7 @@ class AgentWorkflowToolControllerTests {
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("Authorization", "Bearer test-service-token")
                         .header("X-Tenant-Id", "demo-tenant")
-                        .header("X-Agent-Id", "coordinator-agent")
+                        .header("X-Agent-Id", "vextis_coordinator")
                         .header("X-Correlation-Id", "corr-001")
                         .header("Idempotency-Key", "8b962f0a-1850-4fcc-a6f5-97e45c67a16e:approval")
                         .content("""
@@ -162,7 +187,7 @@ class AgentWorkflowToolControllerTests {
             String authorization,
             String tenantId
     ) {
-        return validRequest(authorization, tenantId, "coordinator-agent");
+        return validRequest(authorization, tenantId, "vextis_coordinator");
     }
 
     private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder validRequest(

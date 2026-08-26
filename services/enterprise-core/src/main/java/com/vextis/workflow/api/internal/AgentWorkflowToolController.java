@@ -194,7 +194,7 @@ class AgentWorkflowToolController {
             AgentAuthorizationDenialRecorder.WorkflowTool tool
     ) {
         try {
-            authorizer.authorize(authorization, agentId, tenantId);
+            authorizer.authorize(authorization, agentId, tenantId, AgentTool.valueOf(tool.name()));
         } catch (ResponseStatusException exception) {
             if (HttpStatus.FORBIDDEN.equals(exception.getStatusCode())) {
                 denialRecorder.recordSafely(tenantId, agentId, correlationId, executionId, tool);

@@ -33,6 +33,11 @@ GOOGLE_CLOUD_LOCATION=us-central1
 GOOGLE_GENAI_USE_VERTEXAI=true
 ```
 
+`VEXTIS_COORDINATOR_AGENT_ID` identifies the authenticated Agent Runtime service for Live-session
+validation. Business tools additionally send a delegated logical identity (`vextis_coordinator`,
+`vextis_crm_agent`, `vextis_inventory_agent`, or `vextis_billing_agent` by default), and Enterprise
+Core enforces the active registry entry's exact `allowed_tools` policy before invoking a use case.
+
 For the purchase-order slice, Google ADK sends the Cloud Storage PDF to Gemini as untrusted multimodal data and enforces a strict Pydantic output schema. The validated proposal is then recorded through Enterprise Core's authenticated `record_plan` tool; Agent Runtime never writes workflow tables directly.
 
 The schema extracts only explicit SKU, quantity, and requested payment-term facts. Enterprise Core then evaluates CRM, stock, and credit readiness from tenant-scoped records and persists that evidence; Agent Runtime cannot assert those authoritative outcomes itself.
