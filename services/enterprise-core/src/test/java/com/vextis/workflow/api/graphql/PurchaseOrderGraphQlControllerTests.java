@@ -160,7 +160,7 @@ class PurchaseOrderGraphQlControllerTests {
         when(auditTrail.findByCorrelation("demo-tenant", "corr-001")).thenReturn(List.of(
                 new AuditTrail.AuditRecord(
                         UUID.fromString("24fe5be0-ff46-4c88-ab46-29fd01f4036a"),
-                        "corr-001", "AGENT", "vextis_coordinator", "RECORD_EXECUTION_PLAN",
+                        "corr-001", "AGENT", "coordinator-agent", "RECORD_EXECUTION_PLAN",
                         "WORKFLOW_EXECUTION", EXECUTION_ID, "SUCCEEDED", NOW)));
         when(agentDirectory.findAll("demo-tenant")).thenReturn(List.of(
                 new AgentDirectory.AgentRegistration(

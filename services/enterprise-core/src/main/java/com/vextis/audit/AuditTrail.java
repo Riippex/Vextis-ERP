@@ -8,6 +8,8 @@ public interface AuditTrail {
 
     void recordUserAction(UserAction action);
 
+    void recordAgentDecision(AgentDecision decision);
+
     List<AuditRecord> findByCorrelation(String tenantId, String correlationId);
 
     record UserAction(
@@ -32,5 +34,21 @@ public interface AuditTrail {
             String result,
             Instant occurredAt
     ) {
+    }
+
+    record AgentDecision(
+            String tenantId,
+            String correlationId,
+            String agentId,
+            String action,
+            String resourceType,
+            UUID resourceId,
+            AgentDecisionResult result,
+            Instant occurredAt
+    ) {
+    }
+
+    enum AgentDecisionResult {
+        DENIED
     }
 }

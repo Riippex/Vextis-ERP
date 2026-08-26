@@ -128,7 +128,7 @@ paths:
         "401":
           description: Missing or invalid service credential
         "403":
-          description: Agent is not authorized for this tool or tenant
+          description: Agent is not authorized; trusted execution context is recorded as denied evidence
         "409":
           description: Event context does not match the execution or the transition is invalid
   /workflows/{executionId}/plan:
@@ -163,7 +163,7 @@ paths:
         "401":
           description: Missing or invalid service credential
         "403":
-          description: Agent is not authorized for this tool or tenant
+          description: Agent is not authorized; trusted execution context is recorded as denied evidence
         "409":
           description: Execution context or state does not allow recording the plan
   /workflows/{executionId}/readiness:
@@ -192,7 +192,7 @@ paths:
         "401":
           description: Missing or invalid service credential
         "403":
-          description: Agent is not authorized for this tenant
+          description: Agent is not authorized; trusted execution context is recorded as denied evidence
         "409":
           description: The execution has no structured order facts or cannot be evaluated
   /workflows/{executionId}/approval:
@@ -227,7 +227,7 @@ paths:
         "401":
           description: Missing or invalid service credential
         "403":
-          description: Agent is not authorized for this tenant
+          description: Agent is not authorized; trusted execution context is recorded as denied evidence
         "409":
           description: Readiness is missing or the execution is not eligible for approval
   /inventory/reservations:

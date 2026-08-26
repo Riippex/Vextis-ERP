@@ -242,6 +242,12 @@ ID. Agent-authored records are enriched for display with the current active regi
 the stored actor, action, resource, result, timestamp, and correlation remain the authoritative
 evidence. Registry enrichment never changes the historical audit record.
 
+An authenticated workflow-tool call made by an agent outside the configured scope is rejected
+before any business use case runs. Core persists a `DENIED` audit record only after binding the
+provided tenant, execution ID, and correlation ID to an existing execution. Invalid credentials,
+foreign tenants, and forged correlation IDs are rejected without writing untrusted functional
+audit data.
+
 The demo must show at least:
 
 1. An allowed action executed by the correct agent.

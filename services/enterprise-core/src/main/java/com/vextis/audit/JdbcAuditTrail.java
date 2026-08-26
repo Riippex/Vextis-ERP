@@ -41,6 +41,30 @@ class JdbcAuditTrail implements AuditTrail {
     }
 
     @Override
+    public void recordAgentDecision(AgentDecision decision) {
+        jdbc.update(
+                """
+                INSERT INTO audit_records
+                    (id, tenant_id, correlation_id, actor_type, actor_id, action,
+                     resource_type, resource_id, result, occurred_at)
+                VALUES
+                    (:id, :tenantId, :correlationId, 'AGENT', :actorId, :action,
+                     :resourceType, :resourceId, :result, :occurredAt)
+                """,
+                new MapSqlParameterSource()
+                        .addValue("id", UUID.randomUUID())
+                        .addValue("tenantId", decision.tenantId())
+                        .addValue("correlationId", decision.correlationId())
+                        .addValue("actorId", decision.agentId())
+                        .addValue("action", decision.action())
+                        .addValue("resourceType", decision.resourceType())
+                        .addValue("resourceId", decision.resourceId())
+                        .addValue("result", decision.result().name())
+                        .addValue("occurredAt", decision.occurredAt())
+        );
+    }
+
+    @Override
     public List<AuditRecord> findByCorrelation(String tenantId, String correlationId) {
         return jdbc.query(
                 """

@@ -161,7 +161,7 @@ describe('ReceivePurchaseOrderPage', () => {
               id: 'audit-agent-1',
               correlationId: 'corr-001',
               actorType: 'AGENT',
-              actorId: 'vextis_coordinator',
+              actorId: 'coordinator-agent',
               action: 'RECORD_EXECUTION_PLAN',
               toolName: 'record_execution_plan',
               resourceType: 'WORKFLOW_EXECUTION',
@@ -176,6 +176,19 @@ describe('ReceivePurchaseOrderPage', () => {
                 promptVersion: '1.0.0',
                 serviceIdentity: 'coordinator-agent',
               },
+            },
+            {
+              id: 'audit-agent-denied-1',
+              correlationId: 'corr-001',
+              actorType: 'AGENT',
+              actorId: 'rogue-agent',
+              action: 'START_EXECUTION_PLANNING',
+              toolName: 'start_execution_planning',
+              resourceType: 'WORKFLOW_EXECUTION',
+              resourceId: '8d3f290d-1322-44a2-8bd7-3b325f170e07',
+              result: 'DENIED',
+              occurredAt: '2026-08-21T03:30:05Z',
+              approvedAgent: null,
             },
           ],
         },
@@ -247,6 +260,9 @@ describe('ReceivePurchaseOrderPage', () => {
     expect(fixture.nativeElement.textContent).toContain('Record execution plan');
     expect(fixture.nativeElement.textContent).toContain('Vextis Coordinator');
     expect(fixture.nativeElement.textContent).toContain('prompt v1.0.0');
+    expect(fixture.nativeElement.textContent).toContain('Start execution planning');
+    expect(fixture.nativeElement.textContent).toContain('rogue-agent');
+    expect(fixture.nativeElement.textContent).toContain('DENIED');
   });
 
   it('rejects unsupported files before requesting an upload policy', () => {

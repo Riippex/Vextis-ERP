@@ -59,6 +59,9 @@ class AgentWorkflowToolControllerTests {
     @MockitoBean
     private RequestApprovalUseCase requestApproval;
 
+    @MockitoBean
+    private AgentAuthorizationDenialRecorder denialRecorder;
+
     @Test
     void authenticatedCoordinatorCanStartPlanning() throws Exception {
         when(startPlanning.startPlanning(any(StartPlanningCommand.class))).thenReturn(planningContext());
@@ -86,6 +89,20 @@ class AgentWorkflowToolControllerTests {
         mockMvc.perform(validRequest("Bearer test-service-token", "other-tenant"))
                 .andExpect(status().isForbidden());
 
+        verifyNoInteractions(startPlanning, recordPlan, evaluateReadiness, requestApproval);
+    }
+
+    @Test
+    void auditsAuthenticatedAgentOutsideConfiguredScopeBeforeCallingUseCase() throws Exception {
+        mockMvc.perform(validRequest("Bearer test-service-token", "demo-tenant", "rogue-agent"))
+                .andExpect(status().isForbidden());
+
+        verify(denialRecorder).recordSafely(
+                "demo-tenant",
+                "rogue-agent",
+                "corr-001",
+                EXECUTION_ID,
+                AgentAuthorizationDenialRecorder.WorkflowTool.START_EXECUTION_PLANNING);
         verifyNoInteractions(startPlanning, recordPlan, evaluateReadiness, requestApproval);
     }
 
@@ -145,11 +162,19 @@ class AgentWorkflowToolControllerTests {
             String authorization,
             String tenantId
     ) {
+        return validRequest(authorization, tenantId, "coordinator-agent");
+    }
+
+    private org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder validRequest(
+            String authorization,
+            String tenantId,
+            String agentId
+    ) {
         return post("/internal/agent-tools/v1/workflows/{executionId}/planning", EXECUTION_ID)
                 .contentType(MediaType.APPLICATION_JSON)
                 .header("Authorization", authorization)
                 .header("X-Tenant-Id", tenantId)
-                .header("X-Agent-Id", "coordinator-agent")
+                .header("X-Agent-Id", agentId)
                 .header("X-Correlation-Id", "corr-001")
                 .header("Idempotency-Key", "8b962f0a-1850-4fcc-a6f5-97e45c67a16e")
                 .content("""

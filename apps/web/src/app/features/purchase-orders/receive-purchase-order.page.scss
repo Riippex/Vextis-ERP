@@ -301,6 +301,11 @@ h1 {
   padding: 0.25rem 0.45rem;
 }
 
+.audit-list__result--denied {
+  background: color-mix(in srgb, var(--vxt-status-critical) 14%, transparent);
+  color: var(--vxt-status-critical);
+}
+
 .timeline p {
   margin: 0.35rem 0;
 }

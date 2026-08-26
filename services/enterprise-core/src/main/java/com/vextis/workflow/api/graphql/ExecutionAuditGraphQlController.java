@@ -6,12 +6,11 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.graphql.data.method.annotation.SchemaMapping;
 import org.springframework.stereotype.Controller;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Controller
 class ExecutionAuditGraphQlController {
@@ -44,12 +43,24 @@ class ExecutionAuditGraphQlController {
     }
 
     private Map<String, AgentDirectory.AgentRegistration> activeAgentsById() {
-        return agentDirectory.findAll(demoTenantId).stream()
+        Map<String, AgentDirectory.AgentRegistration> agentsByIdentity = new HashMap<>();
+        agentDirectory.findAll(demoTenantId).stream()
                 .filter(agent -> "ACTIVE".equals(agent.status()))
-                .collect(Collectors.toMap(
-                        AgentDirectory.AgentRegistration::agentId,
-                        Function.identity(),
-                        (first, ignored) -> first));
+                .forEach(agent -> {
+                    agentsByIdentity.put(agent.agentId(), agent);
+                    agentsByIdentity.merge(
+                            agent.serviceIdentity(),
+                            agent,
+                            ExecutionAuditGraphQlController::preferCoordinator);
+                });
+        return Map.copyOf(agentsByIdentity);
+    }
+
+    private static AgentDirectory.AgentRegistration preferCoordinator(
+            AgentDirectory.AgentRegistration current,
+            AgentDirectory.AgentRegistration candidate
+    ) {
+        return "CROSS_DEPARTMENT".equals(candidate.department()) ? candidate : current;
     }
 
     record AuditEntryView(

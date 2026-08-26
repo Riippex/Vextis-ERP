@@ -262,7 +262,10 @@
                 <div class="audit-list__content">
                   <div class="audit-list__topline">
                     <strong>{{ auditActionLabel(entry.action) }}</strong>
-                    <span class="audit-list__result">{{ entry.result }}</span>
+                    <span
+                      class="audit-list__result"
+                      [class.audit-list__result--denied]="entry.result === 'DENIED'"
+                    >{{ entry.result }}</span>
                   </div>
                   @if (entry.approvedAgent; as agent) {
                     <p>{{ agent.displayName }} · {{ agent.agentId }} v{{ agent.version }}</p>
