@@ -178,4 +178,22 @@ public record WorkflowExecution(
                 id, tenantId, sourceId, goal, nextState, correlationId,
                 createdAt, now, updatedTimeline, plan, readiness, decided);
     }
+
+    public WorkflowExecution complete(Instant now) {
+        if (state != ExecutionState.RUNNING || plan == null || approval == null
+                || approval.status() != ApprovalStatus.APPROVED) {
+            throw new IllegalStateException("Only an approved running execution can be completed");
+        }
+        ArrayList<ExecutionTimelineEntry> updatedTimeline = new ArrayList<>(timeline);
+        updatedTimeline.add(new ExecutionTimelineEntry(
+                timeline.size() + 1,
+                TimelineEntryType.STATUS_CHANGED,
+                "Workflow completed",
+                "All approved order lines have durable inventory reservations.",
+                now
+        ));
+        return new WorkflowExecution(
+                id, tenantId, sourceId, goal, ExecutionState.COMPLETED, correlationId,
+                createdAt, now, updatedTimeline, plan, readiness, approval);
+    }
 }

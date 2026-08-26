@@ -161,6 +161,21 @@ class JdbcStockRepository implements StockRepository, ReservationDirectory {
         return findReservations(tenantId);
     }
 
+    @Override
+    public List<StockReservation.Reservation> findByOrder(String tenantId, UUID orderId) {
+        return jdbc.query(
+                """
+                SELECT id, order_id, sku, quantity, status, created_at
+                FROM inventory_reservations
+                WHERE tenant_id = :tenantId AND order_id = :orderId
+                ORDER BY created_at
+                """,
+                Map.of("tenantId", tenantId, "orderId", orderId), (rs, row) -> reservation(
+                        rs.getObject("id", UUID.class), rs.getObject("order_id", UUID.class),
+                        rs.getString("sku"), rs.getInt("quantity"), rs.getString("status"),
+                        rs.getTimestamp("created_at").toInstant()));
+    }
+
     private Optional<StockReservation.Reservation> findReservation(String predicate, Map<String, ?> parameters) {
         return jdbc.query(
                 "SELECT id, order_id, sku, quantity, status, created_at FROM inventory_reservations WHERE " + predicate,
