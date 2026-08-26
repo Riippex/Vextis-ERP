@@ -1,5 +1,7 @@
 package com.vextis.workflow.api.graphql;
 
+import com.vextis.agentregistry.AgentDirectory;
+import com.vextis.audit.AuditTrail;
 import com.vextis.workflow.application.FindExecutionUseCase;
 import com.vextis.workflow.application.ReceivePurchaseOrderCommand;
 import com.vextis.workflow.application.ReceivePurchaseOrderUseCase;
@@ -22,6 +24,7 @@ import com.vextis.workflow.domain.ReadinessStatus;
 import com.vextis.workflow.domain.WorkflowReadiness;
 import com.vextis.workflow.domain.WorkflowReadinessCheck;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.graphql.test.autoconfigure.GraphQlTest;
 import org.springframework.graphql.test.tester.GraphQlTester;
@@ -42,7 +45,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.assertj.core.api.Assertions.assertThat;
 
-@GraphQlTest(PurchaseOrderGraphQlController.class)
+@GraphQlTest({PurchaseOrderGraphQlController.class, ExecutionAuditGraphQlController.class})
 @TestPropertySource(properties = "vextis.exposure=PUBLIC")
 class PurchaseOrderGraphQlControllerTests {
 
@@ -67,6 +70,18 @@ class PurchaseOrderGraphQlControllerTests {
 
     @MockitoBean
     private CurrentActorProvider currentActor;
+
+    @MockitoBean
+    private AuditTrail auditTrail;
+
+    @MockitoBean
+    private AgentDirectory agentDirectory;
+
+    @BeforeEach
+    void setUpAuditEvidence() {
+        when(auditTrail.findByCorrelation(any(), any())).thenReturn(List.of());
+        when(agentDirectory.findAll(any())).thenReturn(List.of());
+    }
 
     @Test
     @WithMockUser(username = "firebase-user-123")
@@ -142,6 +157,16 @@ class PurchaseOrderGraphQlControllerTests {
     void findsExecutionWithinDemoTenant() {
         when(findExecution.findById(eq("demo-tenant"), eq(EXECUTION_ID)))
                 .thenReturn(Optional.of(runningExecution()));
+        when(auditTrail.findByCorrelation("demo-tenant", "corr-001")).thenReturn(List.of(
+                new AuditTrail.AuditRecord(
+                        UUID.fromString("24fe5be0-ff46-4c88-ab46-29fd01f4036a"),
+                        "corr-001", "AGENT", "vextis_coordinator", "RECORD_EXECUTION_PLAN",
+                        "WORKFLOW_EXECUTION", EXECUTION_ID, "SUCCEEDED", NOW)));
+        when(agentDirectory.findAll("demo-tenant")).thenReturn(List.of(
+                new AgentDirectory.AgentRegistration(
+                        "vextis_coordinator", "1.0.0", "Vextis Coordinator", "CROSS_DEPARTMENT",
+                        "Coordinates approved specialist work.", "GOOGLE_ADK", "gemini-3.5-flash",
+                        "1.0.0", "coordinator-agent", "ACTIVE", List.of("coordination"), List.of())));
 
         graphQlTester.document("""
                         query FindExecution($id: ID!) {
@@ -157,6 +182,13 @@ class PurchaseOrderGraphQlControllerTests {
                               steps { sequence department requiresApproval }
                             }
                             readiness { checks { department status detail } }
+                            auditTrail {
+                              actorType
+                              actorId
+                              toolName
+                              result
+                              approvedAgent { version modelId promptVersion serviceIdentity }
+                            }
                           }
                         }
                         """)
@@ -176,7 +208,13 @@ class PurchaseOrderGraphQlControllerTests {
                 .isEqualTo("VXT-CHAIR-01")
                 .path("execution.readiness.checks[0].status")
                 .entity(String.class)
-                .isEqualTo("READY");
+                .isEqualTo("READY")
+                .path("execution.auditTrail[0].toolName")
+                .entity(String.class)
+                .isEqualTo("record_execution_plan")
+                .path("execution.auditTrail[0].approvedAgent.modelId")
+                .entity(String.class)
+                .isEqualTo("gemini-3.5-flash");
     }
 
     private PurchaseOrderReceipt receipt() {

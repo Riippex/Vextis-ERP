@@ -42,6 +42,21 @@ describe('ReceivePurchaseOrderPage', () => {
             ],
             plan: null,
             readiness: null,
+            auditTrail: [
+              {
+                id: 'audit-user-1',
+                correlationId: 'corr-001',
+                actorType: 'USER',
+                actorId: 'firebase-user-123',
+                action: 'RECEIVE_PURCHASE_ORDER',
+                toolName: null,
+                resourceType: 'PURCHASE_ORDER',
+                resourceId: '77cc63cc-3c91-4d80-a918-605b7f231cf8',
+                result: 'SUCCEEDED',
+                occurredAt: '2026-08-21T03:30:00Z',
+                approvedAgent: null,
+              },
+            ],
           },
         },
       },
@@ -141,6 +156,28 @@ describe('ReceivePurchaseOrderPage', () => {
               },
             ],
           },
+          auditTrail: [
+            {
+              id: 'audit-agent-1',
+              correlationId: 'corr-001',
+              actorType: 'AGENT',
+              actorId: 'vextis_coordinator',
+              action: 'RECORD_EXECUTION_PLAN',
+              toolName: 'record_execution_plan',
+              resourceType: 'WORKFLOW_EXECUTION',
+              resourceId: '8d3f290d-1322-44a2-8bd7-3b325f170e07',
+              result: 'SUCCEEDED',
+              occurredAt: '2026-08-21T03:30:04Z',
+              approvedAgent: {
+                agentId: 'vextis_coordinator',
+                version: '1.0.0',
+                displayName: 'Vextis Coordinator',
+                modelId: 'gemini-3.5-flash',
+                promptVersion: '1.0.0',
+                serviceIdentity: 'coordinator-agent',
+              },
+            },
+          ],
         },
       },
     }),
@@ -206,6 +243,10 @@ describe('ReceivePurchaseOrderPage', () => {
     expect(fixture.nativeElement.textContent).toContain('VXT-CHAIR-01');
     expect(fixture.nativeElement.textContent).toContain('Order readiness');
     expect(fixture.nativeElement.textContent).toContain('Credit standing is good');
+    expect(fixture.nativeElement.textContent).toContain('Agent and user audit trail');
+    expect(fixture.nativeElement.textContent).toContain('Record execution plan');
+    expect(fixture.nativeElement.textContent).toContain('Vextis Coordinator');
+    expect(fixture.nativeElement.textContent).toContain('prompt v1.0.0');
   });
 
   it('rejects unsupported files before requesting an upload policy', () => {

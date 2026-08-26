@@ -175,6 +175,42 @@ type Execution {
   plan: ExecutionPlan
   readiness: ExecutionReadiness
   approval: WorkflowApproval
+  auditTrail: [ExecutionAuditEntry!]!
+}
+
+type ExecutionAuditEntry {
+  id: ID!
+  correlationId: String!
+  actorType: AuditActorType!
+  actorId: String!
+  action: String!
+  toolName: String
+  resourceType: String!
+  resourceId: ID!
+  result: AuditResult!
+  occurredAt: String!
+  approvedAgent: ExecutionAgentIdentity
+}
+
+type ExecutionAgentIdentity {
+  agentId: ID!
+  version: String!
+  displayName: String!
+  modelId: String!
+  promptVersion: String!
+  serviceIdentity: String!
+}
+
+enum AuditActorType {
+  USER
+  AGENT
+  SYSTEM
+}
+
+enum AuditResult {
+  SUCCEEDED
+  FAILED
+  DENIED
 }
 
 type StockReservationOverview {

@@ -48,5 +48,25 @@ query FindExecution($id: ID!) {
       decidedAt
       reason
     }
+    auditTrail {
+      id
+      correlationId
+      actorType
+      actorId
+      action
+      toolName
+      resourceType
+      resourceId
+      result
+      occurredAt
+      approvedAgent {
+        agentId
+        version
+        displayName
+        modelId
+        promptVersion
+        serviceIdentity
+      }
+    }
   }
 }

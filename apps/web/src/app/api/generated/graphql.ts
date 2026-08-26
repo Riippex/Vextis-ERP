@@ -32,6 +32,16 @@ export type AskVextisMessageSender =
   | 'ASSISTANT'
   | 'USER';
 
+export type AuditActorType =
+  | 'AGENT'
+  | 'SYSTEM'
+  | 'USER';
+
+export type AuditResult =
+  | 'DENIED'
+  | 'FAILED'
+  | 'SUCCEEDED';
+
 export type CreditStanding =
   | 'BLOCKED'
   | 'GOOD'
@@ -144,14 +154,14 @@ export type DecideApprovalMutationVariables = Exact<{
 }>;
 
 
-export type DecideApprovalMutation = { decideApproval: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, orderLines: Array<{ sku: string, quantity: number }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null, approval: { id: string, recommendation: string, status: ApprovalStatus, requestedBy: string, requestedAt: string, expiresAt: string, decidedBy: string | null, decidedAt: string | null, reason: string | null } | null } };
+export type DecideApprovalMutation = { decideApproval: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, orderLines: Array<{ sku: string, quantity: number }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null, approval: { id: string, recommendation: string, status: ApprovalStatus, requestedBy: string, requestedAt: string, expiresAt: string, decidedBy: string | null, decidedAt: string | null, reason: string | null } | null, auditTrail: Array<{ id: string, correlationId: string, actorType: AuditActorType, actorId: string, action: string, toolName: string | null, resourceType: string, resourceId: string, result: AuditResult, occurredAt: string, approvedAgent: { agentId: string, version: string, displayName: string, modelId: string, promptVersion: string, serviceIdentity: string } | null }> } };
 
 export type FindExecutionQueryVariables = Exact<{
   id: string | number;
 }>;
 
 
-export type FindExecutionQuery = { execution: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, orderLines: Array<{ sku: string, quantity: number }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null, approval: { id: string, recommendation: string, status: ApprovalStatus, requestedBy: string, requestedAt: string, expiresAt: string, decidedBy: string | null, decidedAt: string | null, reason: string | null } | null } | null };
+export type FindExecutionQuery = { execution: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, orderLines: Array<{ sku: string, quantity: number }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null, approval: { id: string, recommendation: string, status: ApprovalStatus, requestedBy: string, requestedAt: string, expiresAt: string, decidedBy: string | null, decidedAt: string | null, reason: string | null } | null, auditTrail: Array<{ id: string, correlationId: string, actorType: AuditActorType, actorId: string, action: string, toolName: string | null, resourceType: string, resourceId: string, result: AuditResult, occurredAt: string, approvedAgent: { agentId: string, version: string, displayName: string, modelId: string, promptVersion: string, serviceIdentity: string } | null }> } | null };
 
 export type PreparePurchaseOrderUploadMutationVariables = Exact<{
   input: PreparePurchaseOrderUploadInput;
@@ -165,7 +175,7 @@ export type ReceivePurchaseOrderMutationVariables = Exact<{
 }>;
 
 
-export type ReceivePurchaseOrderMutation = { receivePurchaseOrder: { purchaseOrder: { id: string, purchaseOrderNumber: string, customerName: string, documentUri: string, receivedAt: string }, execution: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, orderLines: Array<{ sku: string, quantity: number }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null, approval: { id: string, recommendation: string, status: ApprovalStatus, requestedBy: string, requestedAt: string, expiresAt: string, decidedBy: string | null, decidedAt: string | null, reason: string | null } | null } } };
+export type ReceivePurchaseOrderMutation = { receivePurchaseOrder: { purchaseOrder: { id: string, purchaseOrderNumber: string, customerName: string, documentUri: string, receivedAt: string }, execution: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, orderLines: Array<{ sku: string, quantity: number }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null, approval: { id: string, recommendation: string, status: ApprovalStatus, requestedBy: string, requestedAt: string, expiresAt: string, decidedBy: string | null, decidedAt: string | null, reason: string | null } | null, auditTrail: Array<{ id: string, correlationId: string, actorType: AuditActorType, actorId: string, action: string, toolName: string | null, resourceType: string, resourceId: string, result: AuditResult, occurredAt: string, approvedAgent: { agentId: string, version: string, displayName: string, modelId: string, promptVersion: string, serviceIdentity: string } | null }> } } };
 
 export type AskVextisMutationVariables = Exact<{
   input: AskVextisMessageInput;
@@ -376,6 +386,26 @@ export const DecideApprovalDocument = gql`
       decidedAt
       reason
     }
+    auditTrail {
+      id
+      correlationId
+      actorType
+      actorId
+      action
+      toolName
+      resourceType
+      resourceId
+      result
+      occurredAt
+      approvedAgent {
+        agentId
+        version
+        displayName
+        modelId
+        promptVersion
+        serviceIdentity
+      }
+    }
   }
 }
     `;
@@ -440,6 +470,26 @@ export const FindExecutionDocument = gql`
       decidedBy
       decidedAt
       reason
+    }
+    auditTrail {
+      id
+      correlationId
+      actorType
+      actorId
+      action
+      toolName
+      resourceType
+      resourceId
+      result
+      occurredAt
+      approvedAgent {
+        agentId
+        version
+        displayName
+        modelId
+        promptVersion
+        serviceIdentity
+      }
     }
   }
 }
@@ -537,6 +587,26 @@ export const ReceivePurchaseOrderDocument = gql`
         decidedBy
         decidedAt
         reason
+      }
+      auditTrail {
+        id
+        correlationId
+        actorType
+        actorId
+        action
+        toolName
+        resourceType
+        resourceId
+        result
+        occurredAt
+        approvedAgent {
+          agentId
+          version
+          displayName
+          modelId
+          promptVersion
+          serviceIdentity
+        }
       }
     }
   }

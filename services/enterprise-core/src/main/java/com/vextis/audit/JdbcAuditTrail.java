@@ -4,6 +4,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Repository
@@ -35,6 +37,32 @@ class JdbcAuditTrail implements AuditTrail {
                         .addValue("resourceType", action.resourceType())
                         .addValue("resourceId", action.resourceId())
                         .addValue("occurredAt", action.occurredAt())
+        );
+    }
+
+    @Override
+    public List<AuditRecord> findByCorrelation(String tenantId, String correlationId) {
+        return jdbc.query(
+                """
+                SELECT id, correlation_id, actor_type, actor_id, action,
+                       resource_type, resource_id, result, occurred_at
+                FROM audit_records
+                WHERE tenant_id = :tenantId AND correlation_id = :correlationId
+                ORDER BY occurred_at DESC, id DESC
+                LIMIT 100
+                """,
+                Map.of("tenantId", tenantId, "correlationId", correlationId),
+                (rs, row) -> new AuditRecord(
+                        rs.getObject("id", UUID.class),
+                        rs.getString("correlation_id"),
+                        rs.getString("actor_type"),
+                        rs.getString("actor_id"),
+                        rs.getString("action"),
+                        rs.getString("resource_type"),
+                        rs.getObject("resource_id", UUID.class),
+                        rs.getString("result"),
+                        rs.getObject("occurred_at", java.time.OffsetDateTime.class).toInstant()
+                )
         );
     }
 }
