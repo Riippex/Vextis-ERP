@@ -147,7 +147,7 @@ export type SetStockAvailabilityMutation = { setStockAvailability: { sku: string
 export type MissionControlQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type MissionControlQuery = { missionControl: { agents: Array<{ agentId: string, version: string, displayName: string, department: string, purpose: string, framework: string, modelId: string, promptVersion: string, serviceIdentity: string, status: AgentRegistryStatus, capabilities: Array<string>, allowedTools: Array<string> }>, executions: Array<{ id: string, purchaseOrderNumber: string, customerName: string, state: ExecutionState, correlationId: string, updatedAt: string }>, customers: Array<{ id: string, legalName: string, active: boolean }>, stockItems: Array<{ sku: string, availableQuantity: number }>, stockReservations: Array<{ id: string, orderId: string, sku: string, quantity: number, status: StockReservationStatus, createdAt: string }>, creditProfiles: Array<{ customerId: string, customerName: string, standing: CreditStanding, maxPaymentTermsDays: number }>, executionVolumeByDepartment: Array<{ department: PlanningDepartment, count: number }> } };
+export type MissionControlQuery = { missionControl: { agents: Array<{ agentId: string, version: string, displayName: string, department: string, purpose: string, framework: string, modelId: string, promptVersion: string, serviceIdentity: string, status: AgentRegistryStatus, capabilities: Array<string>, allowedTools: Array<string> }>, recentAgentActivities: Array<{ conversationId: string, messageId: string, agentId: string, agentVersion: string, displayName: string, modelId: string, promptVersion: string, tools: Array<string>, occurredAt: string }>, executions: Array<{ id: string, purchaseOrderNumber: string, customerName: string, state: ExecutionState, correlationId: string, updatedAt: string }>, customers: Array<{ id: string, legalName: string, active: boolean }>, stockItems: Array<{ sku: string, availableQuantity: number }>, stockReservations: Array<{ id: string, orderId: string, sku: string, quantity: number, status: StockReservationStatus, createdAt: string }>, creditProfiles: Array<{ customerId: string, customerName: string, standing: CreditStanding, maxPaymentTermsDays: number }>, executionVolumeByDepartment: Array<{ department: PlanningDepartment, count: number }> } };
 
 export type DecideApprovalMutationVariables = Exact<{
   input: DecideApprovalInput;
@@ -182,14 +182,14 @@ export type AskVextisMutationVariables = Exact<{
 }>;
 
 
-export type AskVextisMutation = { askVextis: { conversationId: string, messageId: string, reply: string, createdAt: string } };
+export type AskVextisMutation = { askVextis: { conversationId: string, messageId: string, reply: string, createdAt: string, agentActivities: Array<{ agentId: string, agentVersion: string, displayName: string, modelId: string, promptVersion: string, tools: Array<string> }> } };
 
 export type AskVextisConversationQueryVariables = Exact<{
   id: string | number;
 }>;
 
 
-export type AskVextisConversationQuery = { askVextisConversation: { id: string, messages: Array<{ id: string, sender: AskVextisMessageSender, content: string, kind: AskVextisMessageKind, createdAt: string }> } | null };
+export type AskVextisConversationQuery = { askVextisConversation: { id: string, messages: Array<{ id: string, sender: AskVextisMessageSender, content: string, kind: AskVextisMessageKind, createdAt: string, agentActivities: Array<{ agentId: string, agentVersion: string, displayName: string, modelId: string, promptVersion: string, tools: Array<string> }> }> } | null };
 
 export const HealthDocument = gql`
     query Health {
@@ -285,6 +285,17 @@ export const MissionControlDocument = gql`
       status
       capabilities
       allowedTools
+    }
+    recentAgentActivities {
+      conversationId
+      messageId
+      agentId
+      agentVersion
+      displayName
+      modelId
+      promptVersion
+      tools
+      occurredAt
     }
     executions {
       id
@@ -630,6 +641,14 @@ export const AskVextisDocument = gql`
     messageId
     reply
     createdAt
+    agentActivities {
+      agentId
+      agentVersion
+      displayName
+      modelId
+      promptVersion
+      tools
+    }
   }
 }
     `;
@@ -654,6 +673,14 @@ export const AskVextisConversationDocument = gql`
       content
       kind
       createdAt
+      agentActivities {
+        agentId
+        agentVersion
+        displayName
+        modelId
+        promptVersion
+        tools
+      }
     }
   }
 }

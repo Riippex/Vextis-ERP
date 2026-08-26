@@ -7,6 +7,7 @@ type Query {
 
 type MissionControl {
   agents: [AgentRegistryEntry!]!
+  recentAgentActivities: [MissionControlAgentActivity!]!
   executions: [MissionControlExecution!]!
   customers: [CustomerOverview!]!
   stockItems: [StockItemOverview!]!
@@ -96,6 +97,19 @@ type AskVextisMessageResult {
   messageId: ID!
   reply: String!
   createdAt: String!
+  agentActivities: [AskVextisAgentActivity!]!
+}
+
+type MissionControlAgentActivity {
+  conversationId: ID!
+  messageId: ID!
+  agentId: ID!
+  agentVersion: String!
+  displayName: String!
+  modelId: String!
+  promptVersion: String!
+  tools: [String!]!
+  occurredAt: String!
 }
 
 type AskVextisConversation {
@@ -109,6 +123,16 @@ type AskVextisMessage {
   content: String!
   kind: AskVextisMessageKind!
   createdAt: String!
+  agentActivities: [AskVextisAgentActivity!]!
+}
+
+type AskVextisAgentActivity {
+  agentId: ID!
+  agentVersion: String!
+  displayName: String!
+  modelId: String!
+  promptVersion: String!
+  tools: [String!]!
 }
 
 enum AskVextisMessageSender {

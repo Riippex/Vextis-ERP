@@ -1,6 +1,7 @@
 package com.vextis.conversation.domain;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 
 public record ChatMessage(
@@ -8,6 +9,10 @@ public record ChatMessage(
         MessageSender sender,
         String content,
         MessageKind kind,
-        Instant occurredAt
+        Instant occurredAt,
+        List<AgentActivityEvidence> agentActivities
 ) {
+    public ChatMessage {
+        agentActivities = List.copyOf(agentActivities);
+    }
 }

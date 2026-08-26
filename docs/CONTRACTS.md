@@ -104,7 +104,23 @@ Minimum resources:
 - visible registry and agent audit;
 - authorization, query, and closing of Live sessions.
 
-### Tools API — Agent Runtime to Enterprise Core
+### Chat completion API â€” Enterprise Core to Agent Runtime
+
+Executable source: `contracts/openapi/agent-runtime-api.yaml`.
+
+Enterprise Core sends a tenant-scoped conversation turn to Agent Runtime and receives the assistant
+reply plus bounded public activity evidence. Runtime may report at most four logical agent IDs and
+eight tool names per agent. It never returns prompts, tool arguments, tool results, credentials, or
+hidden model reasoning through this contract.
+
+Runtime activity claims are not authoritative. Before storing or exposing them, Enterprise Core
+requires an active tenant registry entry, verifies that its service identity matches the trusted
+coordinator, intersects tool names with that version's `allowed_tools`, and snapshots the registry
+version, display name, model, and prompt version alongside the assistant message. Unknown agents,
+untrusted identities, and unapproved tools are discarded. This evidence is informational and grants
+no permission to execute a tool.
+
+### Tools API â€” Agent Runtime to Enterprise Core
 
 Executable source: `contracts/openapi/agent-tools-api.yaml`.
 

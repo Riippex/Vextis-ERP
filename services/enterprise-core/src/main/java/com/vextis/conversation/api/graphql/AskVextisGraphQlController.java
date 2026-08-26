@@ -4,6 +4,7 @@ import com.vextis.conversation.application.AskVextisCommand;
 import com.vextis.conversation.application.AskVextisResult;
 import com.vextis.conversation.application.AskVextisUseCase;
 import com.vextis.conversation.application.FindConversationUseCase;
+import com.vextis.conversation.domain.AgentActivityEvidence;
 import com.vextis.conversation.domain.ChatMessage;
 import com.vextis.conversation.domain.Conversation;
 import com.vextis.shared.security.CurrentActorProvider;
@@ -63,10 +64,17 @@ class AskVextisGraphQlController {
     ) {
     }
 
-    record AskVextisMessageResultView(UUID conversationId, UUID messageId, String reply, String createdAt) {
+    record AskVextisMessageResultView(
+            UUID conversationId,
+            UUID messageId,
+            String reply,
+            String createdAt,
+            List<AskVextisAgentActivityView> agentActivities
+    ) {
         static AskVextisMessageResultView from(AskVextisResult result) {
             return new AskVextisMessageResultView(
-                    result.conversationId(), result.messageId(), result.reply(), result.createdAt().toString());
+                    result.conversationId(), result.messageId(), result.reply(), result.createdAt().toString(),
+                    result.agentActivities().stream().map(AskVextisAgentActivityView::from).toList());
         }
     }
 
@@ -78,11 +86,34 @@ class AskVextisGraphQlController {
         }
     }
 
-    record AskVextisMessageView(UUID id, String sender, String content, String kind, String createdAt) {
+    record AskVextisMessageView(
+            UUID id,
+            String sender,
+            String content,
+            String kind,
+            String createdAt,
+            List<AskVextisAgentActivityView> agentActivities
+    ) {
         static AskVextisMessageView from(ChatMessage message) {
             return new AskVextisMessageView(
                     message.id(), message.sender().name(), message.content(), message.kind().name(),
-                    message.occurredAt().toString());
+                    message.occurredAt().toString(),
+                    message.agentActivities().stream().map(AskVextisAgentActivityView::from).toList());
+        }
+    }
+
+    record AskVextisAgentActivityView(
+            String agentId,
+            String agentVersion,
+            String displayName,
+            String modelId,
+            String promptVersion,
+            List<String> tools
+    ) {
+        static AskVextisAgentActivityView from(AgentActivityEvidence evidence) {
+            return new AskVextisAgentActivityView(
+                    evidence.agentId(), evidence.agentVersion(), evidence.displayName(), evidence.modelId(),
+                    evidence.promptVersion(), evidence.tools());
         }
     }
 }

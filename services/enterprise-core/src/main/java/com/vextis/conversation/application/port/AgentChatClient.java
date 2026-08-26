@@ -1,5 +1,6 @@
 package com.vextis.conversation.application.port;
 
+import java.util.List;
 import java.util.UUID;
 
 public interface AgentChatClient {
@@ -9,5 +10,17 @@ public interface AgentChatClient {
      * its side through the existing authenticated /internal/agent-tools/**
      * path — this call only carries the conversation turn.
      */
-    String complete(String tenantId, UUID conversationId, String message);
+    ChatCompletion complete(String tenantId, UUID conversationId, String message);
+
+    record ChatCompletion(String reply, List<AgentActivity> activities) {
+        public ChatCompletion {
+            activities = List.copyOf(activities);
+        }
+    }
+
+    record AgentActivity(String agentId, List<String> tools) {
+        public AgentActivity {
+            tools = List.copyOf(tools);
+        }
+    }
 }

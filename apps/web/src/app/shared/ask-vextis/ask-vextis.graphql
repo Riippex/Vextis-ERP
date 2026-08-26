@@ -4,6 +4,14 @@ mutation AskVextis($input: AskVextisMessageInput!) {
     messageId
     reply
     createdAt
+    agentActivities {
+      agentId
+      agentVersion
+      displayName
+      modelId
+      promptVersion
+      tools
+    }
   }
 }
 
@@ -16,6 +24,14 @@ query AskVextisConversation($id: ID!) {
       content
       kind
       createdAt
+      agentActivities {
+        agentId
+        agentVersion
+        displayName
+        modelId
+        promptVersion
+        tools
+      }
     }
   }
 }
