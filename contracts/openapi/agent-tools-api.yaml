@@ -1,11 +1,101 @@
 openapi: 3.1.0
 info:
   title: Vextis Agent Tools API
-  version: 0.1.0
+  version: 0.2.0
   description: API interna autenticada para invocar casos de uso del Enterprise Core.
 servers:
   - url: /internal/agent-tools/v1
 paths:
+  /crm/customers/lookup:
+    get:
+      operationId: lookupCustomerByLegalName
+      description: Returns authoritative tenant-scoped customer context without mutating state.
+      security:
+        - serviceBearer: []
+      parameters:
+        - name: legalName
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 200
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Customer context found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerContext"
+        "401":
+          description: Missing or invalid service credential
+        "403":
+          description: Agent is not authorized for this tenant
+        "404":
+          description: Customer was not found in the tenant
+  /inventory/stock/{sku}:
+    get:
+      operationId: getStockBySku
+      description: Returns authoritative tenant-scoped stock without reserving or mutating it.
+      security:
+        - serviceBearer: []
+      parameters:
+        - name: sku
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+            pattern: "^[A-Za-z0-9._-]+$"
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Stock context found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StockContext"
+        "401":
+          description: Missing or invalid service credential
+        "403":
+          description: Agent is not authorized for this tenant
+        "404":
+          description: SKU was not found in the tenant
+  /billing/customers/{customerId}/credit:
+    get:
+      operationId: getCustomerCredit
+      description: Returns authoritative tenant-scoped credit context without mutating it.
+      security:
+        - serviceBearer: []
+      parameters:
+        - name: customerId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Credit context found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreditContext"
+        "401":
+          description: Missing or invalid service credential
+        "403":
+          description: Agent is not authorized for this tenant
+        "404":
+          description: Credit profile was not found in the tenant
   /workflows/{executionId}/planning:
     post:
       operationId: startExecutionPlanning
@@ -268,6 +358,45 @@ components:
         type: string
         minLength: 16
   schemas:
+    CustomerContext:
+      type: object
+      additionalProperties: false
+      required: [id, legalName, active]
+      properties:
+        id:
+          type: string
+          format: uuid
+        legalName:
+          type: string
+          maxLength: 200
+        active:
+          type: boolean
+    StockContext:
+      type: object
+      additionalProperties: false
+      required: [sku, availableQuantity]
+      properties:
+        sku:
+          type: string
+          maxLength: 100
+        availableQuantity:
+          type: integer
+          minimum: 0
+    CreditContext:
+      type: object
+      additionalProperties: false
+      required: [customerId, standing, maxPaymentTermsDays]
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        standing:
+          type: string
+          enum: [GOOD, REVIEW, BLOCKED]
+        maxPaymentTermsDays:
+          type: integer
+          minimum: 0
+          maximum: 365
     StartPlanningRequest:
       type: object
       additionalProperties: false

@@ -1,10 +1,16 @@
 from typing import cast
+from uuid import UUID
 
 import pytest
 from google.adk.agents import LlmAgent
 
 from vextis_agents.app.config import Settings
 from vextis_agents.coordinator.agent import build_coordinator, build_planning_agent
+from vextis_agents.tools.core_api.business_reads import (
+    CreditContext,
+    CustomerContext,
+    StockContext,
+)
 from vextis_agents.workflows.order_to_cash.planning import GeneratedPlan
 
 
@@ -35,6 +41,32 @@ def test_coordinator_registers_the_three_bounded_specialists() -> None:
     for agent in specialists:
         assert isinstance(agent.instruction, str)
         assert "Enterprise Core" in agent.instruction
+
+
+class FakeBusinessReads:
+    async def lookup_customer(self, legal_name: str) -> CustomerContext | None:
+        return None
+
+    async def get_stock(self, sku: str) -> StockContext | None:
+        return None
+
+    async def get_credit(self, customer_id: UUID) -> CreditContext | None:
+        return None
+
+
+def test_tenant_bound_coordinator_gives_each_specialist_one_read_tool() -> None:
+    coordinator = build_coordinator(
+        Settings(gemini_model="gemini-test-model"),
+        "demo-tenant",
+        core_reads=FakeBusinessReads(),
+    )
+    specialists = [cast(LlmAgent, agent) for agent in coordinator.sub_agents]
+
+    assert [[getattr(tool, "__name__", None) for tool in agent.tools] for agent in specialists] == [
+        ["lookup_customer"],
+        ["get_stock"],
+        ["get_credit"],
+    ]
 
 
 def test_planning_agent_enforces_structured_output() -> None:

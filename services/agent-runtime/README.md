@@ -13,10 +13,10 @@ Contains:
 Consumes Pub/Sub and calls Enterprise Core's authenticated API. Has no direct write permissions on business tables.
 
 The three specialists are registered as real ADK subagents of the coordinator and are shared by
-text chat and Live sessions. Their current scope is bounded analysis: without an authorized Core
-lookup result they must disclose that live business state is unavailable, and they cannot claim a
-mutation occurred. Transactional workflow actions continue through the authenticated Core tools,
-human approval, idempotency, and audit path. Read-only specialist tools are the next fleet slice.
+text chat and Live sessions. Each receives one narrow, tenant-bound read tool backed by Enterprise
+Core: exact customer lookup, SKU availability, or customer credit status. Missing records are
+reported explicitly and the specialists cannot claim a mutation occurred. Transactional workflow
+actions continue through authenticated Core tools, human approval, idempotency, and audit.
 
 ## Pub/Sub push consumer
 

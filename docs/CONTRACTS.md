@@ -110,6 +110,10 @@ Executable source: `contracts/openapi/agent-tools-api.yaml`.
 
 Every call includes service identity, `agent_id`, `correlation_id`, and `idempotency_key` when mutating state.
 
+The first specialist read slice exposes exact, tenant-scoped lookups for customer legal name,
+SKU availability, and customer credit status. These GET operations are bound to the trusted tenant
+before ADK receives them, use the coordinator's service identity, and never mutate business state.
+
 **CRM Agent**
 
 - `get_customer(customer_id)`
