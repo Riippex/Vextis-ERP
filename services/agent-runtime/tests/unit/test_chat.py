@@ -38,6 +38,7 @@ def _settings() -> Settings:
     return Settings(
         chat_enabled=True,
         core_callback_token=SecretStr("s3cret-core-callback-token"),
+        agent_tools_token=SecretStr("agent-tools-token"),
         gemini_model="gemini-test",
         google_cloud_project="vextis-test",
     )

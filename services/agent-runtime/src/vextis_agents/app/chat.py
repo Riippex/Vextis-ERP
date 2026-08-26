@@ -47,7 +47,12 @@ def create_chat_router(settings: Settings) -> APIRouter:
                 status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid service credential"
             )
 
-        runner = InMemoryRunner(agent=build_coordinator(settings), app_name="vextis_ask_vextis")
+        runner = InMemoryRunner(
+            agent=build_coordinator(
+                settings, request.tenant_id, correlation_id=request.conversation_id
+            ),
+            app_name="vextis_ask_vextis",
+        )
         message = types.Content(role="user", parts=[types.Part(text=request.message)])
         final_text: str | None = None
         try:
