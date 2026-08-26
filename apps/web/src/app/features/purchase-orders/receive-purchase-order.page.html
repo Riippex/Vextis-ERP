@@ -244,6 +244,50 @@
         }
       </ol>
 
+      <section class="audit-evidence" aria-labelledby="audit-evidence-title">
+        <div class="audit-evidence__heading">
+          <div>
+            <p class="evidence__eyebrow">Governance evidence</p>
+            <h3 id="audit-evidence-title">Agent and user audit trail</h3>
+          </div>
+          <span>{{ currentReceipt.execution.auditTrail.length }} records</span>
+        </div>
+        @if (currentReceipt.execution.auditTrail.length) {
+          <ol class="audit-list">
+            @for (entry of currentReceipt.execution.auditTrail; track entry.id) {
+              <li>
+                <span class="audit-list__icon">
+                  <mat-icon>{{ entry.actorType === 'AGENT' ? 'smart_toy' : 'person' }}</mat-icon>
+                </span>
+                <div class="audit-list__content">
+                  <div class="audit-list__topline">
+                    <strong>{{ auditActionLabel(entry.action) }}</strong>
+                    <span
+                      class="audit-list__result"
+                      [class.audit-list__result--denied]="entry.result === 'DENIED'"
+                    >{{ entry.result }}</span>
+                  </div>
+                  @if (entry.approvedAgent; as agent) {
+                    <p>{{ agent.displayName }} · {{ agent.agentId }} v{{ agent.version }}</p>
+                    <small>
+                      Current registry · {{ agent.modelId }} · prompt v{{ agent.promptVersion }} ·
+                      {{ agent.serviceIdentity }}
+                    </small>
+                  } @else {
+                    <p>{{ entry.actorType }} · {{ entry.actorId }}</p>
+                  }
+                  <small>
+                    {{ entry.resourceType }} · {{ entry.occurredAt | date: 'mediumTime' }}
+                  </small>
+                </div>
+              </li>
+            }
+          </ol>
+        } @else {
+          <p class="audit-evidence__empty">No durable audit records have been recorded yet.</p>
+        }
+      </section>
+
       <button mat-stroked-button type="button" (click)="startAnother()">
         <mat-icon>add</mat-icon>
         Receive another order

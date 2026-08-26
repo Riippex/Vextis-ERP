@@ -237,6 +237,17 @@ Mission Control. It records the approved ADK agent ID and version, department, p
 capabilities, allowed tools, model, prompt version, lifecycle status, and effective service
 identity. Changes to this catalog remain separate from Core authorization policy.
 
+Execution detail exposes the durable `audit_records` associated with its tenant and correlation
+ID. Agent-authored records are enriched for display with the current active registry entry, while
+the stored actor, action, resource, result, timestamp, and correlation remain the authoritative
+evidence. Registry enrichment never changes the historical audit record.
+
+An authenticated workflow-tool call made by an agent outside the configured scope is rejected
+before any business use case runs. Core persists a `DENIED` audit record only after binding the
+provided tenant, execution ID, and correlation ID to an existing execution. Invalid credentials,
+foreign tenants, and forged correlation IDs are rejected without writing untrusted functional
+audit data.
+
 The demo must show at least:
 
 1. An allowed action executed by the correct agent.
