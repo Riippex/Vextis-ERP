@@ -14,6 +14,17 @@ query MissionControl {
       capabilities
       allowedTools
     }
+    recentAgentActivities {
+      conversationId
+      messageId
+      agentId
+      agentVersion
+      displayName
+      modelId
+      promptVersion
+      tools
+      occurredAt
+    }
     executions {
       id
       purchaseOrderNumber

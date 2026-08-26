@@ -1,0 +1,108 @@
+openapi: 3.1.0
+info:
+  title: Vextis Agent Runtime API
+  version: 0.1.0
+  description: Authenticated callbacks from Enterprise Core to the Gemini and ADK runtime.
+servers:
+  - url: /
+paths:
+  /v1/chat/complete:
+    post:
+      operationId: completeAgentChat
+      description: >-
+        Completes one Ask Vextis turn and returns bounded public execution evidence. Evidence
+        contains logical agent and tool names only; prompts, arguments, tool results, and hidden
+        reasoning are never returned.
+      security:
+        - serviceBearer: []
+      parameters:
+        - name: X-Tenant-Id
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+        - name: X-Correlation-Id
+          in: header
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChatCompleteRequest"
+      responses:
+        "200":
+          description: Completed text response with bounded agent activity evidence
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ChatCompleteResponse"
+        "401":
+          description: Missing or invalid Enterprise Core credential
+        "503":
+          description: Gemini or ADK did not produce a final response
+components:
+  securitySchemes:
+    serviceBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: opaque-service-token
+  schemas:
+    ChatCompleteRequest:
+      type: object
+      additionalProperties: false
+      required: [tenantId, conversationId, message]
+      properties:
+        tenantId:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: demo-tenant
+        conversationId:
+          type: string
+          format: uuid
+        message:
+          type: string
+          minLength: 1
+          maxLength: 4000
+    ChatCompleteResponse:
+      type: object
+      additionalProperties: false
+      required: [reply, activities]
+      properties:
+        reply:
+          type: string
+          minLength: 1
+          maxLength: 12000
+        activities:
+          type: array
+          maxItems: 4
+          items:
+            $ref: "#/components/schemas/AgentActivity"
+    AgentActivity:
+      type: object
+      additionalProperties: false
+      required: [agentId, tools]
+      properties:
+        agentId:
+          type: string
+          minLength: 1
+          maxLength: 150
+          pattern: "^[A-Za-z0-9._-]+$"
+          example: vextis_inventory_agent
+        tools:
+          type: array
+          maxItems: 8
+          uniqueItems: true
+          items:
+            type: string
+            minLength: 1
+            maxLength: 100
+            pattern: "^[a-z0-9_]+$"
+          example: [get_stock]

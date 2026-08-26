@@ -196,6 +196,75 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.agent-activity-panel {
+  overflow: hidden;
+}
+
+.agent-activity-list {
+  display: grid;
+}
+
+.agent-activity-row {
+  align-items: center;
+  border-top: 1px solid var(--vxt-border);
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: auto minmax(10rem, 1fr) minmax(10rem, 1.25fr) minmax(10rem, 1fr) auto;
+  padding: 0.9rem 1.25rem;
+}
+
+.agent-activity-row__icon {
+  align-items: center;
+  background: var(--vxt-brand-violet-tint);
+  border-radius: 0.7rem;
+  color: var(--vxt-brand-violet);
+  display: inline-flex;
+  height: 2.25rem;
+  justify-content: center;
+  width: 2.25rem;
+}
+
+.agent-activity-row__identity,
+.agent-activity-row__tools {
+  display: flex;
+}
+
+.agent-activity-row__identity {
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.agent-activity-row__identity strong {
+  color: var(--vxt-text-primary);
+  font-size: 0.85rem;
+}
+
+.agent-activity-row__identity span,
+.agent-activity-row__model,
+.agent-activity-row time {
+  color: var(--vxt-text-secondary);
+  font-size: 0.72rem;
+}
+
+.agent-activity-row__identity span,
+.agent-activity-row__model {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+.agent-activity-row__tools {
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.agent-activity-row__tools i {
+  background: color-mix(in srgb, var(--vxt-brand-blue) 9%, transparent);
+  border-radius: 999px;
+  color: var(--vxt-text-primary);
+  font-size: 0.7rem;
+  font-style: normal;
+  padding: 0.3rem 0.5rem;
+}
+
 .chart-card {
   display: flex;
   flex-direction: column;
@@ -222,6 +291,16 @@
 
   .agent-registry-grid {
     grid-template-columns: 1fr;
+  }
+
+  .agent-activity-row {
+    grid-template-columns: auto 1fr;
+  }
+
+  .agent-activity-row__tools,
+  .agent-activity-row__model,
+  .agent-activity-row time {
+    grid-column: 2;
   }
 }
 

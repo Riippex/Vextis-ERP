@@ -1,7 +1,9 @@
 package com.vextis.conversation.application;
 
+import com.vextis.agentregistry.AgentDirectory;
 import com.vextis.conversation.application.port.AgentChatClient;
 import com.vextis.conversation.application.port.ConversationRepository;
+import com.vextis.conversation.domain.AgentActivityEvidence;
 import com.vextis.conversation.domain.ChatMessage;
 import com.vextis.conversation.domain.Conversation;
 import com.vextis.conversation.domain.MessageKind;
@@ -30,7 +32,7 @@ class ConversationServiceTests {
     void startsANewConversationWhenNoneIsGiven() {
         InMemoryRepository repository = new InMemoryRepository();
         FakeAgentChatClient agentChat = new FakeAgentChatClient("Here is the order status.");
-        ConversationService service = new ConversationService(repository, agentChat, Clock.fixed(NOW, ZoneOffset.UTC));
+        ConversationService service = service(repository, agentChat, new FakeAgentDirectory(List.of()));
 
         AskVextisResult result = service.postMessage(
                 new AskVextisCommand(TENANT_ID, "firebase-user-123", null, "What is the status of PO-2026-001?"));
@@ -49,8 +51,8 @@ class ConversationServiceTests {
     void appendsToAnExistingConversationForTheSameTenant() {
         InMemoryRepository repository = new InMemoryRepository();
         UUID conversationId = repository.startConversation(TENANT_ID, NOW);
-        ConversationService service = new ConversationService(
-                repository, new FakeAgentChatClient("Second reply."), Clock.fixed(NOW, ZoneOffset.UTC));
+        ConversationService service = service(
+                repository, new FakeAgentChatClient("Second reply."), new FakeAgentDirectory(List.of()));
 
         AskVextisResult result = service.postMessage(
                 new AskVextisCommand(TENANT_ID, "firebase-user-123", conversationId, "Follow up question"));
@@ -63,12 +65,59 @@ class ConversationServiceTests {
     void rejectsAConversationThatDoesNotBelongToTheTenant() {
         InMemoryRepository repository = new InMemoryRepository();
         UUID conversationId = repository.startConversation("another-tenant", NOW);
-        ConversationService service = new ConversationService(
-                repository, new FakeAgentChatClient("unused"), Clock.fixed(NOW, ZoneOffset.UTC));
+        ConversationService service = service(
+                repository, new FakeAgentChatClient("unused"), new FakeAgentDirectory(List.of()));
 
         assertThatThrownBy(() -> service.postMessage(
                 new AskVextisCommand(TENANT_ID, "firebase-user-123", conversationId, "Hello")))
                 .isInstanceOf(ConversationNotFoundException.class);
+    }
+
+    @Test
+    void snapshotsOnlyTrustedRegisteredAgentActivityAndAllowedTools() {
+        InMemoryRepository repository = new InMemoryRepository();
+        AgentDirectory.AgentRegistration inventory = registration(
+                "vextis_inventory_agent", "coordinator-agent", List.of("get_stock"));
+        AgentDirectory.AgentRegistration untrusted = registration(
+                "untrusted_agent", "another-service", List.of("get_stock"));
+        FakeAgentChatClient agentChat = new FakeAgentChatClient(
+                "There are 12 units available.",
+                List.of(
+                        new AgentChatClient.AgentActivity(
+                                "vextis_inventory_agent", List.of("get_stock", "reserve_stock", "get_stock")),
+                        new AgentChatClient.AgentActivity("untrusted_agent", List.of("get_stock")),
+                        new AgentChatClient.AgentActivity("unknown_agent", List.of("get_stock"))));
+        ConversationService service = service(
+                repository, agentChat, new FakeAgentDirectory(List.of(inventory, untrusted)));
+
+        AskVextisResult result = service.postMessage(
+                new AskVextisCommand(TENANT_ID, "firebase-user-123", null, "How much stock is available?"));
+
+        assertThat(result.agentActivities()).containsExactly(new AgentActivityEvidence(
+                "vextis_inventory_agent", "1.0.0", "Inventory Agent", "gemini-3.5-flash", "1.0.0",
+                List.of("get_stock")));
+        Conversation conversation = repository.findById(TENANT_ID, result.conversationId()).orElseThrow();
+        assertThat(conversation.messages().get(1).agentActivities()).isEqualTo(result.agentActivities());
+    }
+
+    private static ConversationService service(
+            ConversationRepository repository,
+            AgentChatClient agentChat,
+            AgentDirectory agents
+    ) {
+        return new ConversationService(
+                repository, agentChat, agents, Clock.fixed(NOW, ZoneOffset.UTC), "coordinator-agent");
+    }
+
+    private static AgentDirectory.AgentRegistration registration(
+            String agentId,
+            String serviceIdentity,
+            List<String> allowedTools
+    ) {
+        return new AgentDirectory.AgentRegistration(
+                agentId, "1.0.0", "Inventory Agent", "INVENTORY_OPERATIONS", "Looks up stock.",
+                "GOOGLE_ADK", "gemini-3.5-flash", "1.0.0", serviceIdentity, "ACTIVE",
+                List.of("stock lookup"), allowedTools);
     }
 
     private static final class InMemoryRepository implements ConversationRepository {
@@ -91,9 +140,10 @@ class ConversationServiceTests {
         @Override
         public ChatMessage appendMessage(
                 String tenantId, UUID conversationId, MessageSender sender, String content,
-                MessageKind kind, Instant occurredAt
+                MessageKind kind, Instant occurredAt, List<AgentActivityEvidence> agentActivities
         ) {
-            ChatMessage message = new ChatMessage(UUID.randomUUID(), sender, content, kind, occurredAt);
+            ChatMessage message = new ChatMessage(
+                    UUID.randomUUID(), sender, content, kind, occurredAt, agentActivities);
             messagesByConversation.get(conversationId).add(message);
             return message;
         }
@@ -109,20 +159,47 @@ class ConversationServiceTests {
 
     private static final class FakeAgentChatClient implements AgentChatClient {
         private final String reply;
+        private final List<AgentActivity> activities;
         private UUID lastConversationId;
 
         private FakeAgentChatClient(String reply) {
+            this(reply, List.of());
+        }
+
+        private FakeAgentChatClient(String reply, List<AgentActivity> activities) {
             this.reply = reply;
+            this.activities = activities;
         }
 
         @Override
-        public String complete(String tenantId, UUID conversationId, String message) {
+        public ChatCompletion complete(String tenantId, UUID conversationId, String message) {
             this.lastConversationId = conversationId;
-            return reply;
+            return new ChatCompletion(reply, activities);
         }
 
         UUID lastConversationId() {
             return lastConversationId;
+        }
+    }
+
+    private static final class FakeAgentDirectory implements AgentDirectory {
+        private final List<AgentRegistration> registrations;
+
+        private FakeAgentDirectory(List<AgentRegistration> registrations) {
+            this.registrations = registrations;
+        }
+
+        @Override
+        public List<AgentRegistration> findAll(String tenantId) {
+            return registrations;
+        }
+
+        @Override
+        public Optional<AgentRegistration> findActive(String tenantId, String agentId) {
+            return registrations.stream()
+                    .filter(registration -> registration.agentId().equals(agentId))
+                    .filter(registration -> registration.status().equals("ACTIVE"))
+                    .findFirst();
         }
     }
 }

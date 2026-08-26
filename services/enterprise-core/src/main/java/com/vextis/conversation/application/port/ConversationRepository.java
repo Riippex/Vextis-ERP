@@ -2,10 +2,12 @@ package com.vextis.conversation.application.port;
 
 import com.vextis.conversation.domain.ChatMessage;
 import com.vextis.conversation.domain.Conversation;
+import com.vextis.conversation.domain.AgentActivityEvidence;
 import com.vextis.conversation.domain.MessageKind;
 import com.vextis.conversation.domain.MessageSender;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -21,7 +23,8 @@ public interface ConversationRepository {
             MessageSender sender,
             String content,
             MessageKind kind,
-            Instant occurredAt
+            Instant occurredAt,
+            List<AgentActivityEvidence> agentActivities
     );
 
     Optional<Conversation> findById(String tenantId, UUID conversationId);

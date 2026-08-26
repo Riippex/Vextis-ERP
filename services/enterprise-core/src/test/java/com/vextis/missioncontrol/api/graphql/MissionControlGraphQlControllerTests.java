@@ -2,6 +2,7 @@ package com.vextis.missioncontrol.api.graphql;
 
 import com.vextis.agentregistry.AgentDirectory;
 import com.vextis.billing.CreditPortfolio;
+import com.vextis.conversation.ConversationActivityOverview;
 import com.vextis.crm.CustomerDirectory;
 import com.vextis.inventory.ReservationDirectory;
 import com.vextis.inventory.StockDirectory;
@@ -14,7 +15,9 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
+import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -28,6 +31,9 @@ class MissionControlGraphQlControllerTests {
 
     @MockitoBean
     private AgentDirectory agents;
+
+    @MockitoBean
+    private ConversationActivityOverview conversationActivities;
 
     @MockitoBean
     private ExecutionOverview executions;
@@ -48,6 +54,7 @@ class MissionControlGraphQlControllerTests {
     @WithMockUser(username = "firebase-user-123")
     void returnsExecutionVolumeGroupedByDepartment() {
         when(agents.findAll(eq("demo-tenant"))).thenReturn(List.of());
+        when(conversationActivities.findRecentAgentActivities(eq("demo-tenant"), eq(12))).thenReturn(List.of());
         when(executions.findRecent(eq("demo-tenant"), eq(12))).thenReturn(List.of());
         when(customers.findAll(eq("demo-tenant"))).thenReturn(List.of());
         when(stock.findAll(eq("demo-tenant"))).thenReturn(List.of());
@@ -80,6 +87,7 @@ class MissionControlGraphQlControllerTests {
     @Test
     @WithMockUser(username = "firebase-user-123")
     void returnsTheTenantScopedApprovedAgentRegistry() {
+        when(conversationActivities.findRecentAgentActivities(eq("demo-tenant"), eq(12))).thenReturn(List.of());
         when(agents.findAll(eq("demo-tenant"))).thenReturn(List.of(
                 new AgentDirectory.AgentRegistration(
                         "vextis_inventory_agent",
@@ -117,5 +125,34 @@ class MissionControlGraphQlControllerTests {
                 .path("missionControl.agents[0].modelId")
                 .entity(String.class)
                 .isEqualTo("gemini-3.5-flash");
+    }
+
+    @Test
+    @WithMockUser(username = "firebase-user-123")
+    void returnsRecentBoundedAgentActivityEvidence() {
+        UUID conversationId = UUID.randomUUID();
+        when(agents.findAll(eq("demo-tenant"))).thenReturn(List.of());
+        when(conversationActivities.findRecentAgentActivities(eq("demo-tenant"), eq(12))).thenReturn(List.of(
+                new ConversationActivityOverview.RecentAgentActivity(
+                        conversationId, UUID.randomUUID(), "vextis_inventory_agent", "1.0.0", "Inventory Agent",
+                        "gemini-3.5-flash", "1.0.0", List.of("get_stock"),
+                        Instant.parse("2026-08-26T12:00:00Z"))));
+
+        graphQlTester.document("""
+                        query AgentActivity {
+                          missionControl {
+                            recentAgentActivities {
+                              conversationId agentId agentVersion displayName modelId promptVersion tools occurredAt
+                            }
+                          }
+                        }
+                        """)
+                .execute()
+                .path("missionControl.recentAgentActivities[0].conversationId")
+                .entity(String.class)
+                .isEqualTo(conversationId.toString())
+                .path("missionControl.recentAgentActivities[0].tools[0]")
+                .entity(String.class)
+                .isEqualTo("get_stock");
     }
 }

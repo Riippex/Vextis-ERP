@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
 import java.io.IOException;
+import java.util.List;
 import java.util.UUID;
 import java.util.function.Supplier;
 
@@ -34,7 +35,7 @@ class HttpAgentChatClient implements AgentChatClient {
     }
 
     @Override
-    public String complete(String tenantId, UUID conversationId, String message) {
+    public ChatCompletion complete(String tenantId, UUID conversationId, String message) {
         if (chatUrl.isBlank() || callbackToken.isBlank()) {
             throw new IllegalStateException("Ask Vextis is not configured to reach Agent Runtime");
         }
@@ -51,7 +52,13 @@ class HttpAgentChatClient implements AgentChatClient {
         if (response == null || response.reply() == null || response.reply().isBlank()) {
             throw new IllegalStateException("Agent Runtime returned an empty chat reply");
         }
-        return response.reply();
+        List<AgentActivity> activities = response.activities() == null
+                ? List.of()
+                : response.activities().stream()
+                        .map(activity -> new AgentActivity(
+                                activity.agentId(), activity.tools() == null ? List.of() : activity.tools()))
+                        .toList();
+        return new ChatCompletion(response.reply(), activities);
     }
 
     private String fetchIdentityToken() {
@@ -103,6 +110,9 @@ class HttpAgentChatClient implements AgentChatClient {
     record ChatCompleteRequest(String tenantId, String conversationId, String message) {
     }
 
-    record ChatCompleteResponse(String reply) {
+    record ChatCompleteResponse(String reply, List<AgentActivityResponse> activities) {
+    }
+
+    record AgentActivityResponse(String agentId, List<String> tools) {
     }
 }

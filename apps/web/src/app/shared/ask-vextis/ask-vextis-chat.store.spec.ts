@@ -12,6 +12,16 @@ describe('AskVextisChatStore', () => {
           messageId: 'msg-1',
           reply: 'Order PO-2026-001 is currently in planning.',
           createdAt: '2026-08-25T12:00:00Z',
+          agentActivities: [
+            {
+              agentId: 'vextis_inventory_agent',
+              agentVersion: '1.0.0',
+              displayName: 'Inventory Agent',
+              modelId: 'gemini-3.5-flash',
+              promptVersion: '1.0.0',
+              tools: ['get_stock'],
+            },
+          ],
         },
       },
     }),
@@ -28,6 +38,7 @@ describe('AskVextisChatStore', () => {
               content: 'Hello',
               kind: 'TEXT' as const,
               createdAt: '2026-08-25T11:00:00Z',
+              agentActivities: [],
             },
           ],
         },
@@ -77,6 +88,9 @@ describe('AskVextisChatStore', () => {
     expect(messages[1]).toMatchObject({
       sender: 'ASSISTANT',
       content: 'Order PO-2026-001 is currently in planning.',
+      agentActivities: [
+        { agentId: 'vextis_inventory_agent', displayName: 'Inventory Agent', tools: ['get_stock'] },
+      ],
     });
     expect(store.sending()).toBe(false);
   });
