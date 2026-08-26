@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator
+from types import SimpleNamespace
 
 import pytest
 from google.genai import types
@@ -13,16 +14,20 @@ from vextis_agents.workflows.order_to_cash.planning import (
 
 
 class FakeEvent:
-    def __init__(self, output: str) -> None:
+    def __init__(self, output: str, validated_plan: object | None = None) -> None:
         self.content = types.Content(parts=[types.Part(text=output)])
+        self.actions = SimpleNamespace(
+            state_delta={} if validated_plan is None else {"workflow_plan": validated_plan}
+        )
 
     def is_final_response(self) -> bool:
         return True
 
 
 class FakeRunner:
-    def __init__(self, output: str) -> None:
+    def __init__(self, output: str, validated_plan: object | None = None) -> None:
         self.output = output
+        self.validated_plan = validated_plan
         self.message: types.Content | None = None
         self.closed = False
 
@@ -30,7 +35,7 @@ class FakeRunner:
         message = kwargs["new_message"]
         assert isinstance(message, types.Content)
         self.message = message
-        yield FakeEvent(self.output)
+        yield FakeEvent(self.output, self.validated_plan)
 
     async def close(self) -> None:
         self.closed = True
@@ -68,6 +73,31 @@ async def test_adk_planner_attaches_document_and_parses_structured_output(
     assert runner.message.parts[1].file_data is not None
     assert runner.message.parts[1].file_data.file_uri == context().document_uri
     assert runner.message.parts[1].file_data.mime_type == "application/pdf"
+    assert runner.closed is True
+
+
+@pytest.mark.asyncio
+async def test_adk_planner_prefers_adk_validated_state_over_response_parts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    validated_plan = {
+        "summary": "Validate customer and availability.",
+        "steps": [{
+            "sequence": 1,
+            "department": "CRM_SALES",
+            "objective": "Validate customer context.",
+            "requires_approval": False,
+        }],
+        "order_lines": [{"sku": "VXT-CHAIR-01", "quantity": 10}],
+        "requested_payment_terms_days": 30,
+    }
+    runner = FakeRunner("model reasoning that is not JSON", validated_plan)
+    monkeypatch.setattr(gemini_planner, "InMemoryRunner", lambda **_: runner)
+
+    plan = await AdkGeminiPlanGenerator(settings()).generate(context())
+
+    assert plan.summary == "Validate customer and availability."
+    assert plan.order_lines[0].sku == "VXT-CHAIR-01"
     assert runner.closed is True
 
 

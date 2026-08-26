@@ -3,6 +3,7 @@ package com.vextis.workflow.application;
 import com.vextis.billing.CreditLookup;
 import com.vextis.crm.CustomerLookup;
 import com.vextis.inventory.StockLookup;
+import com.vextis.inventory.ReservationDirectory;
 import com.vextis.inventory.StockReservation;
 import com.vextis.workflow.application.port.PurchaseOrderWorkflowRepository;
 import com.vextis.workflow.application.port.PurchaseOrderDocumentStorage;
@@ -35,6 +36,8 @@ class PurchaseOrderWorkflowServiceTests {
 
     private final InMemoryRepository repository = new InMemoryRepository();
     private final StockReservation reservations = org.mockito.Mockito.mock(StockReservation.class);
+    private final ReservationDirectory reservationDirectory =
+            org.mockito.Mockito.mock(ReservationDirectory.class);
     private final PurchaseOrderDocumentStorage documents =
             org.mockito.Mockito.mock(PurchaseOrderDocumentStorage.class);
     private final PurchaseOrderWorkflowService service = new PurchaseOrderWorkflowService(
@@ -45,7 +48,8 @@ class PurchaseOrderWorkflowServiceTests {
             (tenant, sku) -> Optional.of(new StockLookup.StockSnapshot(sku, 40)),
             (tenant, customerId) -> Optional.of(new CreditLookup.CreditSnapshot(
                     CreditLookup.CreditStanding.GOOD, 30)),
-            reservations
+            reservations,
+            reservationDirectory
     );
     private final ReceivePurchaseOrderUseCase intake =
             new PurchaseOrderDocumentService(documents, service);
@@ -225,16 +229,34 @@ class PurchaseOrderWorkflowServiceTests {
                 new StockReservation.Reservation(
                         reservationId, received.purchaseOrder().id(), "VXT-CHAIR-01", 10,
                         StockReservation.Status.RESERVED, NOW));
+        org.mockito.Mockito.when(reservationDirectory.findByOrder(
+                "demo-tenant", received.purchaseOrder().id())).thenReturn(List.of(
+                new StockReservation.Reservation(
+                        reservationId, received.purchaseOrder().id(), "VXT-CHAIR-01", 10,
+                        StockReservation.Status.RESERVED, NOW)));
         StockReservation.Reservation reservation = service.reserve(new ReserveApprovedStockCommand(
                 "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"),
                 received.purchaseOrder().id(), "VXT-CHAIR-01", 10,
                 received.execution().correlationId(), eventId + ":reserve:VXT-CHAIR-01"));
 
         assertThat(reservation.id()).isEqualTo(reservationId);
+        assertThat(repository.receipt.execution().state()).isEqualTo(ExecutionState.COMPLETED);
+        assertThat(repository.receipt.execution().timeline().getLast().title()).isEqualTo("Workflow completed");
+        assertThat(repository.completionSaveCount).isEqualTo(1);
         org.mockito.Mockito.verify(reservations).reserve(org.mockito.ArgumentMatchers.argThat(command ->
                 command.orderId().equals(received.purchaseOrder().id())
                         && command.quantity() == 10
                         && command.actorId().equals("coordinator-agent")));
+
+        StockReservation.Reservation repeated = service.reserve(new ReserveApprovedStockCommand(
+                "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"),
+                received.purchaseOrder().id(), "vxt-chair-01", 10,
+                received.execution().correlationId(), eventId + ":reserve:VXT-CHAIR-01"));
+
+        assertThat(repeated).isEqualTo(reservation);
+        assertThat(repository.completionSaveCount).isEqualTo(1);
+        org.mockito.Mockito.verify(reservations, org.mockito.Mockito.times(1))
+                .reserve(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -298,6 +320,7 @@ class PurchaseOrderWorkflowServiceTests {
         private int approvalRequestSaveCount;
         private String approvalDecisionIdempotencyKey;
         private int approvalDecisionSaveCount;
+        private int completionSaveCount;
 
         @Override
         public void acquireIdempotencyLock(String tenantId, String operation, String idempotencyKey) {
@@ -445,6 +468,15 @@ class PurchaseOrderWorkflowServiceTests {
             receipt = new PurchaseOrderReceipt(receipt.purchaseOrder(), updated);
             approvalDecisionIdempotencyKey = idempotencyKey;
             approvalDecisionSaveCount++;
+        }
+
+        @Override
+        public void saveCompleted(
+                WorkflowExecution previous, WorkflowExecution updated, Actor actor,
+                String operation, String idempotencyKey
+        ) {
+            receipt = new PurchaseOrderReceipt(receipt.purchaseOrder(), updated);
+            completionSaveCount++;
         }
     }
 }

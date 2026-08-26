@@ -675,6 +675,18 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                 updated, actor, "DECIDE_WORKFLOW_APPROVAL", "workflow.approval.decided", operation, idempotencyKey);
     }
 
+    @Override
+    public void saveCompleted(
+            WorkflowExecution previous, WorkflowExecution updated, Actor actor,
+            String operation, String idempotencyKey
+    ) {
+        if (updated.state() != ExecutionState.COMPLETED) {
+            throw new IllegalArgumentException("Completed execution state is required");
+        }
+        updateExecutionState(previous, updated);
+        saveTransitionEvidence(updated, actor, "COMPLETE_ORDER_WORKFLOW", null, operation, idempotencyKey);
+    }
+
     private void updateExecutionState(WorkflowExecution previous, WorkflowExecution updated) {
         int changed = jdbc.update(
                 """
@@ -719,7 +731,9 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                         .addValue("actorType", actor.type().name()).addValue("actorId", actor.id())
                         .addValue("action", action).addValue("resourceId", updated.id())
                         .addValue("occurredAt", sqlTimestamp(updated.updatedAt()), Types.TIMESTAMP_WITH_TIMEZONE));
-        saveApprovalOutboxEvent(updated, actor, auditId, eventType);
+        if (eventType != null) {
+            saveApprovalOutboxEvent(updated, actor, auditId, eventType);
+        }
         jdbc.update(
                 """
                 INSERT INTO idempotency_records

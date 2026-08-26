@@ -3,6 +3,7 @@ package com.vextis.workflow.application;
 import com.vextis.billing.CreditLookup;
 import com.vextis.crm.CustomerLookup;
 import com.vextis.inventory.StockLookup;
+import com.vextis.inventory.ReservationDirectory;
 import com.vextis.inventory.StockReservation;
 import com.vextis.workflow.application.port.PurchaseOrderWorkflowRepository;
 import com.vextis.workflow.ExecutionOverview;
@@ -38,6 +39,7 @@ public class PurchaseOrderWorkflowService implements RegisterReceivedPurchaseOrd
     static final String EVALUATE_READINESS_OPERATION = "workflow.evaluate-readiness";
     static final String REQUEST_APPROVAL_OPERATION = "workflow.request-approval";
     static final String DECIDE_APPROVAL_OPERATION = "workflow.decide-approval";
+    static final String COMPLETE_OPERATION = "workflow.complete-approved-order";
 
     private final PurchaseOrderWorkflowRepository repository;
     private final Clock clock;
@@ -45,6 +47,7 @@ public class PurchaseOrderWorkflowService implements RegisterReceivedPurchaseOrd
     private final StockLookup stock;
     private final CreditLookup credit;
     private final StockReservation reservations;
+    private final ReservationDirectory reservationDirectory;
 
     public PurchaseOrderWorkflowService(
             PurchaseOrderWorkflowRepository repository,
@@ -52,7 +55,8 @@ public class PurchaseOrderWorkflowService implements RegisterReceivedPurchaseOrd
             CustomerLookup customers,
             StockLookup stock,
             CreditLookup credit,
-            StockReservation reservations
+            StockReservation reservations,
+            ReservationDirectory reservationDirectory
     ) {
         this.repository = repository;
         this.clock = clock;
@@ -60,6 +64,7 @@ public class PurchaseOrderWorkflowService implements RegisterReceivedPurchaseOrd
         this.stock = stock;
         this.credit = credit;
         this.reservations = reservations;
+        this.reservationDirectory = reservationDirectory;
     }
 
     @Override
@@ -345,7 +350,6 @@ public class PurchaseOrderWorkflowService implements RegisterReceivedPurchaseOrd
         if (!execution.correlationId().equals(command.correlationId())
                 || execution.approval() == null
                 || execution.approval().status() != com.vextis.workflow.domain.ApprovalStatus.APPROVED
-                || execution.state() != ExecutionState.RUNNING
                 || execution.plan() == null) {
             throw new WorkflowConflictException("Order is not eligible for inventory reservation");
         }
@@ -354,13 +358,60 @@ public class PurchaseOrderWorkflowService implements RegisterReceivedPurchaseOrd
         if (!exactApprovedLine) {
             throw new WorkflowConflictException("Reservation does not match an approved order line");
         }
+        if (execution.state() == ExecutionState.COMPLETED) {
+            return findMatchingReservation(command).orElseThrow(() ->
+                    new WorkflowConflictException("Completed order reservation could not be found"));
+        }
+        if (execution.state() != ExecutionState.RUNNING) {
+            throw new WorkflowConflictException("Order is not eligible for inventory reservation");
+        }
         try {
-            return reservations.reserve(new StockReservation.Command(
+            StockReservation.Reservation reservation = reservations.reserve(new StockReservation.Command(
                     command.tenantId(), command.actor().id(), command.orderId(), command.sku(), command.quantity(),
                     command.correlationId(), command.idempotencyKey()));
+            completeWhenAllLinesAreReserved(execution, command);
+            return reservation;
         } catch (IllegalArgumentException | IllegalStateException exception) {
             throw new WorkflowConflictException(exception.getMessage());
         }
+    }
+
+    private void completeWhenAllLinesAreReserved(
+            WorkflowExecution execution, ReserveApprovedStockCommand command
+    ) {
+        List<StockReservation.Reservation> orderReservations = reservationDirectory
+                .findByOrder(command.tenantId(), command.orderId())
+                .stream()
+                .filter(reservation -> reservation.status() != StockReservation.Status.RELEASED)
+                .toList();
+        boolean allLinesReserved = execution.plan().orderLines().stream().allMatch(line ->
+                orderReservations.stream().anyMatch(reservation ->
+                        reservation.sku().equalsIgnoreCase(line.sku())
+                                && reservation.quantity() == line.quantity()));
+        if (!allLinesReserved) {
+            return;
+        }
+
+        String completionKey = execution.id().toString();
+        repository.acquireIdempotencyLock(command.tenantId(), COMPLETE_OPERATION, completionKey);
+        if (repository.findExecutionResult(command.tenantId(), COMPLETE_OPERATION, completionKey).isPresent()) {
+            return;
+        }
+        WorkflowExecution current = repository.findExecution(command.tenantId(), execution.id())
+                .orElseThrow(() -> new WorkflowNotFoundException("Execution was not found for tenant"));
+        if (current.state() == ExecutionState.COMPLETED) {
+            return;
+        }
+        WorkflowExecution completed = current.complete(clock.instant());
+        repository.saveCompleted(current, completed, command.actor(), COMPLETE_OPERATION, completionKey);
+    }
+
+    private Optional<StockReservation.Reservation> findMatchingReservation(ReserveApprovedStockCommand command) {
+        return reservationDirectory.findByOrder(command.tenantId(), command.orderId()).stream()
+                .filter(reservation -> reservation.sku().equalsIgnoreCase(command.sku()))
+                .filter(reservation -> reservation.quantity() == command.quantity())
+                .filter(reservation -> reservation.status() != StockReservation.Status.RELEASED)
+                .findFirst();
     }
 
     private WorkflowReadinessCheck billingCheck(
