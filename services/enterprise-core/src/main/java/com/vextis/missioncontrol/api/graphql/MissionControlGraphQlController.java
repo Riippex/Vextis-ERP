@@ -1,5 +1,6 @@
 package com.vextis.missioncontrol.api.graphql;
 
+import com.vextis.agentregistry.AgentDirectory;
 import com.vextis.billing.CreditPortfolio;
 import com.vextis.crm.CustomerDirectory;
 import com.vextis.inventory.StockDirectory;
@@ -21,6 +22,7 @@ class MissionControlGraphQlController {
 
     private static final int RECENT_EXECUTION_LIMIT = 12;
 
+    private final AgentDirectory agents;
     private final ExecutionOverview executions;
     private final CustomerDirectory customers;
     private final StockDirectory stock;
@@ -29,6 +31,7 @@ class MissionControlGraphQlController {
     private final String demoTenantId;
 
     MissionControlGraphQlController(
+            AgentDirectory agents,
             ExecutionOverview executions,
             CustomerDirectory customers,
             StockDirectory stock,
@@ -36,6 +39,7 @@ class MissionControlGraphQlController {
             CreditPortfolio credit,
             @Value("${vextis.demo.tenant-id:demo-tenant}") String demoTenantId
     ) {
+        this.agents = agents;
         this.executions = executions;
         this.customers = customers;
         this.stock = stock;
@@ -51,6 +55,7 @@ class MissionControlGraphQlController {
                 .collect(Collectors.toMap(CustomerDirectory.CustomerSummary::id, Function.identity()));
 
         return new MissionControlView(
+                agents.findAll(demoTenantId).stream().map(AgentRegistryEntryView::from).toList(),
                 executions.findRecent(demoTenantId, RECENT_EXECUTION_LIMIT).stream()
                         .map(MissionControlExecutionView::from).toList(),
                 customerSnapshots.stream().map(CustomerOverviewView::from).toList(),
@@ -65,6 +70,7 @@ class MissionControlGraphQlController {
     }
 
     record MissionControlView(
+            List<AgentRegistryEntryView> agents,
             List<MissionControlExecutionView> executions,
             List<CustomerOverviewView> customers,
             List<StockItemOverviewView> stockItems,
@@ -72,6 +78,28 @@ class MissionControlGraphQlController {
             List<CreditProfileOverviewView> creditProfiles,
             List<DepartmentExecutionVolumeView> executionVolumeByDepartment
     ) {
+    }
+
+    record AgentRegistryEntryView(
+            String agentId,
+            String version,
+            String displayName,
+            String department,
+            String purpose,
+            String framework,
+            String modelId,
+            String promptVersion,
+            String serviceIdentity,
+            String status,
+            List<String> capabilities,
+            List<String> allowedTools
+    ) {
+        static AgentRegistryEntryView from(AgentDirectory.AgentRegistration agent) {
+            return new AgentRegistryEntryView(
+                    agent.agentId(), agent.version(), agent.displayName(), agent.department(), agent.purpose(),
+                    agent.framework(), agent.modelId(), agent.promptVersion(), agent.serviceIdentity(),
+                    agent.status(), agent.capabilities(), agent.allowedTools());
+        }
     }
 
     record MissionControlExecutionView(

@@ -5,6 +5,11 @@ export type Incremental<T> = T | { [P in keyof T]?: P extends ' $fragmentName' |
 import { gql } from 'apollo-angular';
 import { Injectable } from '@angular/core';
 import * as Apollo from 'apollo-angular';
+export type AgentRegistryStatus =
+  | 'ACTIVE'
+  | 'DRAFT'
+  | 'RETIRED';
+
 export type ApprovalDecision =
   | 'APPROVE'
   | 'REJECT';
@@ -132,7 +137,7 @@ export type SetStockAvailabilityMutation = { setStockAvailability: { sku: string
 export type MissionControlQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type MissionControlQuery = { missionControl: { executions: Array<{ id: string, purchaseOrderNumber: string, customerName: string, state: ExecutionState, correlationId: string, updatedAt: string }>, customers: Array<{ id: string, legalName: string, active: boolean }>, stockItems: Array<{ sku: string, availableQuantity: number }>, stockReservations: Array<{ id: string, orderId: string, sku: string, quantity: number, status: StockReservationStatus, createdAt: string }>, creditProfiles: Array<{ customerId: string, customerName: string, standing: CreditStanding, maxPaymentTermsDays: number }>, executionVolumeByDepartment: Array<{ department: PlanningDepartment, count: number }> } };
+export type MissionControlQuery = { missionControl: { agents: Array<{ agentId: string, version: string, displayName: string, department: string, purpose: string, framework: string, modelId: string, promptVersion: string, serviceIdentity: string, status: AgentRegistryStatus, capabilities: Array<string>, allowedTools: Array<string> }>, executions: Array<{ id: string, purchaseOrderNumber: string, customerName: string, state: ExecutionState, correlationId: string, updatedAt: string }>, customers: Array<{ id: string, legalName: string, active: boolean }>, stockItems: Array<{ sku: string, availableQuantity: number }>, stockReservations: Array<{ id: string, orderId: string, sku: string, quantity: number, status: StockReservationStatus, createdAt: string }>, creditProfiles: Array<{ customerId: string, customerName: string, standing: CreditStanding, maxPaymentTermsDays: number }>, executionVolumeByDepartment: Array<{ department: PlanningDepartment, count: number }> } };
 
 export type DecideApprovalMutationVariables = Exact<{
   input: DecideApprovalInput;
@@ -257,6 +262,20 @@ export const SetStockAvailabilityDocument = gql`
 export const MissionControlDocument = gql`
     query MissionControl {
   missionControl {
+    agents {
+      agentId
+      version
+      displayName
+      department
+      purpose
+      framework
+      modelId
+      promptVersion
+      serviceIdentity
+      status
+      capabilities
+      allowedTools
+    }
     executions {
       id
       purchaseOrderNumber

@@ -6,12 +6,34 @@ type Query {
 }
 
 type MissionControl {
+  agents: [AgentRegistryEntry!]!
   executions: [MissionControlExecution!]!
   customers: [CustomerOverview!]!
   stockItems: [StockItemOverview!]!
   stockReservations: [StockReservationOverview!]!
   creditProfiles: [CreditProfileOverview!]!
   executionVolumeByDepartment: [DepartmentExecutionVolume!]!
+}
+
+type AgentRegistryEntry {
+  agentId: ID!
+  version: String!
+  displayName: String!
+  department: String!
+  purpose: String!
+  framework: String!
+  modelId: String!
+  promptVersion: String!
+  serviceIdentity: String!
+  status: AgentRegistryStatus!
+  capabilities: [String!]!
+  allowedTools: [String!]!
+}
+
+enum AgentRegistryStatus {
+  ACTIVE
+  DRAFT
+  RETIRED
 }
 
 type DepartmentExecutionVolume {
