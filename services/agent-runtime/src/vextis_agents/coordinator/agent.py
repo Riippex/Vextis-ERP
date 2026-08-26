@@ -1,5 +1,8 @@
 from google.adk.agents import LlmAgent
 
+from vextis_agents.agents.billing import build_billing_agent
+from vextis_agents.agents.crm import build_crm_agent
+from vextis_agents.agents.inventory import build_inventory_agent
 from vextis_agents.app.config import Settings
 from vextis_agents.workflows.order_to_cash.planning import GeneratedPlan
 
@@ -22,9 +25,17 @@ def build_coordinator(settings: Settings, *, model: str | None = None) -> LlmAge
             "Coordinates Vextis business workflows through authorized Enterprise Core tools."
         ),
         instruction=(
-            "Coordinate CRM, inventory, and billing tasks. Never invent business state or "
-            "bypass Enterprise Core authorization, approval, idempotency, or audit controls."
+            "Route department-specific analysis to the CRM, inventory, or billing specialist. "
+            "For cross-department questions, coordinate the relevant specialists and clearly "
+            "separate verified facts from recommendations. Never invent business state, claim a "
+            "mutation succeeded, or bypass Enterprise Core authorization, approval, idempotency, "
+            "or audit controls. Enterprise Core is the sole transactional authority."
         ),
+        sub_agents=[
+            build_crm_agent(resolved_model),
+            build_inventory_agent(resolved_model),
+            build_billing_agent(resolved_model),
+        ],
     )
 
 
