@@ -232,6 +232,11 @@ Each agent registers:
 
 The registry is descriptive; authorization is enforced by Enterprise Core and IAM. A registry row grants no permissions.
 
+The hackathon registry is persisted in `agent_registry_entries` and exposed read-only through
+Mission Control. It records the approved ADK agent ID and version, department, purpose,
+capabilities, allowed tools, model, prompt version, lifecycle status, and effective service
+identity. Changes to this catalog remain separate from Core authorization policy.
+
 The demo must show at least:
 
 1. An allowed action executed by the correct agent.

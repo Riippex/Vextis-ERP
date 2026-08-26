@@ -130,6 +130,57 @@
       </div>
     </section>
 
+    <section aria-labelledby="agent-registry-title">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Governed fleet</p>
+          <h2 id="agent-registry-title">Enterprise agent registry</h2>
+          <p>Approved agents, versions, capabilities, and effective runtime identity.</p>
+        </div>
+        <span class="registry-count">{{ data.agents.length }} registered</span>
+      </div>
+      <div class="agent-registry-grid">
+        @for (agent of data.agents; track agent.agentId + agent.version) {
+          <article class="agent-card">
+            <div class="agent-card__topline">
+              <span class="agent-card__icon"><mat-icon>smart_toy</mat-icon></span>
+              <span class="status-pill status-pill--good">{{ agent.status }}</span>
+            </div>
+            <div>
+              <p class="agent-card__department">{{ agent.department }}</p>
+              <h3>{{ agent.displayName }}</h3>
+              <span class="agent-card__id">{{ agent.agentId }} · v{{ agent.version }}</span>
+            </div>
+            <p class="agent-card__purpose">{{ agent.purpose }}</p>
+            <dl class="agent-card__metadata">
+              <div><dt>Framework</dt><dd>{{ agent.framework }}</dd></div>
+              <div><dt>Model</dt><dd>{{ agent.modelId }}</dd></div>
+              <div><dt>Prompt</dt><dd>v{{ agent.promptVersion }}</dd></div>
+              <div><dt>Identity</dt><dd>{{ agent.serviceIdentity }}</dd></div>
+            </dl>
+            <div class="agent-card__scope">
+              <span>Capabilities</span>
+              <div class="agent-card__chips">
+                @for (capability of agent.capabilities; track capability) {
+                  <i>{{ capability }}</i>
+                }
+              </div>
+            </div>
+            <div class="agent-card__scope">
+              <span>Allowed tools</span>
+              <div class="agent-card__chips">
+                @for (tool of agent.allowedTools; track tool) {
+                  <i>{{ tool }}</i>
+                } @empty {
+                  <i>delegation only</i>
+                }
+              </div>
+            </div>
+          </article>
+        }
+      </div>
+    </section>
+
     <section class="panel">
       <div class="panel__header">
         <h2>Recent workflow activity</h2>

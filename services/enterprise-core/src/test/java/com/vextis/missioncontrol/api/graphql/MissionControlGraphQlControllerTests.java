@@ -1,5 +1,6 @@
 package com.vextis.missioncontrol.api.graphql;
 
+import com.vextis.agentregistry.AgentDirectory;
 import com.vextis.billing.CreditPortfolio;
 import com.vextis.crm.CustomerDirectory;
 import com.vextis.inventory.ReservationDirectory;
@@ -26,6 +27,9 @@ class MissionControlGraphQlControllerTests {
     private GraphQlTester graphQlTester;
 
     @MockitoBean
+    private AgentDirectory agents;
+
+    @MockitoBean
     private ExecutionOverview executions;
 
     @MockitoBean
@@ -43,6 +47,7 @@ class MissionControlGraphQlControllerTests {
     @Test
     @WithMockUser(username = "firebase-user-123")
     void returnsExecutionVolumeGroupedByDepartment() {
+        when(agents.findAll(eq("demo-tenant"))).thenReturn(List.of());
         when(executions.findRecent(eq("demo-tenant"), eq(12))).thenReturn(List.of());
         when(customers.findAll(eq("demo-tenant"))).thenReturn(List.of());
         when(stock.findAll(eq("demo-tenant"))).thenReturn(List.of());
@@ -70,5 +75,47 @@ class MissionControlGraphQlControllerTests {
                 .path("missionControl.executionVolumeByDepartment[1].department")
                 .entity(String.class)
                 .isEqualTo("INVENTORY_OPERATIONS");
+    }
+
+    @Test
+    @WithMockUser(username = "firebase-user-123")
+    void returnsTheTenantScopedApprovedAgentRegistry() {
+        when(agents.findAll(eq("demo-tenant"))).thenReturn(List.of(
+                new AgentDirectory.AgentRegistration(
+                        "vextis_inventory_agent",
+                        "1.0.0",
+                        "Inventory Agent",
+                        "INVENTORY_OPERATIONS",
+                        "Provides authoritative SKU availability.",
+                        "GOOGLE_ADK",
+                        "gemini-3.5-flash",
+                        "1.0.0",
+                        "coordinator-agent",
+                        "ACTIVE",
+                        List.of("stock lookup"),
+                        List.of("get_stock")
+                )
+        ));
+
+        graphQlTester.document("""
+                        query AgentRegistry {
+                          missionControl {
+                            agents {
+                              agentId version displayName department purpose framework modelId
+                              promptVersion serviceIdentity status capabilities allowedTools
+                            }
+                          }
+                        }
+                        """)
+                .execute()
+                .path("missionControl.agents[0].agentId")
+                .entity(String.class)
+                .isEqualTo("vextis_inventory_agent")
+                .path("missionControl.agents[0].allowedTools[0]")
+                .entity(String.class)
+                .isEqualTo("get_stock")
+                .path("missionControl.agents[0].modelId")
+                .entity(String.class)
+                .isEqualTo("gemini-3.5-flash");
     }
 }
