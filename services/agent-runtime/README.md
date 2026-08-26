@@ -4,13 +4,19 @@ Python service with Google ADK for multi-agent coordination, Gemini, RAG, memory
 
 Contains:
 
-- Coordinator Agent.
-- CRM Agent.
-- Inventory Agent.
-- Billing Agent.
+- Coordinator Agent with ADK-native delegation.
+- CRM and Sales specialist Agent.
+- Inventory and Operations specialist Agent.
+- Finance and Billing specialist Agent.
 - Workflows, tools, policies, RAG, memory, and evals.
 
 Consumes Pub/Sub and calls Enterprise Core's authenticated API. Has no direct write permissions on business tables.
+
+The three specialists are registered as real ADK subagents of the coordinator and are shared by
+text chat and Live sessions. Their current scope is bounded analysis: without an authorized Core
+lookup result they must disclose that live business state is unavailable, and they cannot claim a
+mutation occurred. Transactional workflow actions continue through the authenticated Core tools,
+human approval, idempotency, and audit path. Read-only specialist tools are the next fleet slice.
 
 ## Pub/Sub push consumer
 
