@@ -62,17 +62,22 @@ class AdkGeminiPlanGenerator:
             ],
         )
         final_text: str | None = None
+        validated_plan: object | None = None
         try:
             async for event in runner.run_async(
                 user_id=context.correlation_id,
                 session_id=f"plan-{uuid4()}",
                 new_message=message,
             ):
+                if event.is_final_response():
+                    validated_plan = event.actions.state_delta.get("workflow_plan")
                 if event.is_final_response() and event.content is not None:
                     parts = event.content.parts or []
-                    texts = [part.text for part in parts if part.text]
+                    texts = [part.text for part in parts if part.text and not part.thought]
                     if texts:
                         final_text = "".join(texts)
+            if validated_plan is not None:
+                return GeneratedPlan.model_validate(validated_plan)
             if final_text is None:
                 raise PlanGenerationUnavailableError("Gemini returned no final plan")
             return GeneratedPlan.model_validate_json(final_text)
