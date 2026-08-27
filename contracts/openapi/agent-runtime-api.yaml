@@ -45,8 +45,10 @@ paths:
                 $ref: "#/components/schemas/ChatCompleteResponse"
         "401":
           description: Missing or invalid Enterprise Core credential
+        "422":
+          description: An explicit memory request is outside the supported preference policy
         "503":
-          description: Gemini or ADK did not produce a final response
+          description: Gemini, ADK, or an explicit durable-memory write is unavailable
 components:
   securitySchemes:
     serviceBearer:
@@ -57,13 +59,17 @@ components:
     ChatCompleteRequest:
       type: object
       additionalProperties: false
-      required: [tenantId, conversationId, message]
+      required: [tenantId, actorId, conversationId, message]
       properties:
         tenantId:
           type: string
           minLength: 1
           maxLength: 100
           example: demo-tenant
+        actorId:
+          type: string
+          minLength: 1
+          maxLength: 128
         conversationId:
           type: string
           format: uuid
@@ -85,6 +91,10 @@ components:
           maxItems: 4
           items:
             $ref: "#/components/schemas/AgentActivity"
+        memory:
+          oneOf:
+            - $ref: "#/components/schemas/MemoryEvidence"
+            - type: "null"
     AgentActivity:
       type: object
       additionalProperties: false
@@ -106,3 +116,19 @@ components:
             maxLength: 100
             pattern: "^[a-z0-9_]+$"
           example: [get_stock]
+    MemoryEvidence:
+      type: object
+      additionalProperties: false
+      required: [provider, available, contextCount, preferenceStored]
+      properties:
+        provider:
+          type: string
+          const: VERTEX_AI_MEMORY_BANK
+        available:
+          type: boolean
+        contextCount:
+          type: integer
+          minimum: 0
+          maximum: 5
+        preferenceStored:
+          type: boolean

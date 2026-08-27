@@ -8,6 +8,7 @@ import com.vextis.conversation.domain.ChatMessage;
 import com.vextis.conversation.domain.Conversation;
 import com.vextis.conversation.domain.MessageKind;
 import com.vextis.conversation.domain.MessageSender;
+import com.vextis.conversation.domain.MemoryEvidence;
 import org.junit.jupiter.api.Test;
 
 import java.time.Clock;
@@ -100,6 +101,24 @@ class ConversationServiceTests {
         assertThat(conversation.messages().get(1).agentActivities()).isEqualTo(result.agentActivities());
     }
 
+    @Test
+    void passesTheAuthenticatedActorAndSnapshotsOnlyValidMemoryEvidence() {
+        InMemoryRepository repository = new InMemoryRepository();
+        FakeAgentChatClient agentChat = new FakeAgentChatClient(
+                "I will answer in Spanish.", List.of(),
+                new AgentChatClient.MemoryActivity("VERTEX_AI_MEMORY_BANK", true, 2, true));
+        ConversationService service = service(repository, agentChat, new FakeAgentDirectory(List.of()));
+
+        AskVextisResult result = service.postMessage(
+                new AskVextisCommand(TENANT_ID, "firebase-user-123", null, "Remember preference: Spanish"));
+
+        assertThat(agentChat.lastActorId()).isEqualTo("firebase-user-123");
+        assertThat(result.memoryEvidence()).isEqualTo(
+                new MemoryEvidence("VERTEX_AI_MEMORY_BANK", true, 2, true));
+        assertThat(repository.findById(TENANT_ID, result.conversationId()).orElseThrow()
+                .messages().get(1).memoryEvidence()).isEqualTo(result.memoryEvidence());
+    }
+
     private static ConversationService service(
             ConversationRepository repository,
             AgentChatClient agentChat,
@@ -140,10 +159,11 @@ class ConversationServiceTests {
         @Override
         public ChatMessage appendMessage(
                 String tenantId, UUID conversationId, MessageSender sender, String content,
-                MessageKind kind, Instant occurredAt, List<AgentActivityEvidence> agentActivities
+                MessageKind kind, Instant occurredAt, List<AgentActivityEvidence> agentActivities,
+                MemoryEvidence memoryEvidence
         ) {
             ChatMessage message = new ChatMessage(
-                    UUID.randomUUID(), sender, content, kind, occurredAt, agentActivities);
+                    UUID.randomUUID(), sender, content, kind, occurredAt, agentActivities, memoryEvidence);
             messagesByConversation.get(conversationId).add(message);
             return message;
         }
@@ -160,25 +180,37 @@ class ConversationServiceTests {
     private static final class FakeAgentChatClient implements AgentChatClient {
         private final String reply;
         private final List<AgentActivity> activities;
+        private final MemoryActivity memory;
         private UUID lastConversationId;
+        private String lastActorId;
 
         private FakeAgentChatClient(String reply) {
             this(reply, List.of());
         }
 
         private FakeAgentChatClient(String reply, List<AgentActivity> activities) {
+            this(reply, activities, null);
+        }
+
+        private FakeAgentChatClient(String reply, List<AgentActivity> activities, MemoryActivity memory) {
             this.reply = reply;
             this.activities = activities;
+            this.memory = memory;
         }
 
         @Override
-        public ChatCompletion complete(String tenantId, UUID conversationId, String message) {
+        public ChatCompletion complete(String tenantId, String actorId, UUID conversationId, String message) {
             this.lastConversationId = conversationId;
-            return new ChatCompletion(reply, activities);
+            this.lastActorId = actorId;
+            return new ChatCompletion(reply, activities, memory);
         }
 
         UUID lastConversationId() {
             return lastConversationId;
+        }
+
+        String lastActorId() {
+            return lastActorId;
         }
     }
 

@@ -57,7 +57,7 @@ class AskVextisGraphQlControllerTests {
         AgentActivityEvidence evidence = evidence();
         when(askVextis.postMessage(any(AskVextisCommand.class))).thenReturn(
                 new AskVextisResult(
-                        CONVERSATION_ID, UUID.randomUUID(), "Here is the order status.", NOW, List.of(evidence)));
+                        CONVERSATION_ID, UUID.randomUUID(), "Here is the order status.", NOW, List.of(evidence), null));
 
         graphQlTester.document("""
                         mutation AskVextis($input: AskVextisMessageInput!) {
@@ -96,10 +96,10 @@ class AskVextisGraphQlControllerTests {
         when(findConversation.findById(eq("demo-tenant"), eq(CONVERSATION_ID))).thenReturn(Optional.of(
                 new Conversation(CONVERSATION_ID, "demo-tenant", List.of(
                         new ChatMessage(
-                                UUID.randomUUID(), MessageSender.USER, "Hello", MessageKind.TEXT, NOW, List.of()),
+                                UUID.randomUUID(), MessageSender.USER, "Hello", MessageKind.TEXT, NOW, List.of(), null),
                         new ChatMessage(
                                 UUID.randomUUID(), MessageSender.ASSISTANT, "Hi there", MessageKind.TEXT, NOW,
-                                List.of(evidence()))))));
+                                List.of(evidence()), null)))));
 
         graphQlTester.document("""
                         query AskVextisConversation($id: ID!) {

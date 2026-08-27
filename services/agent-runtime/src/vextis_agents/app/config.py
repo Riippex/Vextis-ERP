@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     live_enabled: bool = False
     live_model: str | None = None
     gemini_model: str | None = None
+    memory_bank_enabled: bool = False
+    memory_bank_agent_engine_id: str | None = None
     google_cloud_project: str | None = Field(default=None, validation_alias="GOOGLE_CLOUD_PROJECT")
     google_cloud_location: str = Field(
         default="us-central1",

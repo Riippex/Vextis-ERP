@@ -10,7 +10,8 @@ public record ChatMessage(
         String content,
         MessageKind kind,
         Instant occurredAt,
-        List<AgentActivityEvidence> agentActivities
+        List<AgentActivityEvidence> agentActivities,
+        MemoryEvidence memoryEvidence
 ) {
     public ChatMessage {
         agentActivities = List.copyOf(agentActivities);

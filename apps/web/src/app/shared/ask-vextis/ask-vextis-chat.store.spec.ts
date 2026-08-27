@@ -22,6 +22,12 @@ describe('AskVextisChatStore', () => {
               tools: ['get_stock'],
             },
           ],
+          memoryEvidence: {
+            provider: 'VERTEX_AI_MEMORY_BANK',
+            available: true,
+            contextCount: 1,
+            preferenceStored: false,
+          },
         },
       },
     }),
@@ -39,6 +45,7 @@ describe('AskVextisChatStore', () => {
               kind: 'TEXT' as const,
               createdAt: '2026-08-25T11:00:00Z',
               agentActivities: [],
+              memoryEvidence: null,
             },
           ],
         },
@@ -91,6 +98,12 @@ describe('AskVextisChatStore', () => {
       agentActivities: [
         { agentId: 'vextis_inventory_agent', displayName: 'Inventory Agent', tools: ['get_stock'] },
       ],
+      memoryEvidence: {
+        provider: 'VERTEX_AI_MEMORY_BANK',
+        available: true,
+        contextCount: 1,
+        preferenceStored: false,
+      },
     });
     expect(store.sending()).toBe(false);
   });

@@ -30,6 +30,12 @@ describe('AskVextisPanelComponent', () => {
                         tools: ['get_stock'],
                       },
                     ],
+                    memoryEvidence: {
+                      provider: 'VERTEX_AI_MEMORY_BANK',
+                      available: true,
+                      contextCount: 1,
+                      preferenceStored: true,
+                    },
                   },
                 },
               }),
@@ -67,6 +73,7 @@ describe('AskVextisPanelComponent', () => {
     expect(fixture.nativeElement.textContent).toContain('Hello Vextis');
     expect(fixture.nativeElement.textContent).toContain('Inventory Agent v1.0.0');
     expect(fixture.nativeElement.textContent).toContain('get_stock');
+    expect(fixture.nativeElement.textContent).toContain('Memory Bank · preference saved');
     expect(store.messages()).toHaveLength(2);
   });
 
