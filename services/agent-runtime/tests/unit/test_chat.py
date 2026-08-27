@@ -41,6 +41,7 @@ class FakeRunner:
         self.output = output
         self.message: types.Content | None = None
         self.closed = False
+        self.auto_create_session = False
 
     async def run_async(self, **kwargs: object) -> AsyncIterator[FakeEvent]:
         message = kwargs["new_message"]
@@ -102,6 +103,7 @@ def test_complete_chat_returns_the_agent_reply_when_authorized(
         "memory": None,
     }
     assert runner.message is not None
+    assert runner.auto_create_session is True
     assert runner.closed is True
 
 

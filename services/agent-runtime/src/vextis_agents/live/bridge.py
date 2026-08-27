@@ -4,6 +4,7 @@ from google.adk.agents import LiveRequestQueue
 from google.adk.runners import InMemoryRunner
 from google.genai import types
 
+from vextis_agents.adk_runner import enable_session_auto_creation
 from vextis_agents.app.config import Settings
 from vextis_agents.coordinator.agent import build_coordinator
 
@@ -19,14 +20,16 @@ class LiveVoiceBridge:
     """
 
     def __init__(self, settings: Settings, tenant_id: str, conversation_id: str) -> None:
-        self._runner = InMemoryRunner(
-            agent=build_coordinator(
-                settings,
-                tenant_id,
-                model=settings.live_model,
-                correlation_id=conversation_id,
-            ),
-            app_name="vextis_ask_vextis_live",
+        self._runner = enable_session_auto_creation(
+            InMemoryRunner(
+                agent=build_coordinator(
+                    settings,
+                    tenant_id,
+                    model=settings.live_model,
+                    correlation_id=conversation_id,
+                ),
+                app_name="vextis_ask_vextis_live",
+            )
         )
         self._queue = LiveRequestQueue()
         self._tenant_id = tenant_id
