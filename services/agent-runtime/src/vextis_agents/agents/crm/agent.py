@@ -2,13 +2,14 @@ from collections.abc import Callable
 from typing import Any
 
 from google.adk.agents import LlmAgent
+from google.adk.models import BaseLlm
 from google.adk.tools.base_tool import BaseTool
 from google.adk.tools.base_toolset import BaseToolset
 
 from vextis_agents.tools.core_api.business_reads import BusinessReadTool
 
 
-def build_crm_agent(model: str, core_reads: BusinessReadTool | None = None) -> LlmAgent:
+def build_crm_agent(model: str | BaseLlm, core_reads: BusinessReadTool | None = None) -> LlmAgent:
     """Build the CRM and Sales specialist used by the fleet coordinator."""
     tools: list[Callable[..., Any] | BaseTool | BaseToolset] = []
     if core_reads is not None:

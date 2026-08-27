@@ -28,6 +28,9 @@ VEXTIS_ENTERPRISE_CORE_URL=<enterprise-core-url>
 VEXTIS_AGENT_TOOLS_TOKEN=<secret-shared-with-enterprise-core>
 VEXTIS_COORDINATOR_AGENT_ID=coordinator-agent
 VEXTIS_GEMINI_MODEL=gemini-3.5-flash
+VEXTIS_GEMINI_LOCATION=us
+VEXTIS_LIVE_MODEL=gemini-live-2.5-flash-native-audio
+VEXTIS_LIVE_LOCATION=us-central1
 GOOGLE_CLOUD_PROJECT=<project-id>
 GOOGLE_CLOUD_LOCATION=us-central1
 GOOGLE_GENAI_USE_VERTEXAI=true
@@ -53,6 +56,7 @@ project and region:
 ```text
 VEXTIS_MEMORY_BANK_ENABLED=true
 VEXTIS_MEMORY_BANK_AGENT_ENGINE_ID=<agent-engine-resource-id>
+VEXTIS_MEMORY_BANK_LOCATION=us-central1
 ```
 
 Each Memory Bank user scope is a SHA-256 pseudonym derived from tenant and authenticated actor.
