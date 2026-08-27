@@ -82,12 +82,14 @@ async def test_adk_planner_prefers_adk_validated_state_over_response_parts(
 ) -> None:
     validated_plan = {
         "summary": "Validate customer and availability.",
-        "steps": [{
-            "sequence": 1,
-            "department": "CRM_SALES",
-            "objective": "Validate customer context.",
-            "requires_approval": False,
-        }],
+        "steps": [
+            {
+                "sequence": 1,
+                "department": "CRM_SALES",
+                "objective": "Validate customer context.",
+                "requires_approval": False,
+            }
+        ],
         "order_lines": [{"sku": "VXT-CHAIR-01", "quantity": 10}],
         "requested_payment_terms_days": 30,
     }
