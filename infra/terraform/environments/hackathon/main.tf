@@ -119,6 +119,7 @@ module "cloud_run" {
   pubsub_topic_id                              = "order-events"
   gemini_model                                 = var.gemini_model
   live_model                                   = var.live_model
+  memory_bank_agent_engine_id                  = var.memory_bank_agent_engine_id
   assets_bucket_name                           = local.assets_bucket_name
   labels                                       = local.labels
 

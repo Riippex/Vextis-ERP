@@ -43,3 +43,20 @@ For the purchase-order slice, Google ADK sends the Cloud Storage PDF to Gemini a
 The schema extracts only explicit SKU, quantity, and requested payment-term facts. Enterprise Core then evaluates CRM, stock, and credit readiness from tenant-scoped records and persists that evidence; Agent Runtime cannot assert those authoritative outcomes itself.
 
 In Cloud Run, keep the service unauthenticated setting disabled. Configure the Pub/Sub push subscription with a dedicated service account and OIDC token that has only `roles/run.invoker` on Agent Runtime. The application-level service token must come from Secret Manager and protects calls from Agent Runtime back to Enterprise Core.
+
+## Durable preference memory
+
+Ask Vextis can use Vertex AI Agent Engine Memory Bank for explicit language, response-style, and
+default-workspace preferences. Enable it only after an Agent Engine exists in the configured
+project and region:
+
+```text
+VEXTIS_MEMORY_BANK_ENABLED=true
+VEXTIS_MEMORY_BANK_AGENT_ENGINE_ID=<agent-engine-resource-id>
+```
+
+Each Memory Bank user scope is a SHA-256 pseudonym derived from tenant and authenticated actor.
+The service stores no raw Firebase UID, conversation transcript, secret, stock, credit, permission,
+balance, or accounting fact. Retrieval is capped at five 500-character preference snippets and is
+injected as untrusted context. Normal retrieval failures fail open and are disclosed as bounded
+evidence; an explicit preference write fails closed instead of claiming it was stored.

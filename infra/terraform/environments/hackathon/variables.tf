@@ -38,3 +38,9 @@ variable "live_model" {
   type        = string
   default     = "gemini-3.5-flash-live"
 }
+
+variable "memory_bank_agent_engine_id" {
+  description = "Existing Vertex AI Agent Engine id used by Memory Bank; empty disables the feature."
+  type        = string
+  default     = ""
+}

@@ -8,6 +8,7 @@ import com.vextis.conversation.domain.ChatMessage;
 import com.vextis.conversation.domain.Conversation;
 import com.vextis.conversation.domain.MessageKind;
 import com.vextis.conversation.domain.MessageSender;
+import com.vextis.conversation.domain.MemoryEvidence;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -55,18 +56,20 @@ public class ConversationService implements AskVextisUseCase, FindConversationUs
 
         repository.appendMessage(
                 command.tenantId(), conversationId, MessageSender.USER, command.message(),
-                MessageKind.TEXT, clock.instant(), List.of());
+                MessageKind.TEXT, clock.instant(), List.of(), null);
 
         AgentChatClient.ChatCompletion completion = agentChat.complete(
-                command.tenantId(), conversationId, command.message());
+                command.tenantId(), command.actorId(), conversationId, command.message());
         List<AgentActivityEvidence> evidence = validateEvidence(command.tenantId(), completion.activities());
+        MemoryEvidence memoryEvidence = validateMemoryEvidence(completion.memory());
 
         ChatMessage assistantMessage = repository.appendMessage(
                 command.tenantId(), conversationId, MessageSender.ASSISTANT, completion.reply(),
-                MessageKind.TEXT, clock.instant(), evidence);
+                MessageKind.TEXT, clock.instant(), evidence, memoryEvidence);
 
         return new AskVextisResult(
-                conversationId, assistantMessage.id(), completion.reply(), assistantMessage.occurredAt(), evidence);
+                conversationId, assistantMessage.id(), completion.reply(), assistantMessage.occurredAt(), evidence,
+                memoryEvidence);
     }
 
     @Override
@@ -102,5 +105,17 @@ public class ConversationService implements AskVextisUseCase, FindConversationUs
                         .orElse(null))
                 .filter(java.util.Objects::nonNull)
                 .toList();
+    }
+
+    private MemoryEvidence validateMemoryEvidence(AgentChatClient.MemoryActivity claimed) {
+        if (claimed == null
+                || !"VERTEX_AI_MEMORY_BANK".equals(claimed.provider())
+                || claimed.contextCount() < 0
+                || claimed.contextCount() > 5
+                || (!claimed.available() && claimed.contextCount() != 0)) {
+            return null;
+        }
+        return new MemoryEvidence(
+                claimed.provider(), claimed.available(), claimed.contextCount(), claimed.preferenceStored());
     }
 }

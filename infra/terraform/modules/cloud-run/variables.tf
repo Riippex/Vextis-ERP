@@ -78,6 +78,12 @@ variable "live_model" {
   type        = string
 }
 
+variable "memory_bank_agent_engine_id" {
+  description = "Agent Engine resource id that backs Memory Bank; empty keeps durable memory disabled."
+  type        = string
+  default     = ""
+}
+
 variable "assets_bucket_name" {
   description = "Private Cloud Storage bucket for purchase-order documents."
   type        = string

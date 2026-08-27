@@ -7,6 +7,7 @@ import com.vextis.conversation.domain.ChatMessage;
 import com.vextis.conversation.domain.Conversation;
 import com.vextis.conversation.domain.MessageKind;
 import com.vextis.conversation.domain.MessageSender;
+import com.vextis.conversation.domain.MemoryEvidence;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -61,7 +62,8 @@ class JdbcConversationRepository implements ConversationRepository, Conversation
             String content,
             MessageKind kind,
             Instant occurredAt,
-            List<AgentActivityEvidence> agentActivities
+            List<AgentActivityEvidence> agentActivities,
+            MemoryEvidence memoryEvidence
     ) {
         UUID id = UUID.randomUUID();
         int inserted = jdbc.update(
@@ -106,7 +108,23 @@ class JdbcConversationRepository implements ConversationRepository, Conversation
                             .addValue("toolNames", String.join(",", activity.tools()))
                             .addValue("occurredAt", Timestamp.from(occurredAt)));
         }
-        return new ChatMessage(id, sender, content, kind, occurredAt, agentActivities);
+        if (memoryEvidence != null) {
+            jdbc.update(
+                    """
+                    INSERT INTO chat_message_memory_evidence (
+                        message_id, provider, available, context_count, preference_stored
+                    ) VALUES (
+                        :messageId, :provider, :available, :contextCount, :preferenceStored
+                    )
+                    """,
+                    new MapSqlParameterSource()
+                            .addValue("messageId", id)
+                            .addValue("provider", memoryEvidence.provider())
+                            .addValue("available", memoryEvidence.available())
+                            .addValue("contextCount", memoryEvidence.contextCount())
+                            .addValue("preferenceStored", memoryEvidence.preferenceStored()));
+        }
+        return new ChatMessage(id, sender, content, kind, occurredAt, agentActivities, memoryEvidence);
     }
 
     @Override
@@ -133,7 +151,7 @@ class JdbcConversationRepository implements ConversationRepository, Conversation
                         rs.getString("content"),
                         MessageKind.valueOf(rs.getString("kind")),
                         rs.getTimestamp("occurred_at").toInstant(),
-                        List.of()));
+                        List.of(), null));
 
         Map<UUID, List<AgentActivityEvidence>> evidenceByMessage = new HashMap<>();
         List<MessageEvidence> evidenceRows = jdbc.query(
@@ -162,10 +180,33 @@ class JdbcConversationRepository implements ConversationRepository, Conversation
                 .computeIfAbsent(row.messageId(), ignored -> new java.util.ArrayList<>())
                 .add(row.evidence()));
 
+        Map<UUID, MemoryEvidence> memoryByMessage = new HashMap<>();
+        jdbc.query(
+                """
+                SELECT memory.message_id, memory.provider, memory.available,
+                       memory.context_count, memory.preference_stored
+                FROM chat_message_memory_evidence memory
+                JOIN chat_messages message ON message.id = memory.message_id
+                JOIN conversations conversation ON conversation.id = message.conversation_id
+                WHERE conversation.id = :conversationId
+                  AND conversation.tenant_id = :tenantId
+                """,
+                Map.of("conversationId", conversationId, "tenantId", tenantId),
+                rs -> {
+                    memoryByMessage.put(
+                            rs.getObject("message_id", UUID.class),
+                            new MemoryEvidence(
+                                    rs.getString("provider"),
+                                    rs.getBoolean("available"),
+                                    rs.getInt("context_count"),
+                                    rs.getBoolean("preference_stored")));
+                });
+
         List<ChatMessage> messages = messagesWithoutEvidence.stream()
                 .map(message -> new ChatMessage(
                         message.id(), message.sender(), message.content(), message.kind(), message.occurredAt(),
-                        evidenceByMessage.getOrDefault(message.id(), List.of())))
+                        evidenceByMessage.getOrDefault(message.id(), List.of()),
+                        memoryByMessage.get(message.id())))
                 .toList();
 
         return Optional.of(new Conversation(conversationId, tenantId, messages));

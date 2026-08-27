@@ -182,14 +182,14 @@ export type AskVextisMutationVariables = Exact<{
 }>;
 
 
-export type AskVextisMutation = { askVextis: { conversationId: string, messageId: string, reply: string, createdAt: string, agentActivities: Array<{ agentId: string, agentVersion: string, displayName: string, modelId: string, promptVersion: string, tools: Array<string> }> } };
+export type AskVextisMutation = { askVextis: { conversationId: string, messageId: string, reply: string, createdAt: string, agentActivities: Array<{ agentId: string, agentVersion: string, displayName: string, modelId: string, promptVersion: string, tools: Array<string> }>, memoryEvidence: { provider: string, available: boolean, contextCount: number, preferenceStored: boolean } | null } };
 
 export type AskVextisConversationQueryVariables = Exact<{
   id: string | number;
 }>;
 
 
-export type AskVextisConversationQuery = { askVextisConversation: { id: string, messages: Array<{ id: string, sender: AskVextisMessageSender, content: string, kind: AskVextisMessageKind, createdAt: string, agentActivities: Array<{ agentId: string, agentVersion: string, displayName: string, modelId: string, promptVersion: string, tools: Array<string> }> }> } | null };
+export type AskVextisConversationQuery = { askVextisConversation: { id: string, messages: Array<{ id: string, sender: AskVextisMessageSender, content: string, kind: AskVextisMessageKind, createdAt: string, agentActivities: Array<{ agentId: string, agentVersion: string, displayName: string, modelId: string, promptVersion: string, tools: Array<string> }>, memoryEvidence: { provider: string, available: boolean, contextCount: number, preferenceStored: boolean } | null }> } | null };
 
 export const HealthDocument = gql`
     query Health {
@@ -649,6 +649,12 @@ export const AskVextisDocument = gql`
       promptVersion
       tools
     }
+    memoryEvidence {
+      provider
+      available
+      contextCount
+      preferenceStored
+    }
   }
 }
     `;
@@ -680,6 +686,12 @@ export const AskVextisConversationDocument = gql`
         modelId
         promptVersion
         tools
+      }
+      memoryEvidence {
+        provider
+        available
+        contextCount
+        preferenceStored
       }
     }
   }

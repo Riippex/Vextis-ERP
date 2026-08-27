@@ -9,6 +9,7 @@ export interface ChatMessage {
   kind: 'TEXT' | 'VOICE_TRANSCRIPT';
   createdAt: string;
   agentActivities: AgentActivity[];
+  memoryEvidence: MemoryEvidence | null;
 }
 
 export interface AgentActivity {
@@ -18,6 +19,13 @@ export interface AgentActivity {
   modelId: string;
   promptVersion: string;
   tools: string[];
+}
+
+export interface MemoryEvidence {
+  provider: string;
+  available: boolean;
+  contextCount: number;
+  preferenceStored: boolean;
 }
 
 /**
@@ -65,7 +73,7 @@ export class AskVextisChatStore {
     }
 
     this.error.set(null);
-    this.pushLocalMessage('USER', trimmed, undefined, []);
+    this.pushLocalMessage('USER', trimmed, undefined, [], null);
     this.sending.set(true);
 
     this.askVextisMutation
@@ -86,6 +94,7 @@ export class AskVextisChatStore {
             result.reply,
             result.createdAt,
             result.agentActivities.map((activity) => ({ ...activity, tools: [...activity.tools] })),
+            result.memoryEvidence ? { ...result.memoryEvidence } : null,
           );
         },
         error: () => {
@@ -121,6 +130,7 @@ export class AskVextisChatStore {
     content: string,
     createdAt = new Date().toISOString(),
     agentActivities: AgentActivity[] = [],
+    memoryEvidence: MemoryEvidence | null = null,
   ): void {
     this.messages.update((messages) => [
       ...messages,
@@ -131,6 +141,7 @@ export class AskVextisChatStore {
         kind: 'TEXT',
         createdAt,
         agentActivities,
+        memoryEvidence,
       },
     ]);
   }

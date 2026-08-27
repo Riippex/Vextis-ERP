@@ -120,6 +120,14 @@ version, display name, model, and prompt version alongside the assistant message
 untrusted identities, and unapproved tools are discarded. This evidence is informational and grants
 no permission to execute a tool.
 
+The request also carries the authenticated actor ID from Enterprise Core. Agent Runtime derives a
+tenant-and-actor pseudonymous Memory Bank scope and may store only explicit language,
+response-style, or default-workspace preferences. Retrieved values are bounded untrusted context,
+never authorization or business evidence. The response exposes only provider availability, the
+number of preferences applied, and whether a preference was durably stored; Enterprise Core
+validates and snapshots that evidence with the assistant message. It never persists or returns the
+preference text through the public conversation contract.
+
 ### Tools API â€” Agent Runtime to Enterprise Core
 
 Executable source: `contracts/openapi/agent-tools-api.yaml`.

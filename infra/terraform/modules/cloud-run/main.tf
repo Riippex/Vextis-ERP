@@ -302,6 +302,14 @@ resource "google_cloud_run_v2_service" "agent_runtime" {
         value = "true"
       }
       env {
+        name  = "VEXTIS_MEMORY_BANK_ENABLED"
+        value = var.memory_bank_agent_engine_id == "" ? "false" : "true"
+      }
+      env {
+        name  = "VEXTIS_MEMORY_BANK_AGENT_ENGINE_ID"
+        value = var.memory_bank_agent_engine_id
+      }
+      env {
         name = "VEXTIS_CORE_CALLBACK_TOKEN"
         value_source {
           secret_key_ref {

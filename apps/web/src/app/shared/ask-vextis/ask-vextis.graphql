@@ -12,6 +12,12 @@ mutation AskVextis($input: AskVextisMessageInput!) {
       promptVersion
       tools
     }
+    memoryEvidence {
+      provider
+      available
+      contextCount
+      preferenceStored
+    }
   }
 }
 
@@ -31,6 +37,12 @@ query AskVextisConversation($id: ID!) {
         modelId
         promptVersion
         tools
+      }
+      memoryEvidence {
+        provider
+        available
+        contextCount
+        preferenceStored
       }
     }
   }
