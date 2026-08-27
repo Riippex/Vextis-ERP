@@ -9,6 +9,7 @@ from google.adk.runners import InMemoryRunner
 from google.genai import types
 from pydantic import BaseModel, ConfigDict, Field
 
+from vextis_agents.adk_runner import enable_session_auto_creation
 from vextis_agents.app.config import Settings
 from vextis_agents.coordinator.agent import build_coordinator
 from vextis_agents.memory.service import (
@@ -130,11 +131,13 @@ def create_chat_router(settings: Settings, memory: AgentMemory | None = None) ->
                     status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exception)
                 ) from exception
 
-        runner = InMemoryRunner(
-            agent=build_coordinator(
-                settings, request.tenant_id, correlation_id=str(request.conversation_id)
-            ),
-            app_name="vextis_ask_vextis",
+        runner = enable_session_auto_creation(
+            InMemoryRunner(
+                agent=build_coordinator(
+                    settings, request.tenant_id, correlation_id=str(request.conversation_id)
+                ),
+                app_name="vextis_ask_vextis",
+            )
         )
         activity = PublicActivityCollector(
             {
