@@ -10,7 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
-import { map, Subscription, switchMap, takeWhile, timer } from 'rxjs';
+import { map, Subscription, switchMap, take, takeWhile, timer } from 'rxjs';
 
 import {
   FindExecutionGQL,
@@ -213,6 +213,9 @@ export class ReceivePurchaseOrderPage {
         this.deciding.set(false);
         if (data?.decideApproval) {
           this.updateExecution(data.decideApproval);
+          if (decision === 'APPROVE') {
+            this.monitorExecution(data.decideApproval.id);
+          }
         }
       },
       error: (error: unknown) => {
@@ -237,6 +240,7 @@ export class ReceivePurchaseOrderPage {
             fetchPolicy: 'network-only',
           }),
         ),
+        take(61),
         takeWhile(({ data }) => this.isAwaitingReadiness(data?.execution), true),
         takeUntilDestroyed(this.destroyRef),
       )
@@ -248,6 +252,16 @@ export class ReceivePurchaseOrderPage {
           this.updateExecution(data.execution);
           if (!this.isAwaitingReadiness(data.execution)) {
             this.monitoring.set(false);
+            if (
+              data.execution.state === 'RUNNING' &&
+              data.execution.readiness != null &&
+              !data.execution.approval &&
+              !this.hasInvoicePricing(data.execution)
+            ) {
+              this.errorMessage.set(
+                'The extracted order needs a currency and a unit price for every line before approval.',
+              );
+            }
           }
         },
         error: () => {
@@ -256,7 +270,16 @@ export class ReceivePurchaseOrderPage {
             'The order was received, but its live status could not be refreshed.',
           );
         },
-        complete: () => this.monitoring.set(false),
+        complete: () => {
+          if (this.monitoring()) {
+            this.monitoring.set(false);
+            if (this.isAwaitingReadiness(this.receipt()?.execution)) {
+              this.errorMessage.set(
+                'Live processing did not finish within two minutes. Refresh the execution before retrying.',
+              );
+            }
+          }
+        },
       });
   }
 
@@ -266,12 +289,60 @@ export class ReceivePurchaseOrderPage {
     );
   }
 
+  protected invoicePreview(plan: NonNullable<Execution['plan']>): {
+    subtotal: string;
+    tax: string;
+    total: string;
+  } | null {
+    if (!plan.currency || plan.orderLines.some((line) => line.unitPrice == null)) {
+      return null;
+    }
+    let subtotal = 0n;
+    for (const line of plan.orderLines) {
+      const unitPrice = this.toCents(line.unitPrice);
+      if (unitPrice === null) {
+        return null;
+      }
+      subtotal += unitPrice * BigInt(line.quantity);
+    }
+    const tax = (subtotal * 19n + 50n) / 100n;
+    return {
+      subtotal: this.formatCents(subtotal),
+      tax: this.formatCents(tax),
+      total: this.formatCents(subtotal + tax),
+    };
+  }
+
+  private toCents(value: unknown): bigint | null {
+    const normalized = String(value);
+    const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(normalized);
+    if (!match) {
+      return null;
+    }
+    return BigInt(match[1]) * 100n + BigInt((match[2] ?? '').padEnd(2, '0'));
+  }
+
+  private formatCents(value: bigint): string {
+    return `${value / 100n}.${String(value % 100n).padStart(2, '0')}`;
+  }
+
   private isAwaitingReadiness(execution: Execution | null | undefined): boolean {
     return (
       execution?.state === 'RECEIVED' ||
       execution?.state === 'PLANNING' ||
-      (execution?.state === 'RUNNING' && !execution.readiness)
-      || (execution?.state === 'RUNNING' && execution.readiness != null && !execution.approval)
+      (execution?.state === 'RUNNING' && !execution.readiness) ||
+      (execution?.state === 'RUNNING' &&
+        execution.readiness != null &&
+        !execution.approval &&
+        this.hasInvoicePricing(execution)) ||
+      (execution?.approval?.status === 'APPROVED' && execution.invoice == null)
+    );
+  }
+
+  private hasInvoicePricing(execution: Execution): boolean {
+    return Boolean(
+      execution.plan?.currency &&
+        execution.plan.orderLines.every((line) => line.unitPrice != null),
     );
   }
 

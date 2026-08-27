@@ -56,6 +56,26 @@ query MissionControl {
       standing
       maxPaymentTermsDays
     }
+    invoices {
+      id
+      orderId
+      executionId
+      customerName
+      currency
+      subtotal
+      tax
+      total
+      status
+      paymentTermsDays
+      issuedAt
+      correlationId
+      lines {
+        sku
+        quantity
+        unitPrice
+        lineSubtotal
+      }
+    }
     executionVolumeByDepartment {
       department
       count

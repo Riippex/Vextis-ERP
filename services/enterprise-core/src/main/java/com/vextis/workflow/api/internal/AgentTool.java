@@ -8,7 +8,8 @@ enum AgentTool {
     RECORD_EXECUTION_PLAN("record_execution_plan"),
     EVALUATE_ORDER_READINESS("evaluate_order_readiness"),
     REQUEST_WORKFLOW_APPROVAL("request_workflow_approval"),
-    RESERVE_STOCK("reserve_stock");
+    RESERVE_STOCK("reserve_stock"),
+    CREATE_INVOICE("create_invoice");
 
     private final String policyName;
 

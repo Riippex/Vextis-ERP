@@ -78,4 +78,6 @@ public interface PurchaseOrderWorkflowRepository {
             WorkflowExecution previous, WorkflowExecution updated, Actor actor,
             String operation, String idempotencyKey
     );
+
+    void saveInvoiceIssued(WorkflowExecution previous, WorkflowExecution updated);
 }

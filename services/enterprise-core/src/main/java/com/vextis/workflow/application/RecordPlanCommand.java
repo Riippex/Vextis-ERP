@@ -17,8 +17,18 @@ public record RecordPlanCommand(
         List<WorkflowPlanStep> steps,
         List<ExtractedOrderLine> orderLines,
         int requestedPaymentTermsDays,
+        String currency,
         String idempotencyKey
 ) {
+
+    public RecordPlanCommand(
+            String tenantId, Actor actor, UUID executionId, String correlationId, String modelId,
+            String summary, List<WorkflowPlanStep> steps, List<ExtractedOrderLine> orderLines,
+            int requestedPaymentTermsDays, String idempotencyKey
+    ) {
+        this(tenantId, actor, executionId, correlationId, modelId, summary, steps, orderLines,
+                requestedPaymentTermsDays, null, idempotencyKey);
+    }
 
     public RecordPlanCommand {
         if (actor == null || executionId == null || steps == null || orderLines == null) {
@@ -31,5 +41,6 @@ public record RecordPlanCommand(
         }
         steps = List.copyOf(steps);
         orderLines = List.copyOf(orderLines);
+        currency = currency == null ? null : currency.trim().toUpperCase();
     }
 }

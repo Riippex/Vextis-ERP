@@ -114,7 +114,8 @@ describe('ReceivePurchaseOrderPage', () => {
             modelId: 'gemini-3.5-flash',
             generatedAt: '2026-08-21T03:30:04Z',
             requestedPaymentTermsDays: 30,
-            orderLines: [{ sku: 'VXT-CHAIR-01', quantity: 10 }],
+            currency: 'COP',
+            orderLines: [{ sku: 'VXT-CHAIR-01', quantity: 10, unitPrice: '100.00' }],
             steps: [
               {
                 sequence: 1,
@@ -254,6 +255,8 @@ describe('ReceivePurchaseOrderPage', () => {
     expect(fixture.nativeElement.textContent).toContain('gemini-3.5-flash');
     expect(fixture.nativeElement.textContent).toContain('Human approval required');
     expect(fixture.nativeElement.textContent).toContain('VXT-CHAIR-01');
+    expect(fixture.nativeElement.textContent).toContain('Final amount for approval');
+    expect(fixture.nativeElement.textContent).toContain('1190.00 COP');
     expect(fixture.nativeElement.textContent).toContain('Order readiness');
     expect(fixture.nativeElement.textContent).toContain('Credit standing is good');
     expect(fixture.nativeElement.textContent).toContain('Agent and user audit trail');

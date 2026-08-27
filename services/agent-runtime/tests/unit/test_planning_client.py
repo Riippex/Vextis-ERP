@@ -286,6 +286,58 @@ async def test_client_reserves_exact_approved_line_with_stable_context() -> None
 
 
 @pytest.mark.asyncio
+async def test_client_requests_invoice_with_billing_identity_and_stable_context() -> None:
+    captured: httpx.Request | None = None
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        nonlocal captured
+        captured = request
+        return httpx.Response(
+            201,
+            json={
+                "id": "3e2fb128-12e8-48fa-acdd-4748e00657ef",
+                "orderId": "77cc63cc-3c91-4d80-a918-605b7f231cf8",
+                "executionId": "8d3f290d-1322-44a2-8bd7-3b325f170e07",
+                "customerName": "Acme Colombia",
+                "subtotal": "1000.00",
+                "tax": "190.00",
+                "total": "1190.00",
+                "currency": "COP",
+                "status": "ISSUED",
+                "paymentTermsDays": 30,
+                "issuedAt": "2026-08-27T18:00:00Z",
+                "correlationId": "corr-001",
+                "lines": [
+                    {
+                        "sku": "VXT-CHAIR-01",
+                        "quantity": 10,
+                        "unitPrice": "100.00",
+                        "lineSubtotal": "1000.00",
+                    }
+                ],
+            },
+        )
+
+    client = EnterpriseCorePlanningClient(settings(), httpx.MockTransport(respond))
+    event = WorkflowApprovalDecidedV1.model_validate(approval_decided_event())
+
+    result = await client.issue_invoice(event)
+
+    assert result.status == "ISSUED"
+    assert result.customer_name == "Acme Colombia"
+    assert result.lines[0].line_subtotal == "1000.00"
+    assert captured is not None
+    assert captured.url.path.endswith(
+        "/billing/orders/77cc63cc-3c91-4d80-a918-605b7f231cf8/invoice"
+    )
+    assert captured.headers["X-Agent-Id"] == "vextis_billing_agent"
+    assert captured.headers["Idempotency-Key"].endswith(":issue-invoice")
+    assert json.loads(captured.content) == {
+        "executionId": "8d3f290d-1322-44a2-8bd7-3b325f170e07"
+    }
+
+
+@pytest.mark.asyncio
 async def test_client_does_not_retry_deterministic_rejection() -> None:
     transport = httpx.MockTransport(lambda request: httpx.Response(409))
     client = EnterpriseCorePlanningClient(settings(), transport)

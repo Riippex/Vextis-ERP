@@ -134,10 +134,29 @@
             @for (line of plan.orderLines; track line.sku) {
               <div>
                 <dt>{{ line.sku }}</dt>
-                <dd>{{ line.quantity }} units</dd>
+                <dd>
+                  {{ line.quantity }} units
+                  @if (line.unitPrice && plan.currency) { · {{ line.unitPrice }} {{ plan.currency }} each }
+                </dd>
               </div>
             }
           </dl>
+          @if (invoicePreview(plan); as preview) {
+            <dl class="extracted-facts" aria-label="Invoice approval preview">
+              <div>
+                <dt>Invoice subtotal</dt>
+                <dd>{{ preview.subtotal }} {{ plan.currency }}</dd>
+              </div>
+              <div>
+                <dt>Tax policy</dt>
+                <dd>19% · {{ preview.tax }} {{ plan.currency }}</dd>
+              </div>
+              <div>
+                <dt>Final amount for approval</dt>
+                <dd>{{ preview.total }} {{ plan.currency }}</dd>
+              </div>
+            </dl>
+          }
           <ol class="plan__steps">
             @for (step of plan.steps; track step.sequence) {
               <li>
@@ -227,6 +246,27 @@
               </span>
             </div>
           }
+        </section>
+      }
+
+      @if (currentReceipt.execution.invoice; as invoice) {
+        <section class="approval" aria-labelledby="invoice-title">
+          <div class="plan__heading">
+            <div>
+              <p class="evidence__eyebrow">Finance & Billing closure</p>
+              <h3 id="invoice-title">Invoice issued</h3>
+            </div>
+            <span class="status">{{ invoice.status }}</span>
+          </div>
+          <strong>{{ invoice.total }} {{ invoice.currency }}</strong>
+          <p>
+            Subtotal {{ invoice.subtotal }} + tax {{ invoice.tax }} ·
+            {{ invoice.paymentTermsDays }}-day terms
+          </p>
+          <small>
+            Invoice {{ invoice.id }} · correlation {{ invoice.correlationId }} ·
+            {{ invoice.issuedAt | date: 'medium' }}
+          </small>
         </section>
       }
 

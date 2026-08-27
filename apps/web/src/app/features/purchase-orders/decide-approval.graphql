@@ -18,7 +18,8 @@ mutation DecideApproval($input: DecideApprovalInput!) {
       modelId
       generatedAt
       requestedPaymentTermsDays
-      orderLines { sku quantity }
+      orderLines { sku quantity unitPrice }
+      currency
       steps { sequence department objective requiresApproval }
     }
     readiness {
@@ -35,6 +36,21 @@ mutation DecideApproval($input: DecideApprovalInput!) {
       decidedBy
       decidedAt
       reason
+    }
+    invoice {
+      id
+      orderId
+      executionId
+      customerName
+      currency
+      subtotal
+      tax
+      total
+      status
+      paymentTermsDays
+      issuedAt
+      correlationId
+      lines { sku quantity unitPrice lineSubtotal }
     }
     auditTrail {
       id

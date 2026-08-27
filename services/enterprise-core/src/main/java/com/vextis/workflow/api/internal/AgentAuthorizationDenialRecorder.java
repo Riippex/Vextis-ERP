@@ -69,6 +69,7 @@ class AgentAuthorizationDenialRecorder {
         START_EXECUTION_PLANNING,
         RECORD_EXECUTION_PLAN,
         EVALUATE_ORDER_READINESS,
-        REQUEST_WORKFLOW_APPROVAL
+        REQUEST_WORKFLOW_APPROVAL,
+        CREATE_INVOICE
     }
 }

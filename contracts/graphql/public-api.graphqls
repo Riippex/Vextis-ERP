@@ -1,6 +1,7 @@
 type Query {
   health: Health!
   execution(id: ID!): Execution
+  invoice(id: ID!): Invoice
   missionControl: MissionControl!
   askVextisConversation(id: ID!): AskVextisConversation
 }
@@ -13,6 +14,7 @@ type MissionControl {
   stockItems: [StockItemOverview!]!
   stockReservations: [StockReservationOverview!]!
   creditProfiles: [CreditProfileOverview!]!
+  invoices: [Invoice!]!
   executionVolumeByDepartment: [DepartmentExecutionVolume!]!
 }
 
@@ -208,7 +210,35 @@ type Execution {
   plan: ExecutionPlan
   readiness: ExecutionReadiness
   approval: WorkflowApproval
+  invoice: Invoice
   auditTrail: [ExecutionAuditEntry!]!
+}
+
+type Invoice {
+  id: ID!
+  orderId: ID!
+  executionId: ID!
+  customerName: String!
+  currency: String!
+  subtotal: String!
+  tax: String!
+  total: String!
+  status: InvoiceStatus!
+  paymentTermsDays: Int!
+  issuedAt: String!
+  correlationId: String!
+  lines: [InvoiceLine!]!
+}
+
+type InvoiceLine {
+  sku: String!
+  quantity: Int!
+  unitPrice: String!
+  lineSubtotal: String!
+}
+
+enum InvoiceStatus {
+  ISSUED
 }
 
 type ExecutionAuditEntry {
@@ -299,11 +329,13 @@ type ExecutionPlan {
   steps: [ExecutionPlanStep!]!
   orderLines: [ExtractedOrderLine!]!
   requestedPaymentTermsDays: Int!
+  currency: String
 }
 
 type ExtractedOrderLine {
   sku: String!
   quantity: Int!
+  unitPrice: String
 }
 
 type ExecutionReadiness {
@@ -349,6 +381,7 @@ enum TimelineEntryType {
   APPROVAL_REQUESTED
   APPROVAL_DECIDED
   COMPLETED
+  INVOICE_ISSUED
   FAILED
 }
 

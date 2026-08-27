@@ -25,6 +25,11 @@
         <span class="metric-card__detail">Finance-owned records</span>
       </article>
       <article class="metric-card">
+        <span class="metric-card__label">Issued invoices</span>
+        <strong class="metric-card__value">{{ data.invoices.length }}</strong>
+        <span class="metric-card__detail">Approved and fully reserved orders</span>
+      </article>
+      <article class="metric-card">
         <span class="metric-card__label">Good standing</span>
         <strong class="metric-card__value">{{ goodStanding() }}</strong>
         <span class="metric-card__detail">Within configured terms</span>
@@ -94,7 +99,7 @@
               </div>
               <strong class="data-card__number">{{ profile.maxPaymentTermsDays }}d</strong>
               <div class="data-card__footer">
-                <span>Approval and invoicing mutations are intentionally deferred.</span>
+                <span>Credit evidence gates approval and invoice issuance.</span>
                 <button mat-button type="button" (click)="editProfile(profile)"><mat-icon>edit</mat-icon>Edit</button>
               </div>
             </article>
@@ -102,6 +107,38 @@
         </div>
       } @else {
         <section class="panel state-panel"><mat-icon>credit_score</mat-icon>No credit profiles available.</section>
+      }
+    </section>
+
+    <section>
+      <div class="section-heading">
+        <div><h2>Issued invoices</h2><p>Finance-owned totals with order and correlation evidence.</p></div>
+      </div>
+      @if (data.invoices.length) {
+        <div class="card-grid">
+          @for (invoice of data.invoices; track invoice.id) {
+            <article class="data-card">
+              <div class="data-card__topline">
+                <span class="department-card__icon"><mat-icon>receipt_long</mat-icon></span>
+                <span class="status-pill status-pill--good">{{ invoice.status }}</span>
+              </div>
+              <div>
+                <h2>{{ invoice.customerName }}</h2>
+                <p>Invoice {{ invoice.id }} · Order {{ invoice.orderId }}</p>
+              </div>
+              <strong class="data-card__number">{{ invoice.total }} {{ invoice.currency }}</strong>
+              <div class="data-card__footer">
+                <span>Subtotal {{ invoice.subtotal }} + tax {{ invoice.tax }} · {{ invoice.paymentTermsDays }}d terms</span>
+                <span>Execution {{ invoice.executionId }}</span>
+              </div>
+              <span class="data-row__meta">Correlation {{ invoice.correlationId }}</span>
+            </article>
+          }
+        </div>
+      } @else {
+        <section class="panel state-panel">
+          <mat-icon>receipt_long</mat-icon>No invoice has been issued yet. Complete an approved order first.
+        </section>
       }
     </section>
   }

@@ -18,6 +18,8 @@ import com.vextis.workflow.domain.WorkflowExecution;
 import com.vextis.workflow.domain.WorkflowPlanStep;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -123,6 +125,7 @@ class AgentWorkflowToolController {
                     steps,
                     orderLines,
                     request.requestedPaymentTermsDays(),
+                    request.currency(),
                     idempotencyKey
             ));
             return ExecutionResponse.from(execution);
@@ -208,7 +211,8 @@ class AgentWorkflowToolController {
             @NotBlank @Size(max = 500) String summary,
             @NotNull @Size(min = 1, max = 5) List<@Valid PlanStepRequest> steps,
             @NotNull @Size(min = 1, max = 20) List<@Valid ExtractedOrderLineRequest> orderLines,
-            @Min(0) @Max(365) int requestedPaymentTermsDays
+            @Min(0) @Max(365) int requestedPaymentTermsDays,
+            @Pattern(regexp = "^[A-Z]{3}$") String currency
     ) {
     }
 
@@ -217,10 +221,11 @@ class AgentWorkflowToolController {
 
     record ExtractedOrderLineRequest(
             @NotBlank @Size(max = 100) @Pattern(regexp = "^[A-Za-z0-9._-]+$") String sku,
-            @Min(1) @Max(1_000_000) int quantity
+            @Min(1) @Max(1_000_000) int quantity,
+            @DecimalMin(value = "0.01") @Digits(integer = 17, fraction = 2) java.math.BigDecimal unitPrice
     ) {
         ExtractedOrderLine toDomain() {
-            return new ExtractedOrderLine(sku, quantity);
+            return new ExtractedOrderLine(sku, quantity, unitPrice);
         }
     }
 

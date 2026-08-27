@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Vextis Agent Tools API
-  version: 0.3.0
+  version: 0.4.0
   description: >-
     API interna autenticada para invocar casos de uso del Enterprise Core. The service
     credential authenticates Agent Runtime, while X-Agent-Id identifies the delegated
@@ -270,6 +270,48 @@ paths:
           description: Agent is not authorized for this tool or scope
         "409":
           description: Insufficient stock or conflicting business state
+  /billing/orders/{orderId}/invoice:
+    post:
+      operationId: createInvoice
+      x-vextis-tool-policy: create_invoice
+      description: >-
+        Issues the single Finance-owned invoice from the approved plan after every
+        order line is reserved. Prices and currency are read from Core's persisted
+        approved context; the agent cannot submit or calculate financial totals.
+      security:
+        - serviceBearer: []
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IssueInvoiceRequest"
+      responses:
+        "201":
+          description: Invoice issued, or the original idempotent invoice was returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invoice"
+        "401":
+          description: Missing or invalid service credential
+        "403":
+          description: Logical agent is not authorized for invoice issuance
+        "404":
+          description: Approved order execution was not found in the tenant
+        "409":
+          description: Order is not approved, completed, fully reserved, or priced
   /quotes/{quoteId}/assets:
     post:
       operationId: registerQuoteAsset
@@ -491,6 +533,9 @@ components:
           type: integer
           minimum: 0
           maximum: 365
+        currency:
+          type: [string, "null"]
+          pattern: "^[A-Z]{3}$"
         steps:
           type: array
           minItems: 1
@@ -511,6 +556,9 @@ components:
           type: integer
           minimum: 1
           maximum: 1000000
+        unitPrice:
+          type: [string, "null"]
+          pattern: "^(0|[1-9][0-9]*)(\\.[0-9]{1,2})?$"
     PlanStep:
       type: object
       additionalProperties: false
@@ -583,6 +631,85 @@ components:
         createdAt:
           type: string
           format: date-time
+    Invoice:
+      type: object
+      additionalProperties: false
+      required:
+        [id, orderId, executionId, customerName, currency, subtotal, tax, total,
+         status, paymentTermsDays, issuedAt, correlationId, lines]
+      properties:
+        id:
+          type: string
+          format: uuid
+        orderId:
+          type: string
+          format: uuid
+        executionId:
+          type: string
+          format: uuid
+        customerName:
+          type: string
+          minLength: 1
+          maxLength: 200
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+        subtotal:
+          type: string
+          pattern: "^(0|[1-9][0-9]*)(\\.[0-9]{2})$"
+        tax:
+          type: string
+          pattern: "^(0|[1-9][0-9]*)(\\.[0-9]{2})$"
+        total:
+          type: string
+          pattern: "^(0|[1-9][0-9]*)(\\.[0-9]{2})$"
+        status:
+          type: string
+          const: ISSUED
+        paymentTermsDays:
+          type: integer
+          minimum: 0
+          maximum: 365
+        issuedAt:
+          type: string
+          format: date-time
+        correlationId:
+          type: string
+          minLength: 1
+          maxLength: 100
+        lines:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/InvoiceLine"
+    IssueInvoiceRequest:
+      type: object
+      additionalProperties: false
+      required: [executionId]
+      properties:
+        executionId:
+          type: string
+          format: uuid
+    InvoiceLine:
+      type: object
+      additionalProperties: false
+      required: [sku, quantity, unitPrice, lineSubtotal]
+      properties:
+        sku:
+          type: string
+          pattern: "^[A-Za-z0-9._-]+$"
+          maxLength: 100
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 1000000
+        unitPrice:
+          type: string
+          pattern: "^(0|[1-9][0-9]*)(\\.[0-9]{2})$"
+        lineSubtotal:
+          type: string
+          pattern: "^(0|[1-9][0-9]*)(\\.[0-9]{2})$"
     LiveSessionValidation:
       type: object
       additionalProperties: false
