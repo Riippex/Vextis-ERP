@@ -26,6 +26,7 @@ class FakeRunner:
         self._events = events
         self.live_request_queue: LiveRequestQueue | None = None
         self.closed = False
+        self.auto_create_session = False
 
     async def run_live(self, **kwargs: object) -> AsyncIterator[FakeEvent]:
         queue = kwargs["live_request_queue"]
@@ -55,6 +56,7 @@ async def test_events_yields_both_audio_and_transcript_parts(
     assert parts[0].inline_data is not None
     assert parts[0].inline_data.data == b"\x00\x01"
     assert parts[1].text == "Hello there"
+    assert runner.auto_create_session is True
 
 
 @pytest.mark.asyncio

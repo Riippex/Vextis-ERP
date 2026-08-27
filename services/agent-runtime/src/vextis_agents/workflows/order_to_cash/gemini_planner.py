@@ -5,6 +5,7 @@ from google.adk.runners import InMemoryRunner
 from google.genai import types
 from pydantic import ValidationError
 
+from vextis_agents.adk_runner import enable_session_auto_creation
 from vextis_agents.app.config import Settings
 from vextis_agents.coordinator.agent import build_planning_agent
 from vextis_agents.workflows.order_to_cash.planning import (
@@ -28,9 +29,11 @@ class AdkGeminiPlanGenerator:
         return self._model_id
 
     async def generate(self, context: PlanningContext) -> GeneratedPlan:
-        runner = InMemoryRunner(
-            agent=build_planning_agent(self._settings),
-            app_name="vextis_order_planning",
+        runner = enable_session_auto_creation(
+            InMemoryRunner(
+                agent=build_planning_agent(self._settings),
+                app_name="vextis_order_planning",
+            )
         )
         prompt = json.dumps(
             {
