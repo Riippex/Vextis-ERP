@@ -343,6 +343,10 @@ resource "google_cloud_run_v2_service" "agent_runtime" {
         value = var.gemini_model
       }
       env {
+        name  = "GOOGLE_GENAI_USE_VERTEXAI"
+        value = "true"
+      }
+      env {
         name  = "GOOGLE_CLOUD_PROJECT"
         value = var.project_id
       }
