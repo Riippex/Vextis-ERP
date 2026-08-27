@@ -8,6 +8,7 @@ from vextis_agents.app.config import Settings
 from vextis_agents.app.main import create_app
 from vextis_agents.tools.core_api.planning import (
     CoreToolUnavailableError,
+    InvoiceLineResult,
     InvoiceResult,
     PlanningResult,
     ReservationResult,
@@ -125,12 +126,12 @@ class PlanningToolStub:
             issuedAt="2026-08-27T18:00:00Z",
             correlationId=event.correlation_id,
             lines=[
-                {
-                    "sku": "VXT-CHAIR-01",
-                    "quantity": 10,
-                    "unitPrice": "100.00",
-                    "lineSubtotal": "1000.00",
-                }
+                InvoiceLineResult(
+                    sku="VXT-CHAIR-01",
+                    quantity=10,
+                    unitPrice="100.00",
+                    lineSubtotal="1000.00",
+                )
             ],
         )
 

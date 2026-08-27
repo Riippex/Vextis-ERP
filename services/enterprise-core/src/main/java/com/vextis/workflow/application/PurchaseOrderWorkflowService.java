@@ -170,11 +170,6 @@ public class PurchaseOrderWorkflowService implements RegisterReceivedPurchaseOrd
         if (!current.correlationId().equals(command.correlationId())) {
             throw new WorkflowConflictException("Correlation id does not match the execution");
         }
-        if (current.plan() == null || current.plan().currency() == null
-                || current.plan().orderLines().stream().anyMatch(line -> line.unitPrice() == null)) {
-            throw new WorkflowConflictException(
-                    "Approval requires explicit currency and a unit price for every order line");
-        }
         PurchaseOrderSource source = repository.findPurchaseOrder(command.tenantId(), current.sourceId())
                 .orElseThrow(() -> new WorkflowNotFoundException("Purchase order source was not found"));
         if (!source.documentUri().equals(command.documentUri())) {
@@ -310,6 +305,11 @@ public class PurchaseOrderWorkflowService implements RegisterReceivedPurchaseOrd
                 .orElseThrow(() -> new WorkflowNotFoundException("Execution was not found for tenant"));
         if (!current.correlationId().equals(command.correlationId())) {
             throw new WorkflowConflictException("Correlation id does not match the execution");
+        }
+        if (current.plan() == null || current.plan().currency() == null
+                || current.plan().orderLines().stream().anyMatch(line -> line.unitPrice() == null)) {
+            throw new WorkflowConflictException(
+                    "Approval requires explicit currency and a unit price for every order line");
         }
         Instant now = clock.instant();
         WorkflowExecution updated;
