@@ -114,3 +114,29 @@ def test_planning_agent_enforces_structured_output() -> None:
     assert planner.output_schema is GeneratedPlan
     assert planner.output_key == "workflow_plan"
     assert planner.sub_agents == []
+
+
+def test_coordinator_with_knowledge_retriever_has_tool() -> None:
+    import httpx
+    from pydantic import SecretStr
+
+    from vextis_agents.rag.retriever import KnowledgeRetriever
+
+    settings = Settings(
+        gemini_model="gemini-test-model",
+        agent_tools_token=SecretStr("token"),
+        enterprise_core_url="https://core.vextis.local",
+    )
+    retriever = KnowledgeRetriever(
+        settings=settings,
+        tenant_id="demo-tenant",
+        transport=httpx.MockTransport(lambda req: httpx.Response(200, json={"matches": []})),
+    )
+    coordinator = build_coordinator(
+        settings=settings,
+        tenant_id="demo-tenant",
+        knowledge_retriever=retriever,
+    )
+
+    tool_names = [getattr(t, "__name__", None) for t in coordinator.tools]
+    assert "search_knowledge_base" in tool_names

@@ -332,9 +332,7 @@ async def test_client_requests_invoice_with_billing_identity_and_stable_context(
     )
     assert captured.headers["X-Agent-Id"] == "vextis_billing_agent"
     assert captured.headers["Idempotency-Key"].endswith(":issue-invoice")
-    assert json.loads(captured.content) == {
-        "executionId": "8d3f290d-1322-44a2-8bd7-3b325f170e07"
-    }
+    assert json.loads(captured.content) == {"executionId": "8d3f290d-1322-44a2-8bd7-3b325f170e07"}
 
 
 @pytest.mark.asyncio

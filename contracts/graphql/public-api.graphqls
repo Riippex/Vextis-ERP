@@ -4,6 +4,7 @@ type Query {
   invoice(id: ID!): Invoice
   missionControl: MissionControl!
   askVextisConversation(id: ID!): AskVextisConversation
+  knowledgeDocuments: [KnowledgeDocumentView!]!
 }
 
 type MissionControl {
@@ -423,4 +424,17 @@ type LiveSession {
   websocketUrl: String!
   sessionToken: String!
   expiresAt: String!
+}
+
+type KnowledgeDocumentView {
+  id: ID!
+  documentUri: String!
+  fileName: String!
+  contentType: String!
+  contentHash: String!
+  version: Int!
+  status: String!
+  chunkCount: Int!
+  createdAt: String!
+  updatedAt: String!
 }

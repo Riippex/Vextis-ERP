@@ -312,6 +312,34 @@ paths:
           description: Approved order execution was not found in the tenant
         "409":
           description: Order is not approved, completed, fully reserved, or priced
+  /rag/search:
+    post:
+      operationId: searchKnowledgeBase
+      x-vextis-tool-policy: search_knowledge_base
+      description: Searches tenant-scoped grounded knowledge base chunks using vector similarity.
+      security:
+        - serviceBearer: []
+      parameters:
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SearchKnowledgeRequest"
+      responses:
+        "200":
+          description: Matching knowledge chunks returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchKnowledgeResponse"
+        "401":
+          description: Missing or invalid service credential
+        "403":
+          description: Logical agent is inactive, belongs to another service, tenant, or tool policy
   /quotes/{quoteId}/assets:
     post:
       operationId: registerQuoteAsset
@@ -742,3 +770,59 @@ components:
         aiGenerated:
           type: boolean
           const: true
+    SearchKnowledgeRequest:
+      type: object
+      additionalProperties: false
+      required: [embedding]
+      properties:
+        query:
+          type: string
+          maxLength: 1000
+        embedding:
+          type: array
+          minItems: 768
+          maxItems: 768
+          items:
+            type: number
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 5
+        minScore:
+          type: number
+          minimum: 0.0
+          maximum: 1.0
+          default: 0.0
+    SearchKnowledgeResponse:
+      type: object
+      additionalProperties: false
+      required: [matches]
+      properties:
+        matches:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/KnowledgeChunkMatch"
+    KnowledgeChunkMatch:
+      type: object
+      additionalProperties: false
+      required: [documentId, fileName, documentUri, chunkIndex, chunkText, similarityScore, metadata]
+      properties:
+        documentId:
+          type: string
+          format: uuid
+        fileName:
+          type: string
+        documentUri:
+          type: string
+        chunkIndex:
+          type: integer
+          minimum: 0
+        chunkText:
+          type: string
+        similarityScore:
+          type: number
+        metadata:
+          type: object
+          additionalProperties: true

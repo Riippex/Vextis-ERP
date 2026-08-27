@@ -1,10 +1,16 @@
+from collections.abc import Callable
+from typing import Any
+
 from google.adk.agents import LlmAgent
+from google.adk.tools.base_tool import BaseTool
+from google.adk.tools.base_toolset import BaseToolset
 
 from vextis_agents.agents.billing import build_billing_agent
 from vextis_agents.agents.crm import build_crm_agent
 from vextis_agents.agents.inventory import build_inventory_agent
 from vextis_agents.app.config import Settings
 from vextis_agents.gemini import build_gemini_model
+from vextis_agents.rag.retriever import KnowledgeRetriever
 from vextis_agents.tools.core_api.business_reads import (
     BusinessReadTool,
     EnterpriseCoreBusinessReadClient,
@@ -20,6 +26,7 @@ def build_coordinator(
     model_location: str | None = None,
     correlation_id: str | None = None,
     core_reads: BusinessReadTool | None = None,
+    knowledge_retriever: KnowledgeRetriever | None = None,
 ) -> LlmAgent:
     """
     Build the fleet coordinator only after an explicit model has been
@@ -38,6 +45,18 @@ def build_coordinator(
     if tenant_id is not None and core_reads is None:
         core_reads = EnterpriseCoreBusinessReadClient(settings, tenant_id, correlation_id)
 
+    if tenant_id is not None and knowledge_retriever is None and settings.agent_tools_token:
+        knowledge_retriever = KnowledgeRetriever(settings, tenant_id, correlation_id)
+
+    coordinator_tools: list[Callable[..., Any] | BaseTool | BaseToolset] = []
+    if knowledge_retriever is not None:
+
+        async def search_knowledge_base(query: str) -> str:
+            """Search tenant-scoped documents and policies for relevant terms."""
+            return await knowledge_retriever.retrieve_evidence(query)
+
+        coordinator_tools.append(search_knowledge_base)
+
     return LlmAgent(
         name="vextis_coordinator",
         model=resolved_model,
@@ -46,11 +65,13 @@ def build_coordinator(
         ),
         instruction=(
             "Route department-specific analysis to the CRM, inventory, or billing specialist. "
+            "Use search_knowledge_base to retrieve background policies, documentation, and terms. "
             "For cross-department questions, coordinate the relevant specialists and clearly "
             "separate verified facts from recommendations. Never invent business state, claim a "
             "mutation succeeded, or bypass Enterprise Core authorization, approval, idempotency, "
             "or audit controls. Enterprise Core is the sole transactional authority."
         ),
+        tools=coordinator_tools,
         sub_agents=[
             build_crm_agent(resolved_model, core_reads),
             build_inventory_agent(resolved_model, core_reads),
