@@ -72,6 +72,9 @@ Public documentation is consulted in this order:
 2. [`docs/REPO_STRUCTURE.md`](./docs/REPO_STRUCTURE.md): structure and dependency rules.
 3. [`docs/CONTRACTS.md`](./docs/CONTRACTS.md): model, APIs, events, and integration rules.
 
+Execution status, ordered capability bundles, completion gates, and AI handoff
+instructions live in [`docs/ROADMAP.md`](./docs/ROADMAP.md).
+
 If two documents contradict each other, the most recently recorded decision in `docs/adr/` resolves the conflict before writing code. No silent assumptions are implemented.
 
 ## Status
