@@ -69,6 +69,124 @@ Non-negotiable ownership rules:
 Terraform state remains local and infrastructure applies remain manual. CI must
 not become a second Terraform authority until remote state and locking exist.
 
+### 3.1 Progress dashboard
+
+Checklist boxes describe code integrated into `develop` unless an item explicitly
+says **released** or **verified in GCP**. A merged PR is not proof of deployment.
+
+| Stage | Progress | State | Current evidence/next gate |
+| --- | ---: | --- | --- |
+| 0. Architecture and delivery foundation | 7/7 | Complete | ADRs, CI/CD, Terraform, and PR runbooks exist. |
+| 1. Product shell, access, and department UI | 5/5 | Complete in code | Reverify the deployed Firebase and authenticated workspace during final smoke testing. |
+| 2. Operational ERP workflow | 6/7 | In progress | Purchase-order flow completes; invoice issuance is still missing. |
+| 3. Governed agent fleet | 7/7 | Released | Promoted through PR #39; live service revisions still require final smoke evidence. |
+| 4. Memory and governed knowledge | 1/7 | In progress | Memory implementation is in `develop`; B10 activation is the current focus. |
+| 5. Demo reliability, evals, and observability | 2/6 | In progress | CI and correlation foundations exist; deterministic demo proof is missing. |
+| 6. Optional multimodal bonuses | 0/6 | Planned | Live, Imagen, and Veo remain behind the P0 gates. |
+| 7. Submission package | 0/7 | Planned | Starts after the deployed P0 path is reliable. |
+
+### 3.2 Checklist by stage
+
+Update these boxes in the same PR that changes the underlying capability. Add a
+PR link or deployed evidence when marking a material item complete.
+
+#### Stage 0 — Architecture and delivery foundation
+
+- [x] Record the Java/Python/PostgreSQL monorepo decision and ownership boundary.
+- [x] Standardize Enterprise Core on Java 21, Spring Boot, and Gradle Kotlin DSL.
+- [x] Establish public GraphQL, internal OpenAPI, and versioned event contracts.
+- [x] Provision the reproducible hackathon foundation with Terraform.
+- [x] Add full-system CI for Core, Agent Runtime, Angular, and Terraform.
+- [x] Split selective delivery for Web, Core, and Agent Runtime.
+- [x] Document task PRs to `develop` and separate promotions to `main`.
+
+#### Stage 1 — Product shell, access, and department UI
+
+- [x] Publish a public product landing page outside the authenticated shell.
+- [x] Authenticate users with Firebase and derive the actor from the verified token.
+- [x] Separate public GraphQL exposure from private agent-tool exposure.
+- [x] Build the collapsible Cloud Console-style workspace shell.
+- [x] Add Mission Control and views for CRM/Sales, Inventory/Operations, and
+  Finance/Billing.
+
+#### Stage 2 — Operational ERP workflow
+
+- [x] Manage customer, stock availability, and credit-profile demo data.
+- [x] Upload purchase-order documents directly to private Cloud Storage.
+- [x] Persist workflow execution, timeline, outbox events, and correlation IDs.
+- [x] Generate and persist a structured cross-department plan and readiness checks.
+- [x] Pause sensitive execution for an auditable human approval.
+- [x] Reserve inventory and complete an approved purchase-order execution.
+- [ ] Issue and expose the resulting invoice or explicit Finance/Billing closure
+  through an idempotent Core-owned use case.
+
+#### Stage 3 — Governed agent fleet
+
+- [x] Run a real ADK coordinator with CRM, Inventory, and Billing specialists.
+- [x] Give specialists narrow, tenant-scoped reads backed by Enterprise Core.
+- [x] Persist and expose agent version, model, prompt, capabilities, identity,
+  lifecycle status, and allowed tools.
+- [x] Enforce active-registry and exact-tool policy before a business use case runs.
+- [x] Persist and expose denied agent attempts without trusting forged tenant or
+  correlation data.
+- [x] Validate and display bounded delegation evidence without exposing reasoning,
+  arguments, or tool results.
+- [x] Reuse the governed fleet from Ask Vextis text chat.
+
+#### Stage 4 — Memory and governed knowledge
+
+- [x] Integrate bounded, pseudonymous durable preference memory in `develop`
+  ([PR #40](https://github.com/Riippex/Vextis-ERP/pull/40)).
+- [ ] Promote the default-off memory implementation to `main`.
+- [ ] Provision/select Agent Engine Memory Bank with explicit owner approval.
+- [ ] Verify allowed storage, forbidden-fact rejection, cross-conversation recall,
+  failure behavior, and visible evidence in GCP.
+- [ ] Build idempotent tenant-scoped document ingestion, chunking, metadata, ACL,
+  version, hash, and embedding persistence.
+- [ ] Return grounded RAG evidence with sources while distinguishing it from live
+  ERP facts.
+- [ ] Integrate Model Armor or document the tested fallback without weakening Core
+  authorization.
+
+#### Stage 5 — Demo reliability, evaluations, and observability
+
+- [x] Carry correlation IDs through the principal workflow, agent tools, and audit.
+- [x] Run cross-component CI with unit, architecture, contract, and agent eval checks.
+- [ ] Provide a safe deterministic seed/reset sequence for the primary demo.
+- [ ] Add end-to-end smoke checks for Firebase, both Core services, Agent Runtime,
+  Cloud SQL, Pub/Sub, and the primary workflow.
+- [ ] Expose useful Cloud Logging/Monitoring latency and failure evidence without
+  secrets, PII, prompts, or hidden reasoning.
+- [ ] Expand evals for delegation, denial, grounded RAG, memory boundaries, and
+  the final demo scenario.
+
+#### Stage 6 — Optional multimodal bonuses
+
+- [ ] Enable the authorized Gemini Live transport against a verified Vertex model.
+- [ ] Replace the disabled Live UI controls with a usable conversation flow.
+- [ ] Document consent, expiry, close, reconnect, transcript, and audio-retention
+  behavior.
+- [ ] Generate an explicit Imagen quote/proposal asset behind a feature flag.
+- [ ] Store and register the asset with model, actor, quote, redacted prompt, and
+  AI-generated label.
+- [ ] Add Veo only if P0 is green and it reuses the same proposal-asset boundary.
+
+#### Stage 7 — Submission package and final release
+
+- [ ] Write and rehearse the end-to-end demo script for the three departments.
+- [ ] Produce the architecture/pitch deck and concise technical narrative.
+- [ ] Record the final demo video and a backup version.
+- [ ] Capture screenshots and links proving Gemini, ADK, GCP, governance, and audit.
+- [ ] Recheck the live hackathon rules and complete every submission field.
+- [ ] Verify test credentials, deployed URLs, component revisions, and recovery
+  procedures immediately before submission.
+- [ ] Promote the accepted final bundle to `main`, approve selective deployments,
+  and record green smoke evidence.
+
+Current focus: **Stage 4 / B10 — activate and prove Memory Bank**, followed by
+**B11 — Finance invoice closure** and **B12 — governed RAG**. Optional bonus
+work must not displace these P0 gaps.
+
 ## 4. Delivered capability bundles
 
 ### Platform and delivery foundation — complete
@@ -165,7 +283,33 @@ Definition of done:
 Do not create the Agent Engine or run `terraform apply` without explicit owner
 approval because both change external state and can consume credits.
 
-### B11 — Governed document RAG
+### B11 — Finance invoice closure
+
+Status: **READY**
+
+Priority: **P0**
+
+Depends on: completed approved purchase-order workflow
+
+Outcome:
+
+- Close the Finance/Billing leg with an idempotent Core-owned invoice use case
+  after the approved order and inventory reservation succeed.
+- Expose the resulting invoice and its relationship to the execution/order in
+  GraphQL, the Finance workspace, timeline, and audit.
+
+Definition of done:
+
+- Enterprise Core owns the invoice aggregate, migration, validation, totals,
+  status transition, idempotency, audit, and event/outbox record.
+- Agent Runtime may request the existing authenticated tool but cannot create an
+  invoice directly or invent financial results.
+- Retried events or tool calls return the same invoice without duplicate billing.
+- Finance UI and execution detail show the issued invoice and correlation evidence.
+- Unit, persistence, contract, agent-tool, and UI tests cover success, duplicate,
+  unauthorized, and invalid-state cases.
+
+### B12 — Governed document RAG
 
 Status: **PLANNED**
 
@@ -193,7 +337,7 @@ Definition of done:
 - Model Armor is integrated if available; otherwise the documented fallback is
   explicit and does not weaken tool authorization.
 
-### B12 — Deterministic demo data, evaluations, and observability
+### B13 — Deterministic demo data, evaluations, and observability
 
 Status: **PLANNED**
 
@@ -217,7 +361,7 @@ Definition of done:
 - A smoke-test checklist verifies Firebase, both Core services, Agent Runtime,
   Cloud SQL connectivity, Pub/Sub delivery, and the primary user journey.
 
-### B13 — Gemini Live conversation
+### B14 — Gemini Live conversation
 
 Status: **PLANNED**
 
@@ -237,7 +381,7 @@ Definition of done:
 - Sensitive mutations still pause for human approval.
 - Audio retention and consent behavior are visible and documented.
 
-### B14 — Imagen quote/proposal asset
+### B15 — Imagen quote/proposal asset
 
 Status: **PLANNED**
 
@@ -260,7 +404,7 @@ Definition of done:
 Veo remains optional after Imagen. It must reuse the same proposal-asset boundary
 and must not introduce a fourth Marketing department.
 
-### B15 — Submission and presentation package
+### B16 — Submission and presentation package
 
 Status: **PLANNED**
 
@@ -313,9 +457,9 @@ P0 gate.
 | Terraform state is local | Manual apply is the only infrastructure authority | Keep CI validate-only; migrate later with a reviewed ADR/runbook |
 | One cloud environment | `develop` validates but only `main` deploys | Accept for hackathon; add environments after submission |
 | Tenant membership is not modeled | Server binds the hackathon user to `demo-tenant` | Do not claim production multi-tenancy; model membership post-hackathon |
-| Untrusted documents can contain instructions | Core policies remain authoritative; document text is data | B11 RAG filtering, ACL, tests, and Model Armor/fallback |
-| Optional model features can burn credits | Feature flags and zero-resource defaults | Perform cost review before B10, B13, B14, or Veo |
-| Demo depends on external services | Durable state, idempotency, selective redeploy, runbooks | B12 smoke tests and B15 backup recording |
+| Untrusted documents can contain instructions | Core policies remain authoritative; document text is data | B12 RAG filtering, ACL, tests, and Model Armor/fallback |
+| Optional model features can burn credits | Feature flags and zero-resource defaults | Perform cost review before B10, B14, B15, or Veo |
+| Demo depends on external services | Durable state, idempotency, selective redeploy, runbooks | B13 smoke tests and B16 backup recording |
 
 ## 8. How any AI should resume work
 
