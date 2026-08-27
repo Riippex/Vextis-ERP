@@ -29,6 +29,7 @@ describe('FinanceBillingPage', () => {
       stockItems: [],
       stockReservations: [],
       creditProfiles: [],
+      invoices: [],
     }),
     loading: signal(false),
     error: signal<string | null>(null),

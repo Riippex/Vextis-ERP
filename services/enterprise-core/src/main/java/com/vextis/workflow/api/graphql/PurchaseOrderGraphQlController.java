@@ -1,5 +1,7 @@
 package com.vextis.workflow.api.graphql;
 
+import com.vextis.billing.InvoiceDirectory;
+import com.vextis.billing.api.graphql.InvoiceView;
 import com.vextis.workflow.application.FindExecutionUseCase;
 import com.vextis.workflow.application.ReceivePurchaseOrderCommand;
 import com.vextis.workflow.application.ReceivePurchaseOrderUseCase;
@@ -42,6 +44,7 @@ class PurchaseOrderGraphQlController {
     private final PreparePurchaseOrderUploadUseCase preparePurchaseOrderUpload;
     private final FindExecutionUseCase findExecution;
     private final DecideApprovalUseCase decideApproval;
+    private final InvoiceDirectory invoices;
     private final CurrentActorProvider currentActor;
     private final String demoTenantId;
 
@@ -50,6 +53,7 @@ class PurchaseOrderGraphQlController {
             PreparePurchaseOrderUploadUseCase preparePurchaseOrderUpload,
             FindExecutionUseCase findExecution,
             DecideApprovalUseCase decideApproval,
+            InvoiceDirectory invoices,
             CurrentActorProvider currentActor,
             @org.springframework.beans.factory.annotation.Value("${vextis.demo.tenant-id:demo-tenant}") String demoTenantId
     ) {
@@ -57,6 +61,7 @@ class PurchaseOrderGraphQlController {
         this.preparePurchaseOrderUpload = preparePurchaseOrderUpload;
         this.findExecution = findExecution;
         this.decideApproval = decideApproval;
+        this.invoices = invoices;
         this.currentActor = currentActor;
         this.demoTenantId = demoTenantId;
     }
@@ -88,7 +93,7 @@ class PurchaseOrderGraphQlController {
 
     @QueryMapping
     ExecutionView execution(@Argument UUID id) {
-        return findExecution.findById(demoTenantId, id).map(ExecutionView::from).orElse(null);
+        return findExecution.findById(demoTenantId, id).map(this::executionView).orElse(null);
     }
 
     @MutationMapping
@@ -96,7 +101,7 @@ class PurchaseOrderGraphQlController {
         WorkflowExecution execution = decideApproval.decideApproval(new DecideApprovalCommand(
                 demoTenantId, new Actor(Actor.Type.USER, currentActor.currentActorId()),
                 input.executionId(), input.approvalId(), input.decision(), input.reason(), input.idempotencyKey()));
-        return ExecutionView.from(execution);
+        return executionView(execution);
     }
 
     record DecideApprovalInput(
@@ -150,7 +155,7 @@ class PurchaseOrderGraphQlController {
         static PurchaseOrderReceiptView from(PurchaseOrderReceipt receipt) {
             return new PurchaseOrderReceiptView(
                     PurchaseOrderView.from(receipt.purchaseOrder()),
-                    ExecutionView.from(receipt.execution())
+                    ExecutionView.from(receipt.execution(), null)
             );
         }
     }
@@ -184,10 +189,11 @@ class PurchaseOrderGraphQlController {
             List<TimelineEntryView> timeline,
             PlanView plan,
             ReadinessView readiness,
-            ApprovalView approval
+            ApprovalView approval,
+            InvoiceView invoice
     ) {
 
-        static ExecutionView from(WorkflowExecution execution) {
+        static ExecutionView from(WorkflowExecution execution, InvoiceView invoice) {
             return new ExecutionView(
                     execution.id(),
                     execution.goal(),
@@ -198,7 +204,8 @@ class PurchaseOrderGraphQlController {
                     execution.timeline().stream().map(TimelineEntryView::from).toList(),
                     execution.plan() == null ? null : PlanView.from(execution.plan()),
                     execution.readiness() == null ? null : ReadinessView.from(execution.readiness()),
-                    execution.approval() == null ? null : ApprovalView.from(execution.approval())
+                    execution.approval() == null ? null : ApprovalView.from(execution.approval()),
+                    invoice
             );
         }
     }
@@ -221,7 +228,8 @@ class PurchaseOrderGraphQlController {
             String generatedAt,
             List<PlanStepView> steps,
             List<OrderLineView> orderLines,
-            int requestedPaymentTermsDays
+            int requestedPaymentTermsDays,
+            String currency
     ) {
 
         static PlanView from(WorkflowPlan plan) {
@@ -231,14 +239,16 @@ class PurchaseOrderGraphQlController {
                     plan.generatedAt().toString(),
                     plan.steps().stream().map(PlanStepView::from).toList(),
                     plan.orderLines().stream().map(OrderLineView::from).toList(),
-                    plan.requestedPaymentTermsDays()
+                    plan.requestedPaymentTermsDays(),
+                    plan.currency()
             );
         }
     }
 
-    record OrderLineView(String sku, int quantity) {
+    record OrderLineView(String sku, int quantity, String unitPrice) {
         static OrderLineView from(ExtractedOrderLine line) {
-            return new OrderLineView(line.sku(), line.quantity());
+            return new OrderLineView(
+                    line.sku(), line.quantity(), line.unitPrice() == null ? null : line.unitPrice().toPlainString());
         }
     }
 
@@ -279,5 +289,10 @@ class PurchaseOrderGraphQlController {
                     entry.occurredAt().toString()
             );
         }
+    }
+
+    private ExecutionView executionView(WorkflowExecution execution) {
+        InvoiceView invoice = invoices.findByExecution(demoTenantId, execution.id()).map(InvoiceView::from).orElse(null);
+        return ExecutionView.from(execution, invoice);
     }
 }

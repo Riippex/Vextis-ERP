@@ -196,4 +196,24 @@ public record WorkflowExecution(
                 id, tenantId, sourceId, goal, ExecutionState.COMPLETED, correlationId,
                 createdAt, now, updatedTimeline, plan, readiness, approval);
     }
+
+    public WorkflowExecution recordInvoiceIssued(UUID invoiceId, Instant now) {
+        if (state != ExecutionState.COMPLETED || invoiceId == null) {
+            throw new IllegalStateException("Only a completed execution can record an issued invoice");
+        }
+        if (timeline.stream().anyMatch(entry -> entry.type() == TimelineEntryType.INVOICE_ISSUED)) {
+            return this;
+        }
+        ArrayList<ExecutionTimelineEntry> updatedTimeline = new ArrayList<>(timeline);
+        updatedTimeline.add(new ExecutionTimelineEntry(
+                timeline.size() + 1,
+                TimelineEntryType.INVOICE_ISSUED,
+                "Invoice issued",
+                "Finance issued invoice " + invoiceId + " from the approved and fully reserved order.",
+                now
+        ));
+        return new WorkflowExecution(
+                id, tenantId, sourceId, goal, state, correlationId, createdAt, now,
+                updatedTimeline, plan, readiness, approval);
+    }
 }

@@ -15,6 +15,8 @@ channels:
         $ref: "#/components/messages/WorkflowApprovalDecidedV1"
       inventoryReservationCreated:
         $ref: "#/components/messages/InventoryReservationCreatedV1"
+      billingInvoiceIssued:
+        $ref: "#/components/messages/BillingInvoiceIssuedV1"
 operations:
   receivePurchaseOrder:
     action: receive
@@ -40,6 +42,12 @@ operations:
       $ref: "#/channels/orderEvents"
     messages:
       - $ref: "#/channels/orderEvents/messages/inventoryReservationCreated"
+  publishBillingInvoiceIssued:
+    action: send
+    channel:
+      $ref: "#/channels/orderEvents"
+    messages:
+      - $ref: "#/channels/orderEvents/messages/billingInvoiceIssued"
 components:
   messages:
     PurchaseOrderReceivedV2:
@@ -62,3 +70,8 @@ components:
       title: Inventory reservation created (v1)
       payload:
         $ref: "./schemas/inventory-reservation-created.v1.json"
+    BillingInvoiceIssuedV1:
+      name: billing.invoice.issued
+      title: Billing invoice issued (v1)
+      payload:
+        $ref: "./schemas/billing-invoice-issued.v1.json"

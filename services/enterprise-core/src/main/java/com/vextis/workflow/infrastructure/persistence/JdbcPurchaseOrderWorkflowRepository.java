@@ -449,8 +449,8 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
         jdbc.update(
                 """
                 INSERT INTO workflow_execution_plans
-                    (execution_id, summary, model_id, generated_at, requested_payment_terms_days)
-                VALUES (:executionId, :summary, :modelId, :generatedAt, :requestedPaymentTermsDays)
+                    (execution_id, summary, model_id, generated_at, requested_payment_terms_days, currency)
+                VALUES (:executionId, :summary, :modelId, :generatedAt, :requestedPaymentTermsDays, :currency)
                 """,
                 new MapSqlParameterSource()
                         .addValue("executionId", updated.id())
@@ -458,14 +458,15 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                         .addValue("modelId", plan.modelId())
                         .addValue("generatedAt", sqlTimestamp(plan.generatedAt()), Types.TIMESTAMP_WITH_TIMEZONE)
                         .addValue("requestedPaymentTermsDays", plan.requestedPaymentTermsDays())
+                        .addValue("currency", plan.currency())
         );
         for (int index = 0; index < plan.orderLines().size(); index++) {
             ExtractedOrderLine line = plan.orderLines().get(index);
             jdbc.update(
                     """
                     INSERT INTO workflow_execution_order_lines
-                        (id, execution_id, sequence_number, sku, quantity)
-                    VALUES (:id, :executionId, :sequence, :sku, :quantity)
+                        (id, execution_id, sequence_number, sku, quantity, unit_price)
+                    VALUES (:id, :executionId, :sequence, :sku, :quantity, :unitPrice)
                     """,
                     new MapSqlParameterSource()
                             .addValue("id", UUID.randomUUID())
@@ -473,6 +474,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                             .addValue("sequence", index + 1)
                             .addValue("sku", line.sku())
                             .addValue("quantity", line.quantity())
+                            .addValue("unitPrice", line.unitPrice())
             );
         }
         for (WorkflowPlanStep step : plan.steps()) {
@@ -687,6 +689,36 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
         saveTransitionEvidence(updated, actor, "COMPLETE_ORDER_WORKFLOW", null, operation, idempotencyKey);
     }
 
+    @Override
+    public void saveInvoiceIssued(WorkflowExecution previous, WorkflowExecution updated) {
+        if (updated.timeline().size() == previous.timeline().size()) {
+            return;
+        }
+        int changed = jdbc.update(
+                """
+                UPDATE workflow_executions SET updated_at = :updatedAt
+                WHERE tenant_id = :tenantId AND id = :executionId AND state = 'COMPLETED'
+                  AND updated_at = :previousUpdatedAt
+                """,
+                new MapSqlParameterSource().addValue("updatedAt", sqlTimestamp(updated.updatedAt()), Types.TIMESTAMP_WITH_TIMEZONE)
+                        .addValue("tenantId", updated.tenantId()).addValue("executionId", updated.id())
+                        .addValue("previousUpdatedAt", sqlTimestamp(previous.updatedAt()), Types.TIMESTAMP_WITH_TIMEZONE));
+        if (changed != 1) {
+            throw new IllegalStateException("Execution invoice evidence changed concurrently");
+        }
+        ExecutionTimelineEntry entry = updated.timeline().getLast();
+        jdbc.update(
+                """
+                INSERT INTO workflow_timeline_entries
+                    (id, execution_id, sequence_number, entry_type, title, detail, occurred_at)
+                VALUES (:id, :executionId, :sequence, :type, :title, :detail, :occurredAt)
+                """,
+                new MapSqlParameterSource().addValue("id", UUID.randomUUID()).addValue("executionId", updated.id())
+                        .addValue("sequence", entry.sequence()).addValue("type", entry.type().name())
+                        .addValue("title", entry.title()).addValue("detail", entry.detail())
+                        .addValue("occurredAt", sqlTimestamp(entry.occurredAt()), Types.TIMESTAMP_WITH_TIMEZONE));
+    }
+
     private void updateExecutionState(WorkflowExecution previous, WorkflowExecution updated) {
         int changed = jdbc.update(
                 """
@@ -816,7 +848,7 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
     private Optional<WorkflowPlan> findPlan(UUID executionId) {
         List<WorkflowPlan> plans = jdbc.query(
                 """
-                SELECT summary, model_id, generated_at, requested_payment_terms_days
+                SELECT summary, model_id, generated_at, requested_payment_terms_days, currency
                 FROM workflow_execution_plans
                 WHERE execution_id = :executionId
                 """,
@@ -827,7 +859,8 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                         readInstant(rs, "generated_at"),
                         findPlanSteps(executionId),
                         findOrderLines(executionId),
-                        rs.getInt("requested_payment_terms_days")
+                        rs.getInt("requested_payment_terms_days"),
+                        rs.getString("currency")
                 )
         );
         return plans.stream().findFirst();
@@ -836,11 +869,12 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
     private List<ExtractedOrderLine> findOrderLines(UUID executionId) {
         return jdbc.query(
                 """
-                SELECT sku, quantity FROM workflow_execution_order_lines
+                SELECT sku, quantity, unit_price FROM workflow_execution_order_lines
                 WHERE execution_id = :executionId ORDER BY sequence_number
                 """,
                 Map.of("executionId", executionId),
-                (rs, row) -> new ExtractedOrderLine(rs.getString("sku"), rs.getInt("quantity"))
+                (rs, row) -> new ExtractedOrderLine(
+                        rs.getString("sku"), rs.getInt("quantity"), rs.getBigDecimal("unit_price"))
         );
     }
 

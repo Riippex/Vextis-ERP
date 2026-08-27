@@ -1,6 +1,8 @@
 package com.vextis.workflow.application;
 
 import com.vextis.billing.CreditLookup;
+import com.vextis.billing.Invoice;
+import com.vextis.billing.InvoiceIssuer;
 import com.vextis.crm.CustomerLookup;
 import com.vextis.inventory.StockLookup;
 import com.vextis.inventory.ReservationDirectory;
@@ -31,7 +33,8 @@ import java.util.UUID;
 @Service
 public class PurchaseOrderWorkflowService implements RegisterReceivedPurchaseOrder, FindExecutionUseCase,
         StartPlanningUseCase, RecordPlanUseCase, EvaluateReadinessUseCase,
-        RequestApprovalUseCase, DecideApprovalUseCase, ReserveApprovedStockUseCase, ExecutionOverview {
+        RequestApprovalUseCase, DecideApprovalUseCase, ReserveApprovedStockUseCase,
+        IssueApprovedInvoiceUseCase, ExecutionOverview {
 
     static final String RECEIVE_OPERATION = "workflow.receive-purchase-order";
     static final String START_PLANNING_OPERATION = "workflow.start-planning";
@@ -48,6 +51,7 @@ public class PurchaseOrderWorkflowService implements RegisterReceivedPurchaseOrd
     private final CreditLookup credit;
     private final StockReservation reservations;
     private final ReservationDirectory reservationDirectory;
+    private final InvoiceIssuer invoices;
 
     public PurchaseOrderWorkflowService(
             PurchaseOrderWorkflowRepository repository,
@@ -56,7 +60,8 @@ public class PurchaseOrderWorkflowService implements RegisterReceivedPurchaseOrd
             StockLookup stock,
             CreditLookup credit,
             StockReservation reservations,
-            ReservationDirectory reservationDirectory
+            ReservationDirectory reservationDirectory,
+            InvoiceIssuer invoices
     ) {
         this.repository = repository;
         this.clock = clock;
@@ -65,6 +70,7 @@ public class PurchaseOrderWorkflowService implements RegisterReceivedPurchaseOrd
         this.credit = credit;
         this.reservations = reservations;
         this.reservationDirectory = reservationDirectory;
+        this.invoices = invoices;
     }
 
     @Override
@@ -164,6 +170,11 @@ public class PurchaseOrderWorkflowService implements RegisterReceivedPurchaseOrd
         if (!current.correlationId().equals(command.correlationId())) {
             throw new WorkflowConflictException("Correlation id does not match the execution");
         }
+        if (current.plan() == null || current.plan().currency() == null
+                || current.plan().orderLines().stream().anyMatch(line -> line.unitPrice() == null)) {
+            throw new WorkflowConflictException(
+                    "Approval requires explicit currency and a unit price for every order line");
+        }
         PurchaseOrderSource source = repository.findPurchaseOrder(command.tenantId(), current.sourceId())
                 .orElseThrow(() -> new WorkflowNotFoundException("Purchase order source was not found"));
         if (!source.documentUri().equals(command.documentUri())) {
@@ -215,7 +226,7 @@ public class PurchaseOrderWorkflowService implements RegisterReceivedPurchaseOrd
         try {
             plan = new WorkflowPlan(
                     command.summary(), command.modelId(), now, command.steps(),
-                    command.orderLines(), command.requestedPaymentTermsDays());
+                    command.orderLines(), command.requestedPaymentTermsDays(), command.currency());
             updated = current.recordPlan(plan, now);
         } catch (IllegalArgumentException | IllegalStateException exception) {
             throw new WorkflowConflictException(exception.getMessage());
@@ -414,11 +425,66 @@ public class PurchaseOrderWorkflowService implements RegisterReceivedPurchaseOrd
                 .findFirst();
     }
 
+    @Override
+    @Transactional
+    public Invoice issueInvoice(IssueApprovedInvoiceCommand command) {
+        if (command.actor().type() != Actor.Type.AGENT) {
+            throw new WorkflowConflictException("Only an authenticated agent can issue an invoice");
+        }
+        WorkflowExecution execution = repository.findExecution(command.tenantId(), command.executionId())
+                .orElseThrow(() -> new WorkflowNotFoundException("Approved order execution was not found"));
+        if (!execution.sourceId().equals(command.orderId())
+                || !execution.correlationId().equals(command.correlationId())
+                || execution.state() != ExecutionState.COMPLETED
+                || execution.approval() == null
+                || execution.approval().status() != com.vextis.workflow.domain.ApprovalStatus.APPROVED
+                || execution.plan() == null) {
+            throw new WorkflowConflictException("Order is not eligible for invoice issuance");
+        }
+        List<StockReservation.Reservation> orderReservations = reservationDirectory
+                .findByOrder(command.tenantId(), command.orderId()).stream()
+                .filter(reservation -> reservation.status() != StockReservation.Status.RELEASED)
+                .toList();
+        boolean fullyReserved = execution.plan().orderLines().stream().allMatch(line ->
+                orderReservations.stream().anyMatch(reservation ->
+                        reservation.sku().equalsIgnoreCase(line.sku())
+                                && reservation.quantity() == line.quantity()));
+        if (!fullyReserved) {
+            throw new WorkflowConflictException("Every approved order line must be reserved before invoicing");
+        }
+        if (execution.plan().currency() == null
+                || execution.plan().orderLines().stream().anyMatch(line -> line.unitPrice() == null)) {
+            throw new WorkflowConflictException("Approved order requires explicit currency and unit prices");
+        }
+        PurchaseOrderSource source = repository.findPurchaseOrder(command.tenantId(), command.orderId())
+                .orElseThrow(() -> new WorkflowNotFoundException("Purchase order source was not found"));
+        try {
+            Invoice invoice = invoices.issue(new InvoiceIssuer.IssueCommand(
+                    command.tenantId(), command.actor().id(), command.orderId(), execution.id(),
+                    source.customerName(), execution.plan().currency(), execution.plan().orderLines().stream()
+                            .map(line -> new InvoiceIssuer.LineInput(line.sku(), line.quantity(), line.unitPrice()))
+                            .toList(),
+                    execution.plan().requestedPaymentTermsDays(), execution.correlationId(), command.idempotencyKey()));
+            WorkflowExecution current = repository.findExecution(command.tenantId(), command.executionId())
+                    .orElseThrow(() -> new WorkflowNotFoundException("Approved order execution was not found"));
+            WorkflowExecution withInvoice = current.recordInvoiceIssued(invoice.id(), clock.instant());
+            repository.saveInvoiceIssued(current, withInvoice);
+            return invoice;
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            throw new WorkflowConflictException(exception.getMessage());
+        }
+    }
+
     private WorkflowReadinessCheck billingCheck(
             EvaluateReadinessCommand command,
             WorkflowExecution execution,
             CustomerLookup.CustomerSnapshot customer
     ) {
+        if (execution.plan().currency() == null
+                || execution.plan().orderLines().stream().anyMatch(line -> line.unitPrice() == null)) {
+            return check(PlanningDepartment.FINANCE_BILLING, ReadinessStatus.REVIEW_REQUIRED,
+                    "Currency and every unit price are required before this order can be approved.");
+        }
         if (customer == null) {
             return check(PlanningDepartment.FINANCE_BILLING, ReadinessStatus.REVIEW_REQUIRED,
                     "Credit terms cannot be checked until the customer is matched.");

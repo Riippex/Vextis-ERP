@@ -2,6 +2,8 @@ package com.vextis.missioncontrol.api.graphql;
 
 import com.vextis.agentregistry.AgentDirectory;
 import com.vextis.billing.CreditPortfolio;
+import com.vextis.billing.InvoiceDirectory;
+import com.vextis.billing.api.graphql.InvoiceView;
 import com.vextis.conversation.ConversationActivityOverview;
 import com.vextis.crm.CustomerDirectory;
 import com.vextis.inventory.StockDirectory;
@@ -31,6 +33,7 @@ class MissionControlGraphQlController {
     private final StockDirectory stock;
     private final ReservationDirectory reservations;
     private final CreditPortfolio credit;
+    private final InvoiceDirectory invoices;
     private final String demoTenantId;
 
     MissionControlGraphQlController(
@@ -41,6 +44,7 @@ class MissionControlGraphQlController {
             StockDirectory stock,
             ReservationDirectory reservations,
             CreditPortfolio credit,
+            InvoiceDirectory invoices,
             @Value("${vextis.demo.tenant-id:demo-tenant}") String demoTenantId
     ) {
         this.agents = agents;
@@ -50,6 +54,7 @@ class MissionControlGraphQlController {
         this.stock = stock;
         this.reservations = reservations;
         this.credit = credit;
+        this.invoices = invoices;
         this.demoTenantId = demoTenantId;
     }
 
@@ -71,6 +76,7 @@ class MissionControlGraphQlController {
                 credit.findAll(demoTenantId).stream()
                         .map(profile -> CreditProfileOverviewView.from(profile, customersById.get(profile.customerId())))
                         .toList(),
+                invoices.findRecent(demoTenantId, 100).stream().map(InvoiceView::from).toList(),
                 executions.volumeByDepartment(demoTenantId).stream()
                         .map(DepartmentExecutionVolumeView::from).toList()
         );
@@ -84,6 +90,7 @@ class MissionControlGraphQlController {
             List<StockItemOverviewView> stockItems,
             List<StockReservationOverviewView> stockReservations,
             List<CreditProfileOverviewView> creditProfiles,
+            List<InvoiceView> invoices,
             List<DepartmentExecutionVolumeView> executionVolumeByDepartment
     ) {
     }

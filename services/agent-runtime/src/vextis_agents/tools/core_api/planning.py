@@ -37,6 +37,33 @@ class ReservationResult(BaseModel):
     created_at: str = Field(alias="createdAt")
 
 
+class InvoiceLineResult(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    sku: str
+    quantity: int
+    unit_price: str = Field(alias="unitPrice")
+    line_subtotal: str = Field(alias="lineSubtotal")
+
+
+class InvoiceResult(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    id: str
+    order_id: str = Field(alias="orderId")
+    execution_id: str = Field(alias="executionId")
+    customer_name: str = Field(alias="customerName")
+    subtotal: str
+    tax: str
+    total: str
+    currency: str
+    status: str
+    payment_terms_days: int = Field(alias="paymentTermsDays")
+    issued_at: str = Field(alias="issuedAt")
+    correlation_id: str = Field(alias="correlationId")
+    lines: list[InvoiceLineResult]
+
+
 class PlanningTool(Protocol):
     async def start_planning(self, event: PurchaseOrderReceivedV2) -> PlanningContext: ...
 
@@ -59,6 +86,8 @@ class PlanningTool(Protocol):
     async def reserve_stock(
         self, event: WorkflowApprovalDecidedV1, sku: str, quantity: int
     ) -> ReservationResult: ...
+
+    async def issue_invoice(self, event: WorkflowApprovalDecidedV1) -> InvoiceResult: ...
 
 
 class CoreToolRejectedError(RuntimeError):
@@ -114,6 +143,7 @@ class EnterpriseCorePlanningClient:
         self._service_token = settings.agent_tools_token.get_secret_value()
         self._coordinator_agent_id = settings.coordinator_logical_agent_id
         self._inventory_agent_id = settings.inventory_agent_id
+        self._billing_agent_id = settings.billing_agent_id
         self._transport = transport
         self._identity_token_provider = identity_token_provider
         if settings.enterprise_core_audience and identity_token_provider is None:
@@ -148,7 +178,7 @@ class EnterpriseCorePlanningClient:
     async def start_planning(self, event: PurchaseOrderReceivedV2) -> PlanningContext:
         execution_id = event.payload.execution_id
         headers = await self._headers(event, event.correlation_id, str(event.event_id))
-        payload = {
+        payload: dict[str, object] = {
             "eventId": str(event.event_id),
             "documentUri": event.payload.document_uri,
         }
@@ -186,10 +216,17 @@ class EnterpriseCorePlanningClient:
             context.correlation_id,
             f"{event.event_id}:record-plan",
         )
-        payload = {
+        payload: dict[str, object] = {
             "modelId": model_id,
             "summary": plan.summary,
-            "orderLines": [line.model_dump() for line in plan.order_lines],
+            "orderLines": [
+                {
+                    "sku": line.sku,
+                    "quantity": line.quantity,
+                    **({"unitPrice": str(line.unit_price)} if line.unit_price is not None else {}),
+                }
+                for line in plan.order_lines
+            ],
             "requestedPaymentTermsDays": plan.requested_payment_terms_days,
             "steps": [
                 {
@@ -201,6 +238,8 @@ class EnterpriseCorePlanningClient:
                 for step in plan.steps
             ],
         }
+        if plan.currency is not None:
+            payload["currency"] = plan.currency
         try:
             async with httpx.AsyncClient(
                 base_url=self._base_url,
@@ -308,4 +347,32 @@ class EnterpriseCorePlanningClient:
             raise CoreToolUnavailableError("Enterprise Core returned a transient failure")
         raise CoreToolRejectedError(
             f"Enterprise Core rejected stock reservation with {response.status_code}"
+        )
+
+    async def issue_invoice(self, event: WorkflowApprovalDecidedV1) -> InvoiceResult:
+        headers = await self._headers(
+            event,
+            event.correlation_id,
+            f"{event.event_id}:issue-invoice",
+            self._billing_agent_id,
+        )
+        try:
+            async with httpx.AsyncClient(
+                base_url=self._base_url,
+                timeout=httpx.Timeout(10.0, connect=3.0),
+                transport=self._transport,
+            ) as client:
+                response = await client.post(
+                    f"/internal/agent-tools/v1/billing/orders/{event.payload.order_id}/invoice",
+                    headers=headers,
+                    json={"executionId": str(event.payload.execution_id)},
+                )
+        except httpx.HTTPError as exception:
+            raise CoreToolUnavailableError("Enterprise Core could not be reached") from exception
+        if 200 <= response.status_code < 300:
+            return InvoiceResult.model_validate(response.json())
+        if response.status_code >= 500:
+            raise CoreToolUnavailableError("Enterprise Core returned a transient failure")
+        raise CoreToolRejectedError(
+            f"Enterprise Core rejected invoice issuance with {response.status_code}"
         )

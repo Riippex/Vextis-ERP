@@ -6,5 +6,6 @@ public enum TimelineEntryType {
     APPROVAL_REQUESTED,
     APPROVAL_DECIDED,
     COMPLETED,
+    INVOICE_ISSUED,
     FAILED
 }
