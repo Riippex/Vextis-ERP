@@ -3,6 +3,7 @@ from uuid import UUID
 
 import pytest
 from google.adk.agents import LlmAgent
+from google.adk.models import Gemini
 
 from vextis_agents.app.config import Settings
 from vextis_agents.coordinator.agent import build_coordinator, build_planning_agent
@@ -24,6 +25,43 @@ def test_coordinator_uses_configured_gemini_model() -> None:
 
     assert coordinator.name == "vextis_coordinator"
     assert coordinator.model == "gemini-test-model"
+
+
+def test_coordinator_routes_gemini_to_its_configured_vertex_location() -> None:
+    coordinator = build_coordinator(
+        Settings(
+            gemini_model="gemini-3.5-flash",
+            gemini_location="us",
+            google_cloud_project="vextis-test",
+        )
+    )
+
+    assert isinstance(coordinator.model, Gemini)
+    assert coordinator.model.model == "gemini-3.5-flash"
+    assert coordinator.model.client_kwargs == {
+        "vertexai": True,
+        "project": "vextis-test",
+        "location": "us",
+    }
+
+
+def test_live_override_routes_to_its_distinct_vertex_location() -> None:
+    coordinator = build_coordinator(
+        Settings(
+            gemini_model="gemini-3.5-flash",
+            google_cloud_project="vextis-test",
+        ),
+        model="gemini-live-2.5-flash-native-audio",
+        model_location="us-central1",
+    )
+
+    assert isinstance(coordinator.model, Gemini)
+    assert coordinator.model.model == "gemini-live-2.5-flash-native-audio"
+    assert coordinator.model.client_kwargs == {
+        "vertexai": True,
+        "project": "vextis-test",
+        "location": "us-central1",
+    }
 
 
 def test_coordinator_registers_the_three_bounded_specialists() -> None:

@@ -213,7 +213,7 @@ def create_agent_memory(settings: Settings) -> AgentMemory | None:
     return VertexAgentMemory(
         VertexAiMemoryBankService(
             project=settings.google_cloud_project,
-            location=settings.google_cloud_location,
+            location=settings.memory_bank_location,
             agent_engine_id=settings.memory_bank_agent_engine_id,
         )
     )

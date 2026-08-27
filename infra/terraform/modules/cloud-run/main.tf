@@ -339,8 +339,20 @@ resource "google_cloud_run_v2_service" "agent_runtime" {
         value = var.live_model
       }
       env {
+        name  = "VEXTIS_LIVE_LOCATION"
+        value = var.region
+      }
+      env {
         name  = "VEXTIS_GEMINI_MODEL"
         value = var.gemini_model
+      }
+      env {
+        name  = "VEXTIS_GEMINI_LOCATION"
+        value = "us"
+      }
+      env {
+        name  = "VEXTIS_MEMORY_BANK_LOCATION"
+        value = var.region
       }
       env {
         name  = "GOOGLE_GENAI_USE_VERTEXAI"
