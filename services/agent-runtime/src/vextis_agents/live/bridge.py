@@ -26,6 +26,7 @@ class LiveVoiceBridge:
                     settings,
                     tenant_id,
                     model=settings.live_model,
+                    model_location=settings.live_location,
                     correlation_id=conversation_id,
                 ),
                 app_name="vextis_ask_vextis_live",

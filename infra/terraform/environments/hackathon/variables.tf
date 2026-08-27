@@ -36,7 +36,7 @@ variable "live_model" {
     AI before relying on this default.
   EOT
   type        = string
-  default     = "gemini-3.5-flash-live"
+  default     = "gemini-live-2.5-flash-native-audio"
 }
 
 variable "memory_bank_agent_engine_id" {

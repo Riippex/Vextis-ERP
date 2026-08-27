@@ -23,9 +23,12 @@ class Settings(BaseSettings):
     core_callback_token: SecretStr | None = None
     live_enabled: bool = False
     live_model: str | None = None
+    live_location: str = "us-central1"
     gemini_model: str | None = None
+    gemini_location: str = "us"
     memory_bank_enabled: bool = False
     memory_bank_agent_engine_id: str | None = None
+    memory_bank_location: str = "us-central1"
     google_cloud_project: str | None = Field(default=None, validation_alias="GOOGLE_CLOUD_PROJECT")
     google_cloud_location: str = Field(
         default="us-central1",

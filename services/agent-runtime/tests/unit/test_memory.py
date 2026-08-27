@@ -3,12 +3,15 @@ from dataclasses import dataclass
 import pytest
 from google.genai import types
 
+from vextis_agents.app.config import Settings
+from vextis_agents.memory import service as memory_module
 from vextis_agents.memory.service import (
     MEMORY_PROVIDER,
     MemoryWriteUnavailableError,
     UnsafePreferenceError,
     VertexAgentMemory,
     _memory_scope,
+    create_agent_memory,
 )
 
 
@@ -40,6 +43,34 @@ class FakeMemoryBank:
             raise RuntimeError("private provider failure")
         self.search_calls.append(kwargs)
         return self.search_response
+
+
+def test_memory_bank_uses_its_regional_location(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class FakeConfiguredMemoryBank:
+        def __init__(self, **kwargs: object) -> None:
+            captured.update(kwargs)
+
+    monkeypatch.setattr(memory_module, "VertexAiMemoryBankService", FakeConfiguredMemoryBank)
+
+    memory = create_agent_memory(
+        Settings(
+            memory_bank_enabled=True,
+            memory_bank_agent_engine_id="engine-123",
+            memory_bank_location="us-central1",
+            google_cloud_project="vextis-test",
+        )
+    )
+
+    assert isinstance(memory, VertexAgentMemory)
+    assert captured == {
+        "project": "vextis-test",
+        "location": "us-central1",
+        "agent_engine_id": "engine-123",
+    }
 
 
 @pytest.mark.asyncio
