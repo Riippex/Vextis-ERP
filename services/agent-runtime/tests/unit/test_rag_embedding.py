@@ -7,7 +7,7 @@ from vextis_agents.rag.embedding import DeterministicMockEmbedder, VertexTextEmb
 
 
 @pytest.mark.asyncio
-async def test_deterministic_mock_embedder():
+async def test_deterministic_mock_embedder() -> None:
     embedder = DeterministicMockEmbedder(dimension=768)
     vec1 = await embedder.embed_query("payment terms net 30")
     vec2 = await embedder.embed_query("payment terms net 30")
@@ -29,7 +29,7 @@ async def test_deterministic_mock_embedder():
 
 
 @pytest.mark.asyncio
-async def test_embed_batch_texts():
+async def test_embed_batch_texts() -> None:
     embedder = DeterministicMockEmbedder(dimension=768)
     results = await embedder.embed_texts(["first chunk", "second chunk"])
     assert len(results) == 2
@@ -38,7 +38,7 @@ async def test_embed_batch_texts():
 
 
 @pytest.mark.asyncio
-async def test_vertex_embedder_fallback():
+async def test_vertex_embedder_fallback() -> None:
     settings = Settings(
         google_cloud_project=None,
         gemini_model="gemini-3.5-flash",

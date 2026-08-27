@@ -1,12 +1,12 @@
 from vextis_agents.rag.chunking import approximate_tokens, chunk_text
 
 
-def test_chunk_empty_text():
+def test_chunk_empty_text() -> None:
     assert chunk_text("") == []
     assert chunk_text("   \n\t  ") == []
 
 
-def test_chunk_short_text():
+def test_chunk_short_text() -> None:
     text = "Short policy document text."
     chunks = chunk_text(text, chunk_size=100)
     assert len(chunks) == 1
@@ -15,7 +15,7 @@ def test_chunk_short_text():
     assert chunks[0].token_count > 0
 
 
-def test_chunk_multi_paragraph():
+def test_chunk_multi_paragraph() -> None:
     p1 = "Paragraph 1: Vextis is an enterprise ERP system."
     p2 = "Paragraph 2: Billing invoices are issued after stock is reserved."
     p3 = "Paragraph 3: All mutations require idempotent keys."
@@ -28,7 +28,7 @@ def test_chunk_multi_paragraph():
         assert c.chunk_index == idx
 
 
-def test_chunk_metadata_propagation():
+def test_chunk_metadata_propagation() -> None:
     text = "Terms and conditions."
     chunks = chunk_text(text, metadata={"source": "terms.pdf", "author": "legal"})
     assert len(chunks) == 1
@@ -36,6 +36,6 @@ def test_chunk_metadata_propagation():
     assert chunks[0].metadata["author"] == "legal"
 
 
-def test_approximate_tokens():
+def test_approximate_tokens() -> None:
     assert approximate_tokens("abcd") == 1
     assert approximate_tokens("abcdefghijklmnop") == 4

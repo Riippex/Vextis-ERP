@@ -1,3 +1,5 @@
+from typing import Any
+
 import httpx
 import pytest
 from pydantic import SecretStr
@@ -9,8 +11,8 @@ from vextis_agents.tools.core_api.planning import CoreToolRejectedError
 
 
 @pytest.mark.asyncio
-async def test_retriever_search_success():
-    captured_request = {}
+async def test_retriever_search_success() -> None:
+    captured_request: dict[str, Any] = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured_request["url"] = str(request.url)
@@ -54,15 +56,16 @@ async def test_retriever_search_success():
     assert matches[0].chunk_text == "Net 30 days is standard payment terms."
     assert matches[0].similarity_score == 0.94
 
-    assert captured_request["headers"]["authorization"] == "Bearer test-tools-token"
-    assert captured_request["headers"]["x-tenant-id"] == "demo-tenant"
-    assert captured_request["headers"]["x-agent-id"] == "vextis_coordinator"
-    assert captured_request["headers"]["x-correlation-id"] == "corr-123"
+    headers = captured_request["headers"]
+    assert headers["authorization"] == "Bearer test-tools-token"
+    assert headers["x-tenant-id"] == "demo-tenant"
+    assert headers["x-agent-id"] == "vextis_coordinator"
+    assert headers["x-correlation-id"] == "corr-123"
     assert "payment terms" in captured_request["body"]
 
 
 @pytest.mark.asyncio
-async def test_retriever_evidence_formatting():
+async def test_retriever_evidence_formatting() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(
             200,
@@ -100,7 +103,7 @@ async def test_retriever_evidence_formatting():
 
 
 @pytest.mark.asyncio
-async def test_retriever_error_handling():
+async def test_retriever_error_handling() -> None:
     def handler_403(request: httpx.Request) -> httpx.Response:
         return httpx.Response(403, json={"error": "forbidden"})
 
