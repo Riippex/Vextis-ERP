@@ -100,7 +100,11 @@ resource "google_cloud_run_v2_service" "enterprise_core" {
 
   lifecycle {
     prevent_destroy = true
-    ignore_changes  = [template[0].containers[0].image]
+    ignore_changes = [
+      client,
+      client_version,
+      template[0].containers[0].image,
+    ]
   }
 }
 
@@ -222,7 +226,11 @@ resource "google_cloud_run_v2_service" "enterprise_core_public" {
 
   lifecycle {
     prevent_destroy = true
-    ignore_changes  = [template[0].containers[0].image]
+    ignore_changes = [
+      client,
+      client_version,
+      template[0].containers[0].image,
+    ]
   }
 }
 
@@ -347,7 +355,11 @@ resource "google_cloud_run_v2_service" "agent_runtime" {
 
   lifecycle {
     prevent_destroy = true
-    ignore_changes  = [template[0].containers[0].image]
+    ignore_changes = [
+      client,
+      client_version,
+      template[0].containers[0].image,
+    ]
   }
 }
 
