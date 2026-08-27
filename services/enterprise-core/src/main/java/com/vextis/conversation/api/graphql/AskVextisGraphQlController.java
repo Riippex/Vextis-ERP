@@ -7,6 +7,7 @@ import com.vextis.conversation.application.FindConversationUseCase;
 import com.vextis.conversation.domain.AgentActivityEvidence;
 import com.vextis.conversation.domain.ChatMessage;
 import com.vextis.conversation.domain.Conversation;
+import com.vextis.conversation.domain.MemoryEvidence;
 import com.vextis.shared.security.CurrentActorProvider;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -69,12 +70,14 @@ class AskVextisGraphQlController {
             UUID messageId,
             String reply,
             String createdAt,
-            List<AskVextisAgentActivityView> agentActivities
+            List<AskVextisAgentActivityView> agentActivities,
+            AskVextisMemoryEvidenceView memoryEvidence
     ) {
         static AskVextisMessageResultView from(AskVextisResult result) {
             return new AskVextisMessageResultView(
                     result.conversationId(), result.messageId(), result.reply(), result.createdAt().toString(),
-                    result.agentActivities().stream().map(AskVextisAgentActivityView::from).toList());
+                    result.agentActivities().stream().map(AskVextisAgentActivityView::from).toList(),
+                    AskVextisMemoryEvidenceView.from(result.memoryEvidence()));
         }
     }
 
@@ -92,13 +95,15 @@ class AskVextisGraphQlController {
             String content,
             String kind,
             String createdAt,
-            List<AskVextisAgentActivityView> agentActivities
+            List<AskVextisAgentActivityView> agentActivities,
+            AskVextisMemoryEvidenceView memoryEvidence
     ) {
         static AskVextisMessageView from(ChatMessage message) {
             return new AskVextisMessageView(
                     message.id(), message.sender().name(), message.content(), message.kind().name(),
                     message.occurredAt().toString(),
-                    message.agentActivities().stream().map(AskVextisAgentActivityView::from).toList());
+                    message.agentActivities().stream().map(AskVextisAgentActivityView::from).toList(),
+                    AskVextisMemoryEvidenceView.from(message.memoryEvidence()));
         }
     }
 
@@ -114,6 +119,18 @@ class AskVextisGraphQlController {
             return new AskVextisAgentActivityView(
                     evidence.agentId(), evidence.agentVersion(), evidence.displayName(), evidence.modelId(),
                     evidence.promptVersion(), evidence.tools());
+        }
+    }
+
+    record AskVextisMemoryEvidenceView(
+            String provider,
+            boolean available,
+            int contextCount,
+            boolean preferenceStored
+    ) {
+        static AskVextisMemoryEvidenceView from(MemoryEvidence evidence) {
+            return evidence == null ? null : new AskVextisMemoryEvidenceView(
+                    evidence.provider(), evidence.available(), evidence.contextCount(), evidence.preferenceStored());
         }
     }
 }

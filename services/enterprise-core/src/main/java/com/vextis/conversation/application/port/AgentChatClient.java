@@ -10,12 +10,15 @@ public interface AgentChatClient {
      * its side through the existing authenticated /internal/agent-tools/**
      * path — this call only carries the conversation turn.
      */
-    ChatCompletion complete(String tenantId, UUID conversationId, String message);
+    ChatCompletion complete(String tenantId, String actorId, UUID conversationId, String message);
 
-    record ChatCompletion(String reply, List<AgentActivity> activities) {
+    record ChatCompletion(String reply, List<AgentActivity> activities, MemoryActivity memory) {
         public ChatCompletion {
             activities = List.copyOf(activities);
         }
+    }
+
+    record MemoryActivity(String provider, boolean available, int contextCount, boolean preferenceStored) {
     }
 
     record AgentActivity(String agentId, List<String> tools) {

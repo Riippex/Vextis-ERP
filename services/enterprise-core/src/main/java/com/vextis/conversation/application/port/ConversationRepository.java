@@ -5,6 +5,7 @@ import com.vextis.conversation.domain.Conversation;
 import com.vextis.conversation.domain.AgentActivityEvidence;
 import com.vextis.conversation.domain.MessageKind;
 import com.vextis.conversation.domain.MessageSender;
+import com.vextis.conversation.domain.MemoryEvidence;
 
 import java.time.Instant;
 import java.util.List;
@@ -24,7 +25,8 @@ public interface ConversationRepository {
             String content,
             MessageKind kind,
             Instant occurredAt,
-            List<AgentActivityEvidence> agentActivities
+            List<AgentActivityEvidence> agentActivities,
+            MemoryEvidence memoryEvidence
     );
 
     Optional<Conversation> findById(String tenantId, UUID conversationId);

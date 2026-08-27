@@ -98,6 +98,7 @@ type AskVextisMessageResult {
   reply: String!
   createdAt: String!
   agentActivities: [AskVextisAgentActivity!]!
+  memoryEvidence: AskVextisMemoryEvidence
 }
 
 type MissionControlAgentActivity {
@@ -124,6 +125,14 @@ type AskVextisMessage {
   kind: AskVextisMessageKind!
   createdAt: String!
   agentActivities: [AskVextisAgentActivity!]!
+  memoryEvidence: AskVextisMemoryEvidence
+}
+
+type AskVextisMemoryEvidence {
+  provider: String!
+  available: Boolean!
+  contextCount: Int!
+  preferenceStored: Boolean!
 }
 
 type AskVextisAgentActivity {

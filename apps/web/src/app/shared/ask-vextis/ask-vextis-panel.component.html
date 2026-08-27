@@ -46,6 +46,20 @@
               }
             </div>
           }
+          @if (message.sender === 'ASSISTANT' && message.memoryEvidence; as memory) {
+            <div class="ask-vextis-message__memory" aria-label="Durable memory activity">
+              <mat-icon>memory</mat-icon>
+              @if (!memory.available) {
+                Memory unavailable
+              } @else if (memory.preferenceStored) {
+                Memory Bank · preference saved
+              } @else if (memory.contextCount > 0) {
+                Memory Bank · {{ memory.contextCount }} preferences applied
+              } @else {
+                Memory Bank · no saved preferences
+              }
+            </div>
+          }
         </div>
       }
     }
