@@ -65,10 +65,8 @@ class ImagenClient:
             )
 
         try:
-            import vertexai  # type: ignore[import-not-found]
-            from vertexai.preview.vision_models import (
-                ImageGenerationModel,  # type: ignore[import-not-found]
-            )
+            import vertexai
+            from vertexai.preview.vision_models import ImageGenerationModel
 
             vertexai.init(project=self._project, location=self._location)
             model = ImageGenerationModel.from_pretrained(self._model_id)
@@ -76,7 +74,11 @@ class ImagenClient:
                 prompt=prompt_summary,
                 number_of_images=1,
                 aspect_ratio="1:1",
-                safety_filter_level="block_medium_and_above",
+                # ImageGenerationModel.generate_images only accepts
+                # "block_most" / "block_some" / "block_few" / "block_fewest";
+                # "block_most" is the strictest available level, matching the
+                # strict intent for customer-facing proposal assets.
+                safety_filter_level="block_most",
                 person_generation="allow_adult",
             )
             image = response[0]
