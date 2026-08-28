@@ -1,4 +1,5 @@
-from typing import cast
+from collections.abc import Callable
+from typing import Any, cast
 from uuid import UUID
 
 import pytest
@@ -205,9 +206,10 @@ async def test_generate_proposal_asset_tool_registers_a_real_asset() -> None:
         for agent in coordinator.sub_agents
         if agent.name == "vextis_crm_agent"
     )
-    tool = next(
+    matching_tool = next(
         t for t in crm_agent.tools if getattr(t, "__name__", None) == "generate_proposal_asset"
     )
+    tool = cast(Callable[..., Any], matching_tool)
 
     result = await tool(quote_id="exec-001", visual_description="ergonomic chair concept")
 
