@@ -215,10 +215,10 @@ class AgentRagToolControllerTests {
                         "vextis_document_ingestor", "1.0.0", "Ingestor", "CROSS_DEPARTMENT", "purpose",
                         "GOOGLE_ADK", "text-embedding-004", "1.0.0", "coordinator-agent", "ACTIVE",
                         List.of(), List.of("ingest_knowledge_document"))));
-        when(ragDirectory.ingestDocument(eq("demo-tenant"), any(), any(), any(), any(), anyList()))
+        when(ragDirectory.ingestDocument(eq("demo-tenant"), any(), any(), any(), any(), any(), anyList()))
                 .thenReturn(new RagDocument(
                         docId, "demo-tenant", "urn:vextis:policy:commercial", "commercial_policy.md",
-                        "text/markdown", CONTENT_HASH, 1, RagDocument.Status.INDEXED, 1,
+                        "text/markdown", CONTENT_HASH, VERTEX_SPACE, 1, RagDocument.Status.INDEXED, 1,
                         Instant.parse("2026-08-27T10:00:00Z"), Instant.parse("2026-08-27T10:00:00Z")));
 
         mockMvc.perform(post("/internal/agent-tools/v1/rag/documents")
@@ -236,7 +236,7 @@ class AgentRagToolControllerTests {
         ArgumentCaptor<List<RagChunkInput>> chunks = ArgumentCaptor.captor();
         verify(ragDirectory).ingestDocument(
                 eq("demo-tenant"), eq("urn:vextis:policy:commercial"), eq("commercial_policy.md"),
-                eq("text/markdown"), eq(CONTENT_HASH), chunks.capture());
+                eq("text/markdown"), eq(CONTENT_HASH), eq(VERTEX_SPACE), chunks.capture());
         assertThat(chunks.getValue())
                 .singleElement()
                 .extracting(RagChunkInput::embeddingSpace)

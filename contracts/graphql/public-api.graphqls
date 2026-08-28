@@ -432,6 +432,11 @@ type KnowledgeDocumentView {
   fileName: String!
   contentType: String!
   contentHash: String!
+  """
+  Provider, model and dimension the chunks of this indexation were embedded
+  with. The same document may appear once per embedding space.
+  """
+  embeddingSpace: String!
   version: Int!
   status: String!
   chunkCount: Int!

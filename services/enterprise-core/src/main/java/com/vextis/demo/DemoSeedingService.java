@@ -136,7 +136,9 @@ public class DemoSeedingService {
 
         RagChunkInput c1_0 = mockChunk(0, text1Chunk0, Map.of("section", "commercial"));
         RagChunkInput c1_1 = mockChunk(1, text1Chunk1, Map.of("section", "billing"));
-        RagDocument doc1 = ragDirectory.ingestDocument(tenantId, doc1Uri, doc1Name, "application/pdf", hash1, List.of(c1_0, c1_1));
+        RagDocument doc1 = ragDirectory.ingestDocument(
+                tenantId, doc1Uri, doc1Name, "application/pdf", hash1, MOCK_EMBEDDING_SPACE,
+                List.of(c1_0, c1_1));
 
         // Doc 2: Inventory Terms
         String doc2Uri = "gs://vextis-demo-docs/inventory_policy.pdf";
@@ -145,7 +147,9 @@ public class DemoSeedingService {
         String hash2 = computeSha256(text2Chunk0);
 
         RagChunkInput c2_0 = mockChunk(0, text2Chunk0, Map.of("section", "inventory"));
-        RagDocument doc2 = ragDirectory.ingestDocument(tenantId, doc2Uri, doc2Name, "application/pdf", hash2, List.of(c2_0));
+        RagDocument doc2 = ragDirectory.ingestDocument(
+                tenantId, doc2Uri, doc2Name, "application/pdf", hash2, MOCK_EMBEDDING_SPACE,
+                List.of(c2_0));
 
         return List.of(doc1, doc2);
     }

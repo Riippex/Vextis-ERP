@@ -40,10 +40,10 @@ class JdbcRagDocumentRepository implements RagDocumentRepository {
         String sql = """
                 INSERT INTO rag_documents (
                     id, tenant_id, document_uri, file_name, content_type,
-                    content_hash, version, status, created_at, updated_at
+                    content_hash, embedding_space, version, status, created_at, updated_at
                 ) VALUES (
                     :id, :tenantId, :documentUri, :fileName, :contentType,
-                    :contentHash, :version, :status, :createdAt, :updatedAt
+                    :contentHash, :embeddingSpace, :version, :status, :createdAt, :updatedAt
                 )
                 """;
         MapSqlParameterSource params = new MapSqlParameterSource()
@@ -53,6 +53,7 @@ class JdbcRagDocumentRepository implements RagDocumentRepository {
                 .addValue("fileName", document.fileName())
                 .addValue("contentType", document.contentType())
                 .addValue("contentHash", document.contentHash())
+                .addValue("embeddingSpace", document.embeddingSpace())
                 .addValue("version", document.version())
                 .addValue("status", document.status().name())
                 .addValue("createdAt", Timestamp.from(document.createdAt()), Types.TIMESTAMP_WITH_TIMEZONE)
@@ -91,28 +92,26 @@ class JdbcRagDocumentRepository implements RagDocumentRepository {
     }
 
     @Override
-    public Optional<RagDocument> findByUri(String tenantId, String documentUri) {
-        return findOne("d.tenant_id = :tenantId AND d.document_uri = :documentUri",
-                Map.of("tenantId", tenantId, "documentUri", documentUri));
-    }
-
-    @Override
-    public Optional<RagDocument> findByHash(String tenantId, String contentHash) {
-        return findOne("d.tenant_id = :tenantId AND d.content_hash = :contentHash",
-                Map.of("tenantId", tenantId, "contentHash", contentHash));
+    public Optional<RagDocument> findByUri(String tenantId, String documentUri, String embeddingSpace) {
+        return findOne(
+                "d.tenant_id = :tenantId AND d.document_uri = :documentUri "
+                        + "AND d.embedding_space = :embeddingSpace",
+                Map.of("tenantId", tenantId, "documentUri", documentUri,
+                        "embeddingSpace", embeddingSpace));
     }
 
     @Override
     public List<RagDocument> listAll(String tenantId) {
         String sql = """
                 SELECT d.id, d.tenant_id, d.document_uri, d.file_name, d.content_type,
-                       d.content_hash, d.version, d.status, d.created_at, d.updated_at,
+                       d.content_hash, d.embedding_space, d.version, d.status,
+                       d.created_at, d.updated_at,
                        COUNT(c.id) AS chunk_count
                 FROM rag_documents d
                 LEFT JOIN rag_document_chunks c ON d.id = c.document_id
                 WHERE d.tenant_id = :tenantId
                 GROUP BY d.id
-                ORDER BY d.created_at DESC
+                ORDER BY d.created_at DESC, d.embedding_space
                 """;
         return jdbc.query(sql, Map.of("tenantId", tenantId), this::mapDocument);
     }
@@ -192,7 +191,8 @@ class JdbcRagDocumentRepository implements RagDocumentRepository {
     private Optional<RagDocument> findOne(String whereClause, Map<String, Object> params) {
         String sql = """
                 SELECT d.id, d.tenant_id, d.document_uri, d.file_name, d.content_type,
-                       d.content_hash, d.version, d.status, d.created_at, d.updated_at,
+                       d.content_hash, d.embedding_space, d.version, d.status,
+                       d.created_at, d.updated_at,
                        COUNT(c.id) AS chunk_count
                 FROM rag_documents d
                 LEFT JOIN rag_document_chunks c ON d.id = c.document_id
@@ -211,6 +211,7 @@ class JdbcRagDocumentRepository implements RagDocumentRepository {
                 rs.getString("file_name"),
                 rs.getString("content_type"),
                 rs.getString("content_hash"),
+                rs.getString("embedding_space"),
                 rs.getInt("version"),
                 RagDocument.Status.valueOf(rs.getString("status")),
                 rs.getInt("chunk_count"),

@@ -34,6 +34,7 @@ class KnowledgeGraphQlControllerTests {
                         "catalog.pdf",
                         "application/pdf",
                         "hash_abc",
+                        "vertex:text-embedding-004:768",
                         1,
                         RagDocument.Status.INDEXED,
                         5,
@@ -51,6 +52,7 @@ class KnowledgeGraphQlControllerTests {
                         status
                         chunkCount
                         version
+                        embeddingSpace
                     }
                 }
                 """)
