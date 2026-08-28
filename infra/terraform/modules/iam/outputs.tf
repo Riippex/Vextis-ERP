@@ -13,6 +13,11 @@ output "agent_runtime_email" {
   value       = google_service_account.agent_runtime.email
 }
 
+output "agent_runtime_live_email" {
+  description = "Service identity for the public Live voice gateway."
+  value       = google_service_account.agent_runtime_live.email
+}
+
 output "pubsub_push_email" {
   description = "OIDC identity for authenticated Pub/Sub push delivery."
   value       = google_service_account.pubsub_push.email

@@ -54,6 +54,14 @@ output "agent_runtime_url" {
   value = module.cloud_run.agent_runtime_url
 }
 
+output "agent_runtime_live_url" {
+  value = module.cloud_run.agent_runtime_live_url
+}
+
+output "agent_runtime_live_service_account" {
+  value = module.iam.agent_runtime_live_email
+}
+
 output "cloud_build_service_account" {
   value = module.iam.cloud_build_email
 }

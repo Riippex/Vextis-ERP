@@ -35,6 +35,17 @@ resource "google_service_account" "agent_runtime" {
   }
 }
 
+resource "google_service_account" "agent_runtime_live" {
+  project      = var.project_id
+  account_id   = "vextis-agent-live-${var.environment}"
+  display_name = "Vextis Agent Runtime Live (${var.environment})"
+  description  = "Runtime identity for the publicly reachable Live voice gateway."
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 resource "google_service_account" "pubsub_push" {
   project      = var.project_id
   account_id   = "vextis-push-${var.environment}"
@@ -85,6 +96,17 @@ resource "google_project_iam_member" "agent_runtime_vertex_ai" {
   project = var.project_id
   role    = "roles/aiplatform.user"
   member  = "serviceAccount:${google_service_account.agent_runtime.email}"
+}
+
+# The Live gateway is the only publicly invokable Agent Runtime surface, so it
+# gets its own identity holding strictly what a voice session needs: Vertex AI
+# for the Live model, the agent-tools token to authenticate to Enterprise Core,
+# and invoker on Enterprise Core. It deliberately does not get the chat callback
+# token or storage access the private runtime holds.
+resource "google_project_iam_member" "agent_runtime_live_vertex_ai" {
+  project = var.project_id
+  role    = "roles/aiplatform.user"
+  member  = "serviceAccount:${google_service_account.agent_runtime_live.email}"
 }
 
 resource "google_project_iam_member" "cloud_build_log_writer" {
@@ -141,6 +163,12 @@ resource "google_service_account_iam_member" "cloud_build_can_use_agent_runtime"
   member             = "serviceAccount:${google_service_account.cloud_build.email}"
 }
 
+resource "google_service_account_iam_member" "cloud_build_can_use_agent_runtime_live" {
+  service_account_id = google_service_account.agent_runtime_live.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.cloud_build.email}"
+}
+
 resource "google_secret_manager_secret" "agent_tools_token" {
   project             = var.project_id
   secret_id           = var.agent_tools_secret_id
@@ -189,6 +217,13 @@ resource "google_secret_manager_secret_iam_member" "agent_runtime_agent_tools_to
   secret_id = google_secret_manager_secret.agent_tools_token.secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.agent_runtime.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "agent_runtime_live_agent_tools_token" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.agent_tools_token.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.agent_runtime_live.email}"
 }
 
 resource "google_secret_manager_secret_iam_member" "enterprise_core_public_callback_token" {

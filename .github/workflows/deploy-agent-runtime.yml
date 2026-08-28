@@ -100,9 +100,23 @@ jobs:
           --region=us-central1
           --quiet
 
-      - name: Report ready revision
+      - name: Deploy Live voice gateway revision
+        env:
+          DEPLOY_SHA: ${{ needs.changes.outputs.sha }}
         run: >-
-          gcloud run services describe vextis-agent-runtime
+          gcloud run deploy vextis-agent-runtime-live
+          --image=us-central1-docker.pkg.dev/vextis-erp/vextis/agent-runtime:${DEPLOY_SHA}
           --project=vextis-erp
           --region=us-central1
-          --format='value(status.latestReadyRevisionName)'
+          --quiet
+
+      - name: Report ready revisions
+        shell: bash
+        run: |
+          set -euo pipefail
+          for service in vextis-agent-runtime vextis-agent-runtime-live; do
+            gcloud run services describe "${service}" \
+              --project=vextis-erp \
+              --region=us-central1 \
+              --format='value(status.latestReadyRevisionName)'
+          done

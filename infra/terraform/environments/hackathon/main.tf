@@ -110,6 +110,7 @@ module "cloud_run" {
   enterprise_core_service_account_email        = module.iam.enterprise_core_email
   enterprise_core_public_service_account_email = module.iam.enterprise_core_public_email
   agent_runtime_service_account_email          = module.iam.agent_runtime_email
+  agent_runtime_live_service_account_email     = module.iam.agent_runtime_live_email
   pubsub_push_service_account_email            = module.iam.pubsub_push_email
   cloud_sql_connection_name                    = module.cloud_sql.connection_name
   database_name                                = module.cloud_sql.database_name
@@ -119,6 +120,7 @@ module "cloud_run" {
   pubsub_topic_id                              = "order-events"
   gemini_model                                 = var.gemini_model
   live_model                                   = var.live_model
+  live_max_session_seconds                     = var.live_max_session_seconds
   memory_bank_agent_engine_id                  = var.memory_bank_agent_engine_id
   assets_bucket_name                           = local.assets_bucket_name
   labels                                       = local.labels
