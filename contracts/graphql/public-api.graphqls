@@ -5,6 +5,7 @@ type Query {
   missionControl: MissionControl!
   askVextisConversation(id: ID!): AskVextisConversation
   knowledgeDocuments: [KnowledgeDocumentView!]!
+  proposalAssets(quoteId: ID): [ProposalAsset!]!
 }
 
 type MissionControl {
@@ -212,6 +213,7 @@ type Execution {
   readiness: ExecutionReadiness
   approval: WorkflowApproval
   invoice: Invoice
+  proposalAssets: [ProposalAsset!]!
   auditTrail: [ExecutionAuditEntry!]!
 }
 
@@ -443,3 +445,20 @@ type KnowledgeDocumentView {
   createdAt: String!
   updatedAt: String!
 }
+
+type ProposalAsset {
+  id: ID!
+  quoteId: ID!
+  storageUri: String!
+  mediaType: ProposalMediaType!
+  modelId: String!
+  promptSummary: String!
+  aiLabel: String!
+  createdAt: String!
+}
+
+enum ProposalMediaType {
+  IMAGE
+  VIDEO
+}
+

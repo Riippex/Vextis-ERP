@@ -52,6 +52,16 @@ mutation DecideApproval($input: DecideApprovalInput!) {
       correlationId
       lines { sku quantity unitPrice lineSubtotal }
     }
+    proposalAssets {
+      id
+      quoteId
+      storageUri
+      mediaType
+      modelId
+      promptSummary
+      aiLabel
+      createdAt
+    }
     auditTrail {
       id
       correlationId

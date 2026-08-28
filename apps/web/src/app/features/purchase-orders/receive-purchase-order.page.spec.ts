@@ -42,6 +42,8 @@ describe('ReceivePurchaseOrderPage', () => {
             ],
             plan: null,
             readiness: null,
+            invoice: null,
+            proposalAssets: [],
             auditTrail: [
               {
                 id: 'audit-user-1',
@@ -157,6 +159,9 @@ describe('ReceivePurchaseOrderPage', () => {
               },
             ],
           },
+          approval: null,
+          invoice: null,
+          proposalAssets: [],
           auditTrail: [
             {
               id: 'audit-agent-1',

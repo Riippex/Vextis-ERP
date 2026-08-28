@@ -3,6 +3,7 @@ package com.vextis.workflow.api.graphql;
 import com.vextis.agentregistry.AgentDirectory;
 import com.vextis.audit.AuditTrail;
 import com.vextis.billing.InvoiceDirectory;
+import com.vextis.crm.ProposalAssetDirectory;
 import com.vextis.workflow.application.FindExecutionUseCase;
 import com.vextis.workflow.application.ReceivePurchaseOrderCommand;
 import com.vextis.workflow.application.ReceivePurchaseOrderUseCase;
@@ -71,6 +72,9 @@ class PurchaseOrderGraphQlControllerTests {
 
     @MockitoBean
     private InvoiceDirectory invoices;
+
+    @MockitoBean
+    private ProposalAssetDirectory proposalAssets;
 
     @MockitoBean
     private CurrentActorProvider currentActor;

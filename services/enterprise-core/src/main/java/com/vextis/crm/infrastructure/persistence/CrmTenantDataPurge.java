@@ -34,6 +34,9 @@ class CrmTenantDataPurge implements TenantDataPurge {
         Map<String, Object> params = Map.of("tenantId", tenantId);
         int removed = 0;
         removed += jdbc.update("""
+                DELETE FROM proposal_assets WHERE tenant_id = :tenantId
+                """, params);
+        removed += jdbc.update("""
                 DELETE FROM crm_customers WHERE tenant_id = :tenantId
                 """, params);
         return removed;

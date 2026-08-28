@@ -38,7 +38,7 @@ class AgentToolPermissionMigrationTests {
     @Test
     void crmAgentKeepsCustomerLookupAndKnowledgeTools() {
         assertThat(allowedToolsByAgent.get("vextis_crm_agent"))
-                .containsExactlyInAnyOrder("lookup_customer", "search_knowledge_base");
+                .containsExactlyInAnyOrder("lookup_customer", "register_quote_asset", "search_knowledge_base");
     }
 
     @Test

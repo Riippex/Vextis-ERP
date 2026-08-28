@@ -270,6 +270,27 @@
         </section>
       }
 
+      @if (currentReceipt.execution.proposalAssets && currentReceipt.execution.proposalAssets.length) {
+        <section class="proposal-assets" aria-labelledby="proposal-assets-title">
+          <div class="plan__heading">
+            <div>
+              <p class="evidence__eyebrow">Multimodal proposal asset</p>
+              <h3 id="proposal-assets-title">Generated proposal visual</h3>
+            </div>
+            <span class="ai-badge">AI-GENERATED</span>
+          </div>
+          @for (asset of currentReceipt.execution.proposalAssets; track asset.id) {
+            <div class="proposal-asset-card">
+              <div class="proposal-asset-card__info">
+                <strong>{{ asset.aiLabel }}</strong>
+                <p>{{ asset.promptSummary }}</p>
+                <small>Model: {{ asset.modelId }} · Media: {{ asset.mediaType }}</small>
+              </div>
+            </div>
+          }
+        </section>
+      }
+
       <h3>Execution timeline</h3>
       <ol class="timeline">
         @for (entry of currentReceipt.execution.timeline; track entry.sequence) {
