@@ -1,5 +1,6 @@
 package com.vextis.demo.api;
 
+import com.vextis.demo.DemoResetService;
 import com.vextis.demo.DemoSeedingService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -21,15 +22,18 @@ import java.util.Map;
 public class DemoManagementController {
 
     private final DemoSeedingService demoSeedingService;
+    private final DemoResetService demoResetService;
     private final String serviceToken;
     private final String defaultTenantId;
 
     public DemoManagementController(
             DemoSeedingService demoSeedingService,
+            DemoResetService demoResetService,
             @Value("${vextis.agent-tools.service-token:}") String serviceToken,
             @Value("${vextis.demo.tenant-id:demo-tenant}") String defaultTenantId
     ) {
         this.demoSeedingService = demoSeedingService;
+        this.demoResetService = demoResetService;
         this.serviceToken = serviceToken;
         this.defaultTenantId = defaultTenantId;
     }
@@ -45,6 +49,32 @@ public class DemoManagementController {
             int inventorySkusCount,
             int knowledgeDocumentsCount
     ) {
+        static SeedDemoResponse from(String status, DemoSeedingService.SeedResult result) {
+            return new SeedDemoResponse(
+                    status,
+                    result.tenantId(),
+                    result.customers().size(),
+                    result.creditProfiles().size(),
+                    result.inventory().size(),
+                    result.knowledgeDocuments().size()
+            );
+        }
+    }
+
+    /**
+     * Reset reports what it removed as well as what it seeded, so a caller can
+     * tell an actual reset from a re-seed that left previous demo state behind.
+     */
+    public record ResetDemoResponse(
+            String status,
+            String tenantId,
+            int purgedRowsTotal,
+            Map<String, Integer> purgedRowsByArea,
+            int customersCount,
+            int creditProfilesCount,
+            int inventorySkusCount,
+            int knowledgeDocumentsCount
+    ) {
     }
 
     @PostMapping("/seed")
@@ -54,27 +84,41 @@ public class DemoManagementController {
     ) {
         authorizeServiceToken(authorization);
 
-        String tenantId = (request != null && request.tenantId() != null) ? request.tenantId() : defaultTenantId;
-        String actorId = (request != null && request.actorId() != null) ? request.actorId() : "demo-admin";
+        DemoSeedingService.SeedResult result =
+                demoSeedingService.seedDemoData(tenantIdOf(request), actorIdOf(request));
 
-        DemoSeedingService.SeedResult result = demoSeedingService.seedDemoData(tenantId, actorId);
-
-        return ResponseEntity.ok(new SeedDemoResponse(
-                "SEEDED",
-                result.tenantId(),
-                result.customers().size(),
-                result.creditProfiles().size(),
-                result.inventory().size(),
-                result.knowledgeDocuments().size()
-        ));
+        return ResponseEntity.ok(SeedDemoResponse.from("SEEDED", result));
     }
 
     @PostMapping("/reset")
-    public ResponseEntity<SeedDemoResponse> reset(
+    public ResponseEntity<ResetDemoResponse> reset(
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @RequestBody(required = false) SeedDemoRequest request
     ) {
-        return seed(authorization, request);
+        authorizeServiceToken(authorization);
+
+        DemoResetService.ResetResult result =
+                demoResetService.resetDemoData(tenantIdOf(request), actorIdOf(request));
+        DemoSeedingService.SeedResult seed = result.seed();
+
+        return ResponseEntity.ok(new ResetDemoResponse(
+                "RESET",
+                seed.tenantId(),
+                result.purgedRowsTotal(),
+                result.purgedRowsByArea(),
+                seed.customers().size(),
+                seed.creditProfiles().size(),
+                seed.inventory().size(),
+                seed.knowledgeDocuments().size()
+        ));
+    }
+
+    private String tenantIdOf(SeedDemoRequest request) {
+        return (request != null && request.tenantId() != null) ? request.tenantId() : defaultTenantId;
+    }
+
+    private String actorIdOf(SeedDemoRequest request) {
+        return (request != null && request.actorId() != null) ? request.actorId() : "demo-admin";
     }
 
     private void authorizeServiceToken(String authorization) {
