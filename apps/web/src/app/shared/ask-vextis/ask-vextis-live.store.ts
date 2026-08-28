@@ -171,7 +171,11 @@ export class AskVextisLiveStore {
       this.closeLiveSessionMutation
         .mutate({ variables: { id: session.id } })
         .pipe(takeUntilDestroyed(this.destroyRef))
-        .subscribe({ error: () => {} });
+        .subscribe({
+          error: (err: unknown) => {
+            console.warn('Could not close live session on server', err);
+          },
+        });
     }
 
     if (this.socket && this.socket.readyState === WebSocket.OPEN) {

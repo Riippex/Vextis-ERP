@@ -71,7 +71,9 @@ export class LiveAudioService {
       this.mediaStream = null;
     }
     if (this.audioContext) {
-      this.audioContext.close().catch(() => {});
+      this.audioContext.close().catch((err: unknown) => {
+        console.warn('AudioContext cleanup error', err);
+      });
       this.audioContext = null;
     }
     this.nextPlayTime = 0;
