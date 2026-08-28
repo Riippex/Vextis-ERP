@@ -5,6 +5,7 @@ import com.vextis.livesession.domain.LiveSession;
 import com.vextis.livesession.domain.LiveSessionState;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -45,6 +46,7 @@ public class LiveSessionService implements CreateLiveSessionUseCase, CloseLiveSe
     }
 
     @Override
+    @Transactional
     public LiveSessionCredential create(CreateLiveSessionCommand command) {
         if (websocketBaseUrl.isBlank()) {
             throw new IllegalStateException("Live voice is not configured on this deployment");
@@ -81,11 +83,20 @@ public class LiveSessionService implements CreateLiveSessionUseCase, CloseLiveSe
      * Caps how many sessions one actor may create inside the rolling window.
      * Enterprise Core is the only place this can be enforced: the gateway sees a
      * session token, not who asked for it.
+     *
+     * <p>Runs inside {@link #create}'s transaction, so the lock, the count and
+     * the eventual insert all share one connection: the lock forces a second
+     * concurrent caller for the same actor to wait until the first has
+     * committed (or rolled back), so the count it reads once unblocked already
+     * reflects that insert. Without the lock this is a check-then-act race —
+     * see {@link com.vextis.livesession.application.port.LiveSessionRepository
+     * #acquireActorQuotaLock}.
      */
     private void enforceActorQuota(String tenantId, String actorId, Instant now) {
         if (maxSessionsPerActor <= 0) {
             return;
         }
+        repository.acquireActorQuotaLock(tenantId, actorId);
         int recent = repository.countCreatedSince(tenantId, actorId, now.minus(quotaWindow));
         if (recent >= maxSessionsPerActor) {
             throw new LiveSessionQuotaExceededException(maxSessionsPerActor);

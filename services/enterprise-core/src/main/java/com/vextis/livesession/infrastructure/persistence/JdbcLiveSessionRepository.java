@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import java.sql.PreparedStatement;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.List;
@@ -40,6 +41,26 @@ class JdbcLiveSessionRepository implements LiveSessionRepository {
                         .addValue("tokenHash", tokenHash)
                         .addValue("createdAt", Timestamp.from(session.createdAt()))
                         .addValue("expiresAt", Timestamp.from(session.expiresAt())));
+    }
+
+    @Override
+    public void acquireActorQuotaLock(String tenantId, String actorId) {
+        // pg_advisory_xact_lock(bigint) returns void, and the Postgres JDBC
+        // driver cannot map a void result column to any Java type — including
+        // Long — so this executes the statement directly and ignores its
+        // result rather than trying to read one back. Transaction-scoped, so
+        // the lock is released automatically at commit or rollback, and
+        // requires the caller's create() to run inside one @Transactional
+        // method so the lock, the count and the insert all share one
+        // connection.
+        jdbc.execute(
+                "SELECT pg_advisory_xact_lock(hashtextextended(:lockKey, 0))",
+                new MapSqlParameterSource(
+                        "lockKey", tenantId + ":live-session-quota:" + actorId),
+                (PreparedStatement statement) -> {
+                    statement.execute();
+                    return null;
+                });
     }
 
     @Override

@@ -206,6 +206,14 @@ class LiveSessionServiceTests {
         }
 
         @Override
+        public void acquireActorQuotaLock(String tenantId, String actorId) {
+            // No-op: these tests are single-threaded, so there is no concurrent
+            // caller to serialize against. The real lock is only meaningful
+            // against a real Postgres connection under concurrent load — see
+            // LiveSessionServiceConcurrencyTests for that proof.
+        }
+
+        @Override
         public int countCreatedSince(String tenantId, String actorId, Instant since) {
             return (int) sessions.values().stream()
                     .filter(session -> session.tenantId().equals(tenantId))
