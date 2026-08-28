@@ -15,10 +15,51 @@
 ALTER TABLE rag_documents
     ADD COLUMN embedding_space VARCHAR(120);
 
--- Everything indexed before this point came from the demo seeder.
-UPDATE rag_documents
-SET embedding_space = 'mock-sha256:sha256-v1:768'
-WHERE embedding_space IS NULL;
+-- Derived from each document's own chunks (rag_document_chunks.embedding_space,
+-- populated and constrained NOT NULL by V17) rather than assumed. Backfilling
+-- every existing row with a hardcoded 'this all came from the demo seeder'
+-- literal would be true in today's environment but is not something this
+-- migration can know in general: a deployment that had already ingested real
+-- Vertex documents before this point would have every one of them silently
+-- mislabeled as mock, corrupting exactly the identity this migration exists to
+-- establish.
+--
+-- A document with no chunks, or whose chunks disagree on embedding_space,
+-- cannot be derived safely. The migration fails and names the offending
+-- document ids rather than guessing, so a human repairs the specific row
+-- (re-ingest it, or delete it if it is orphaned) instead of the system
+-- mislabeling it.
+DO $$
+DECLARE
+    undetermined_ids TEXT;
+BEGIN
+    SELECT string_agg(d.id::text, ', ' ORDER BY d.id)
+    INTO undetermined_ids
+    FROM rag_documents d
+    WHERE (
+        SELECT COUNT(DISTINCT c.embedding_space)
+        FROM rag_document_chunks c
+        WHERE c.document_id = d.id
+    ) <> 1;
+
+    IF undetermined_ids IS NOT NULL THEN
+        RAISE EXCEPTION
+            'Cannot derive embedding_space for rag_documents row(s) [%]: each document must have at least one '
+            'chunk, and every one of its chunks must agree on exactly one embedding_space. Repair the affected '
+            'document(s) — re-ingest with a consistent embedder, or delete the row if it is orphaned — before '
+            'this migration can run.',
+            undetermined_ids;
+    END IF;
+
+    UPDATE rag_documents d
+    SET embedding_space = derived.space
+    FROM (
+        SELECT document_id, MIN(embedding_space) AS space
+        FROM rag_document_chunks
+        GROUP BY document_id
+    ) AS derived
+    WHERE d.id = derived.document_id;
+END $$;
 
 ALTER TABLE rag_documents
     ALTER COLUMN embedding_space SET NOT NULL;
