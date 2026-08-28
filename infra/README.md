@@ -19,13 +19,37 @@ only through process memory and standard input.
 
 ### Bootstrapping secret versions
 
-`terraform apply` creates every Secret Manager **secret** (the named container)
-but deliberately creates no **version** (the actual value) for any of them, for
-the reason above. Every Cloud Run service references its secret at
-`version = "latest"`, so a service whose secret has no version yet fails to
-start — not fails at runtime, fails to come up at all — until this step runs.
-Run it once per secret, right after the apply that first creates it, before the
-first deploy that reads it:
+Terraform creates every Secret Manager **secret** (the named container) but
+deliberately creates no **version** (the actual value) for any of them, for the
+reason above. Every Cloud Run service references its secret at
+`version = "latest"`, and `module.cloud_run` depends on `module.iam`, so a
+single unscoped `terraform apply` on a first deploy tries to create those Cloud
+Run revisions in the same run that first creates the secret containers —
+before any version can exist. Cloud Run then fails to come up at all, not
+fails at runtime, and the apply that was supposed to hand you a working
+environment errors out instead.
+
+**A first deploy in a new project must therefore run in three phases, in this
+order.** A redeploy of an existing environment (secrets already have versions)
+just runs phase 3.
+
+**Phase 1 — create only the Secret Manager containers**, with `-target` so
+Cloud Run and everything else in the plan stays out of this apply:
+
+```bash
+cd terraform/environments/hackathon
+terraform apply     -target=module.cloud_sql.google_secret_manager_secret.database_password     -target=module.iam.google_secret_manager_secret.agent_tools_token     -target=module.iam.google_secret_manager_secret.live_gateway_token     -target=module.iam.google_secret_manager_secret.demo_admin_token     -target=module.iam.google_secret_manager_secret.core_callback_token
+```
+
+If any of these five secrets already exists in the project (for example, a
+partially-applied previous attempt), import it instead of letting `apply`
+fail on a name collision: `terraform import <target address> <secret_id>`,
+using the same address as its `-target` above and the literal secret ID (e.g.
+`vextis-agent-tools-token`) as the import ID.
+
+**Phase 2 — give every secret a version**, following the commands below. Do
+this for all five before moving on; a service whose secret still has no
+version fails Phase 3.
 
 ```bash
 openssl rand -base64 32 | gcloud secrets versions add SECRET_ID     --project=vextis-erp     --data-file=-
@@ -57,18 +81,11 @@ unset DB_PASSWORD
 The other four are opaque bearer tokens compared byte-for-byte by the
 application (`MessageDigest.isEqual`), so any sufficiently random value works;
 the plain `openssl rand -base64 32 | gcloud secrets versions add ...` command
-above is enough for each.
-
-`vextis-demo-admin-token` and `vextis-live-gateway-token` are new: without a
-version, `/internal/demo/**` answers `503` (fails closed by design, see
-`DemoManagementController`) and the Live gateway cannot resolve its own service
-identity against Enterprise Core, so voice sessions fail at the WebSocket
-handshake. Bootstrap both before relying on either:
-
-```bash
-openssl rand -base64 32 | gcloud secrets versions add vextis-demo-admin-token     --project=vextis-erp --data-file=-
-openssl rand -base64 32 | gcloud secrets versions add vextis-live-gateway-token     --project=vextis-erp --data-file=-
-```
+above is enough for each. `vextis-demo-admin-token` and `vextis-live-gateway-token`
+are the two new ones: without a version, `/internal/demo/**` answers `503`
+(fails closed by design, see `DemoManagementController`) and the Live gateway
+cannot resolve its own service identity against Enterprise Core, so voice
+sessions fail at the WebSocket handshake.
 
 `vextis-live-gateway-token` must differ from `vextis-agent-tools-token` — reuse
 the same value and `ConfiguredServiceCallerIdentities` refuses to start
@@ -76,6 +93,16 @@ the same value and `ConfiguredServiceCallerIdentities` refuses to start
 vextis.agent-tools.service-token`), because sharing it would collapse the
 public gateway and the private runtime back into one service identity, which is
 exactly the separation ADR 0005 exists to enforce.
+
+**Phase 3 — run the full apply.** With all five secrets versioned, run
+`terraform apply` with no `-target` from `terraform/environments/hackathon`.
+Cloud Run now finds a `latest` version for every secret it references and the
+rest of the environment (Cloud Run, Pub/Sub, Storage, Artifact Registry,
+GitHub OIDC) comes up in this pass:
+
+```bash
+terraform apply
+```
 
 The environment also creates separate keyless service identities for Enterprise
 Core, Agent Runtime, and authenticated Pub/Sub push delivery. Enterprise Core
