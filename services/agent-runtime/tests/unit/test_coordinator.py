@@ -116,6 +116,106 @@ def test_planning_agent_enforces_structured_output() -> None:
     assert planner.sub_agents == []
 
 
+def test_coordinator_with_asset_generator_gives_crm_agent_the_tool() -> None:
+    import httpx
+    from pydantic import SecretStr
+
+    from vextis_agents.crm.asset_generator import (
+        EnterpriseCoreProposalAssetClient,
+        ProposalAssetGenerator,
+    )
+
+    settings = Settings(
+        gemini_model="gemini-test-model",
+        agent_tools_token=SecretStr("token"),
+        enterprise_core_url="https://core.vextis.local",
+        imagen_mock_enabled=True,
+    )
+    core_client = EnterpriseCoreProposalAssetClient(
+        settings=settings,
+        tenant_id="demo-tenant",
+        transport=httpx.MockTransport(lambda req: httpx.Response(500)),
+    )
+    asset_generator = ProposalAssetGenerator(settings, core_client)
+
+    coordinator = build_coordinator(
+        settings=settings,
+        tenant_id="demo-tenant",
+        core_reads=FakeBusinessReads(),
+        asset_generator=asset_generator,
+    )
+
+    crm_agent = next(
+        cast(LlmAgent, agent)
+        for agent in coordinator.sub_agents
+        if agent.name == "vextis_crm_agent"
+    )
+    tool_names = [getattr(t, "__name__", None) for t in crm_agent.tools]
+    assert "lookup_customer" in tool_names
+    assert "generate_proposal_asset" in tool_names
+
+
+@pytest.mark.asyncio
+async def test_generate_proposal_asset_tool_registers_a_real_asset() -> None:
+    import httpx
+    from pydantic import SecretStr
+
+    from vextis_agents.crm.asset_generator import (
+        EnterpriseCoreProposalAssetClient,
+        ProposalAssetGenerator,
+    )
+
+    settings = Settings(
+        gemini_model="gemini-test-model",
+        agent_tools_token=SecretStr("token"),
+        enterprise_core_url="https://core.vextis.local",
+        imagen_mock_enabled=True,
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            201,
+            json={
+                "id": "11223344-5566-7788-99aa-bbccddeeff00",
+                "quoteId": "exec-001",
+                "storageUri": "gs://vextis-proposal-assets/proposals/demo-tenant/exec-001_abc.png",
+                "mediaType": "IMAGE",
+                "modelId": "imagen-3.0-generate-002",
+                "promptSummary": "ergonomic chair concept",
+                "aiLabel": "AI-Generated Proposal Concept",
+                "createdAt": "2026-08-28T16:00:00Z",
+            },
+        )
+
+    core_client = EnterpriseCoreProposalAssetClient(
+        settings=settings,
+        tenant_id="demo-tenant",
+        transport=httpx.MockTransport(handler),
+    )
+    asset_generator = ProposalAssetGenerator(settings, core_client)
+
+    coordinator = build_coordinator(
+        settings=settings,
+        tenant_id="demo-tenant",
+        core_reads=FakeBusinessReads(),
+        asset_generator=asset_generator,
+    )
+    crm_agent = next(
+        cast(LlmAgent, agent)
+        for agent in coordinator.sub_agents
+        if agent.name == "vextis_crm_agent"
+    )
+    tool = next(
+        t for t in crm_agent.tools if getattr(t, "__name__", None) == "generate_proposal_asset"
+    )
+
+    result = await tool(quote_id="exec-001", visual_description="ergonomic chair concept")
+
+    assert result["registered"] is True
+    assert result["quoteId"] == "exec-001"
+    assert result["mediaType"] == "IMAGE"
+
+
 def test_coordinator_with_knowledge_retriever_has_tool() -> None:
     import httpx
     from pydantic import SecretStr
