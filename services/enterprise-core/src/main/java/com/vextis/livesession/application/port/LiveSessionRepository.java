@@ -11,6 +11,14 @@ public interface LiveSessionRepository {
     void create(LiveSession session, String tokenHash);
 
     /**
+     * Sessions this actor created for this tenant at or after {@code since},
+     * whatever state they reached. Counting creations rather than live sockets
+     * is deliberate: opening and abandoning sessions in a loop is the cheap way
+     * to burn model minutes, and a closed session has already cost them.
+     */
+    int countCreatedSince(String tenantId, String actorId, Instant since);
+
+    /**
      * Atomically checks the presented token's hash, the session's tenant-free
      * existence, its CREATED state, and its expiry, then transitions it to
      * ACTIVE — all in one conditional update, so this can only ever succeed

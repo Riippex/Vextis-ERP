@@ -26,16 +26,22 @@ public class LiveSessionService implements CreateLiveSessionUseCase, CloseLiveSe
     private final Clock clock;
     private final SecureRandom secureRandom;
     private final String websocketBaseUrl;
+    private final int maxSessionsPerActor;
+    private final Duration quotaWindow;
 
     public LiveSessionService(
             LiveSessionRepository repository,
             Clock clock,
-            @Value("${vextis.agent-runtime.public-websocket-base-url:}") String websocketBaseUrl
+            @Value("${vextis.agent-runtime.public-websocket-base-url:}") String websocketBaseUrl,
+            @Value("${vextis.live.max-sessions-per-actor:5}") int maxSessionsPerActor,
+            @Value("${vextis.live.session-quota-window:PT1H}") Duration quotaWindow
     ) {
         this.repository = repository;
         this.clock = clock;
         this.secureRandom = new SecureRandom();
         this.websocketBaseUrl = websocketBaseUrl;
+        this.maxSessionsPerActor = maxSessionsPerActor;
+        this.quotaWindow = quotaWindow;
     }
 
     @Override
@@ -44,6 +50,7 @@ public class LiveSessionService implements CreateLiveSessionUseCase, CloseLiveSe
             throw new IllegalStateException("Live voice is not configured on this deployment");
         }
         Instant now = clock.instant();
+        enforceActorQuota(command.tenantId(), command.actorId(), now);
         Instant expiresAt = now.plus(SESSION_TTL);
         UUID id = UUID.randomUUID();
         String token = generateToken();
@@ -68,6 +75,21 @@ public class LiveSessionService implements CreateLiveSessionUseCase, CloseLiveSe
             return LiveSessionValidation.invalid();
         }
         return repository.claim(sessionId, hash(presentedToken), clock.instant());
+    }
+
+    /**
+     * Caps how many sessions one actor may create inside the rolling window.
+     * Enterprise Core is the only place this can be enforced: the gateway sees a
+     * session token, not who asked for it.
+     */
+    private void enforceActorQuota(String tenantId, String actorId, Instant now) {
+        if (maxSessionsPerActor <= 0) {
+            return;
+        }
+        int recent = repository.countCreatedSince(tenantId, actorId, now.minus(quotaWindow));
+        if (recent >= maxSessionsPerActor) {
+            throw new LiveSessionQuotaExceededException(maxSessionsPerActor);
+        }
     }
 
     private String generateToken() {

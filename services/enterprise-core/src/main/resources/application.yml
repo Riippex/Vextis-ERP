@@ -72,6 +72,13 @@ vextis:
     mock-embeddings:
       enabled: ${VEXTIS_RAG_MOCK_EMBEDDINGS_ENABLED:false}
     min-similarity: ${VEXTIS_RAG_MIN_SIMILARITY:0.55}
+  live:
+    # createLiveSession is the only thing between a signed-in user and Vertex AI
+    # Gemini Live minutes, and each session holds a Cloud Run instance for its
+    # whole duration. Cap how many one actor can mint in a rolling window; 0
+    # disables the cap.
+    max-sessions-per-actor: ${VEXTIS_LIVE_MAX_SESSIONS_PER_ACTOR:5}
+    session-quota-window: ${VEXTIS_LIVE_SESSION_QUOTA_WINDOW:PT1H}
   agent-runtime:
     chat-url: ${VEXTIS_AGENT_RUNTIME_CHAT_URL:}
     callback-token: ${VEXTIS_CORE_CALLBACK_TOKEN:}

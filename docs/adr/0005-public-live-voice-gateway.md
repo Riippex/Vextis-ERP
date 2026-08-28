@@ -120,11 +120,13 @@ refused rather than treated as unbounded.
   `max_instance_count = 2`, four sessions per instance, and the session ceiling.
   `cpu_idle = false` means a held connection is billed for allocated CPU, which
   is what makes the session ceiling a cost control and not just a hygiene one.
-- Vertex AI Gemini Live minutes are now reachable by anyone who can obtain a
-  session token, so the Firebase-authenticated `createLiveSession` mutation on
-  Enterprise Core is the effective rate limiter for model spend. It currently
-  applies no per-user quota; that is the next control to add if voice is ever
-  exposed beyond a demo audience.
+- Vertex AI Gemini Live minutes are reachable by anyone who can obtain a session
+  token, so the Firebase-authenticated `createLiveSession` mutation on Enterprise
+  Core is the rate limiter for model spend. It caps creations per actor in a
+  rolling window (`vextis.live.max-sessions-per-actor`, 5 per hour by default)
+  and counts creations rather than open sockets, so closing a session early does
+  not refund the minutes it already cost. Core is the only place this can be
+  enforced: the gateway sees a session token, not who asked for it.
 - The delivery workflow deploys both `vextis-agent-runtime` and
   `vextis-agent-runtime-live` from the same image tag, so they cannot drift.
 - Rolling the exposure back is a single Terraform change: the service carries no

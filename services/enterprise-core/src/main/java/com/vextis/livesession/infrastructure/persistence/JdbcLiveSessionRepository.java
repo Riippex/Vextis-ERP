@@ -43,6 +43,24 @@ class JdbcLiveSessionRepository implements LiveSessionRepository {
     }
 
     @Override
+    public int countCreatedSince(String tenantId, String actorId, Instant since) {
+        Integer count = jdbc.queryForObject(
+                """
+                SELECT COUNT(*)
+                FROM live_sessions
+                WHERE tenant_id = :tenantId
+                  AND actor_id = :actorId
+                  AND created_at >= :since
+                """,
+                new MapSqlParameterSource()
+                        .addValue("tenantId", tenantId)
+                        .addValue("actorId", actorId)
+                        .addValue("since", Timestamp.from(since)),
+                Integer.class);
+        return count == null ? 0 : count;
+    }
+
+    @Override
     public LiveSessionValidation claim(UUID sessionId, String presentedTokenHash, Instant now) {
         List<LiveSessionValidation> claimed = jdbc.query(
                 """
