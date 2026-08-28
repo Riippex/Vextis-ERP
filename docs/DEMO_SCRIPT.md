@@ -24,10 +24,10 @@
 ### Visual
 - Browser opens on **Mission Control** (`/mission-control`).
 - Screen displays the **Approved Agent Registry** table with live telemetry:
-  - `vextis_coordinator`: `gemini-3.5-flash`, prompt `v1.0.0`, allowed tools: `record_execution_plan`, `request_approval`.
-  - `vextis_crm_agent`: `gemini-3.5-flash`, allowed tools: `get_customer_context`, `register_quote_asset`.
-  - `vextis_inventory_agent`: `gemini-3.5-flash`, allowed tools: `check_inventory`, `reserve_inventory`.
-  - `vextis_billing_agent`: `gemini-3.5-flash`, allowed tools: `check_credit_standing`, `issue_invoice`.
+  - `vextis_coordinator`: `gemini-3.5-flash`, prompt `v1.0.0`, allowed tools: `record_execution_plan`, `request_workflow_approval`.
+  - `vextis_crm_agent`: `gemini-3.5-flash`, allowed tools: `lookup_customer`, `register_quote_asset`.
+  - `vextis_inventory_agent`: `gemini-3.5-flash`, allowed tools: `get_stock`, `reserve_stock`.
+  - `vextis_billing_agent`: `gemini-3.5-flash`, allowed tools: `get_credit`, `create_invoice`.
 
 ### Narration (English)
 > *"Welcome to Vextis ERP, an agentive enterprise platform built for the Google All Things Agentic Hackathon under the **Fortified Enterprise Fleet** track.*  
@@ -115,9 +115,9 @@
 - Expand audit entries showing:
   - Immutable UUIDs, Correlation ID `corr-001`, Actor Types (`AGENT`, `USER`), Tool Names, Execution Timestamps, and Status (`SUCCEEDED`, `DENIED`).
 - Split screen or brief cut to Google Cloud Console:
-  - Cloud Run services: `vextis-enterprise-core`, `vextis-agent-runtime`, `vextis-web`.
+  - Cloud Run services: `vextis-enterprise-core`, `vextis-enterprise-core-public`, `vextis-agent-runtime` (the Angular web app is served separately via Firebase Hosting).
   - Cloud SQL PostgreSQL instance with `pgvector` extension.
-  - Google Cloud Pub/Sub subscription topic `vextis-execution-events`.
+  - Google Cloud Pub/Sub topic `order-events`.
 
 ### Narration (English)
 > *"Every single action taken across the entire lifecycle is immutably recorded in the durable PostgreSQL audit trail with end-to-end correlation tracking.*  
@@ -129,6 +129,6 @@
 ## Backup Scenario (Fail-Safe Checklist)
 
 If live audio or external Vertex AI latency occurs during recording:
-1. **Agent Runtime Mock Mode**: Toggle `VEXTIS_AGENT_MOCK_ENABLED=true` / `IMAGEN_MOCK_ENABLED=true` for 100% offline, deterministic sub-second responses.
-2. **Deterministic Seed**: Run `./infra/seed.ps1` to restore the demo database to the initial pristine state in 2 seconds.
+1. **Agent Runtime Mock Mode**: Toggle `VEXTIS_RAG_MOCK_EMBEDDINGS_ENABLED=true` / `VEXTIS_IMAGEN_MOCK_ENABLED=true` for 100% offline, deterministic sub-second responses.
+2. **Deterministic Seed**: Run `tools/seed-demo.ps1` to restore the demo database to the initial pristine state in seconds.
 3. **Pre-recorded Take**: Maintain an uncut clean capture of the full workflow.

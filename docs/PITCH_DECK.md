@@ -63,10 +63,10 @@
 
 | Specialist Agent | Core Responsibility | Governed Tool Permissions |
 |---|---|---|
-| **Vextis Coordinator** | Workflow decomposition & plan recording | `record_execution_plan`, `request_approval` |
-| **CRM & Sales Agent** | Customer context, pricing rules, proposal visuals | `get_customer_context`, `register_quote_asset` |
-| **Inventory Agent** | SKU catalog translation, availability & reservation | `check_inventory`, `reserve_inventory` |
-| **Billing Agent** | Credit standing, terms validation, fiscal invoicing | `check_credit_standing`, `issue_invoice` |
+| **Vextis Coordinator** | Workflow decomposition & plan recording | `record_execution_plan`, `request_workflow_approval` |
+| **CRM & Sales Agent** | Customer context, pricing rules, proposal visuals | `lookup_customer`, `register_quote_asset` |
+| **Inventory Agent** | SKU catalog translation, availability & reservation | `get_stock`, `reserve_stock` |
+| **Billing Agent** | Credit standing, terms validation, fiscal invoicing | `get_credit`, `create_invoice` |
 
 - **Security Rule:** If an agent attempts to execute an action outside its registered capability (e.g. CRM agent trying to issue an invoice), the call is instantly rejected and recorded as `DENIED`.
 

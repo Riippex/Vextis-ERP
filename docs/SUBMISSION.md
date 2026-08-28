@@ -74,8 +74,8 @@ Vextis is built on an enterprise **Dual-Authority Monorepo Architecture**:
 +-----------------------+         +-------------------------------+
 ```
 
-- **Frontend (`apps/web`):** Angular 19+ (Standalone Components, Signals, Material 3, Apollo GraphQL Client, Web Audio API streaming).
-- **Transactional Authority (`services/enterprise-core`):** Java 21, Spring Boot 3.4, Spring Security, Flyway database migrations, Transactional Outbox Pattern, JDBC Idempotent Repositories.
+- **Frontend (`apps/web`):** Angular 22 (Standalone Components, Signals, Material 3, Apollo GraphQL Client, Web Audio API streaming).
+- **Transactional Authority (`services/enterprise-core`):** Java 21, Spring Boot 4.1, Spring Security, Flyway database migrations, Transactional Outbox Pattern, JDBC Idempotent Repositories.
 - **Agent Intelligence (`services/agent-runtime`):** Python 3.13, Google Agent Development Kit (ADK), Gemini 3.5 Flash, Vertex AI ImageGenerationModel (Imagen 3), WebSocket Live Bridge.
 - **Google Cloud Infrastructure (`infra/`):** Terraform IAC provisioning Cloud Run, Cloud SQL (PostgreSQL with `pgvector`), Cloud Pub/Sub, Cloud Storage, and Google Secret Manager.
 - **Contracts (`contracts/`):** Strict single-source-of-truth schema definitions in GraphQL SDL, OpenAPI 3.0, and AsyncAPI.
@@ -93,8 +93,8 @@ Vextis is built on an enterprise **Dual-Authority Monorepo Architecture**:
 ## 6. Accomplishments That We're Proud Of
 
 - **100% Real Transactional Backing:** Zero fake mocks in the primary workflow. Real PDF intake -> real Pub/Sub event -> real Gemini ADK planning -> real SQL stock reservation -> real invoice generation.
-- **Comprehensive Test & Eval Coverage:** Over 300 automated unit, integration, and contract evaluation tests passing cleanly across Java (136 tests), Python (137 tests), and Angular (32 tests).
-- **Instant Recovery & Deterministic Seeding:** Fully automated database seeding and reset script (`./infra/seed.ps1`) ensuring 100% reproducible demo states.
+- **Comprehensive Test & Eval Coverage:** Over 300 automated unit, integration, and contract evaluation tests passing cleanly across Java (134 tests), Python (135 tests), and Angular (32 tests).
+- **Instant Recovery & Deterministic Seeding:** Fully automated database seeding script (`tools/seed-demo.ps1`) ensuring 100% reproducible demo states.
 
 ---
 
@@ -124,5 +124,5 @@ Vextis is built on an enterprise **Dual-Authority Monorepo Architecture**:
 
 - **GitHub Repository:** [https://github.com/Riippex/Vextis-ERP](https://github.com/Riippex/Vextis-ERP)
 - **Demo Video (YouTube):** [https://www.youtube.com/watch?v=5Xw3LtPeByE](https://www.youtube.com/watch?v=5Xw3LtPeByE)
-- **Architecture Documentation:** [`docs/TECH_STACK.md`](file:///docs/TECH_STACK.md) and [`docs/CONTRACTS.md`](file:///docs/CONTRACTS.md)
-- **Demo Script:** [`docs/DEMO_SCRIPT.md`](file:///docs/DEMO_SCRIPT.md)
+- **Architecture Documentation:** [`docs/TECH_STACK.md`](TECH_STACK.md) and [`docs/CONTRACTS.md`](CONTRACTS.md)
+- **Demo Script:** [`docs/DEMO_SCRIPT.md`](DEMO_SCRIPT.md)

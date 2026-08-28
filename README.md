@@ -67,8 +67,8 @@ Vextis unites the three competition capabilities into a single cohesive platform
 ## 📁 Monorepo Structure
 
 ```text
-apps/web/                         Angular 19 web client (Material 3, Apollo GraphQL, Signals, Web Audio)
-services/enterprise-core/         Java 21 + Spring Boot 3.4 transactional backend
+apps/web/                         Angular 22 web client (Material 3, Apollo GraphQL, Signals, Web Audio)
+services/enterprise-core/         Java 21 + Spring Boot 4.1 transactional backend
 services/agent-runtime/           Python 3.13 + Google ADK agent runtime
 contracts/                        GraphQL SDL, internal OpenAPI 3.0, AsyncAPI, and JSON Schemas
 infra/                            Terraform IAC, deployment configs, and deterministic seed scripts
@@ -108,8 +108,8 @@ Copy-Item .env.example .env
 
 | Component | Test Suite | Results |
 |---|---|---|
-| **Enterprise Core** | `./gradlew test` | **136 passed / 0 failures** |
-| **Agent Runtime** | `pytest` & `ruff check` | **137 passed / 0 failures (0 lint errors)** |
+| **Enterprise Core** | `./gradlew test` | **134 passed / 0 failures** |
+| **Agent Runtime** | `pytest` & `ruff check` | **135 passed / 0 failures (0 lint errors)** |
 | **Angular Web UI** | `pnpm test`, `pnpm lint`, `pnpm build` | **32 passed / 0 failures (0 lint errors, build clean)** |
 
 ---
