@@ -285,6 +285,29 @@ try {
     Stop-StubService $publicStub
 }
 
+$leakyInternal = $null
+$publicStub = $null
+try {
+    $routes = New-InternalCoreRoutes
+    # The private Core answering /graphql like the public one is exactly the
+    # boundary break this check exists to catch: before it existed, the smoke
+    # test never actually probed /graphql against the private service in GCP
+    # mode at all, so this would have passed silently.
+    $routes['/graphql'] = $graphqlOk
+    $leakyInternal = Start-StubService -Port (Get-FreeLoopbackPort) -Routes $routes
+    $publicStub = Start-StubService -Port (Get-FreeLoopbackPort) -Routes (New-PublicCoreRoutes)
+
+    Assert-ExitCode -Name 'private Core serving /graphql exits non-zero' -Expected 1 -Arguments @(
+        '-CoreUrl', $leakyInternal.Url,
+        '-PublicCoreUrl', $publicStub.Url,
+        '-AgentRuntimeUrl', $leakyInternal.Url,
+        '-TimeoutSec', '5'
+    )
+} finally {
+    Stop-StubService $leakyInternal
+    Stop-StubService $publicStub
+}
+
 $internalStub = $null
 $leakyPublic = $null
 try {

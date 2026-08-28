@@ -228,7 +228,22 @@ Invoke-Check -Name 'Enterprise Core (internal) health' -Action {
     "status=$((($result.Content | ConvertFrom-Json).status))"
 }
 
-if (-not $script:GcpMode) {
+if ($script:GcpMode) {
+    Invoke-Check -Name 'Private Core denies /graphql' -Action {
+        # The exposure boundary this deployment relies on: /graphql is Core's
+        # public read surface, and the private service must never answer it,
+        # authenticated or not. A 200 here would mean the private service is
+        # accidentally serving the same API the public one is meant to gate
+        # behind Firebase auth.
+        $body = @{ query = '{ __typename }' } | ConvertTo-Json -Compress
+        $result = Invoke-Status -Uri "$CoreUrl/graphql" -Method Post -Body $body `
+            -Headers (New-Headers -BaseUrl $CoreUrl)
+        if ($result.Status -ne 403) {
+            throw "expected 403, got $($result.Status); the private Core must not serve /graphql"
+        }
+        'private /graphql denied with 403'
+    }
+} else {
     Invoke-Check -Name 'Enterprise Core GraphQL (LOCAL exposure)' -Action {
         $body = @{ query = '{ __typename }' } | ConvertTo-Json -Compress
         $result = Invoke-Status -Uri "$CoreUrl/graphql" -Method Post -Body $body `
