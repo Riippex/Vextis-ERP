@@ -10,6 +10,7 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { AskVextisChatStore } from './ask-vextis-chat.store';
+import { AskVextisLiveStore } from './ask-vextis-live.store';
 
 @Component({
   selector: 'vxt-ask-vextis-panel',
@@ -20,6 +21,7 @@ import { AskVextisChatStore } from './ask-vextis-chat.store';
 })
 export class AskVextisPanelComponent {
   protected readonly store = inject(AskVextisChatStore);
+  protected readonly liveStore = inject(AskVextisLiveStore);
   protected readonly draft = signal('');
 
   private readonly messageList = viewChild<ElementRef<HTMLDivElement>>('messageList');
@@ -37,6 +39,9 @@ export class AskVextisPanelComponent {
   }
 
   protected close(): void {
+    if (this.liveStore.isLiveActive()) {
+      this.liveStore.stopLive();
+    }
     this.store.closePanel();
   }
 
@@ -62,5 +67,17 @@ export class AskVextisPanelComponent {
     }
     this.store.sendMessage(text);
     this.draft.set('');
+  }
+
+  protected toggleLive(): void {
+    if (this.liveStore.isLiveActive()) {
+      this.liveStore.stopLive();
+    } else {
+      this.liveStore.startLive(this.store.getConversationId());
+    }
+  }
+
+  protected toggleMute(): void {
+    this.liveStore.toggleMute();
   }
 }

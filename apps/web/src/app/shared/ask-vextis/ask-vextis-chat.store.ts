@@ -47,6 +47,14 @@ export class AskVextisChatStore {
   private conversationId: string | null = null;
   private historyLoadedForConversation: string | null = null;
 
+  getConversationId(): string | null {
+    return this.conversationId;
+  }
+
+  setConversationId(id: string): void {
+    this.conversationId = id;
+  }
+
   openPanel(): void {
     this.open.set(true);
     if (this.conversationId && this.historyLoadedForConversation !== this.conversationId) {
@@ -102,6 +110,25 @@ export class AskVextisChatStore {
           this.error.set('Ask Vextis could not reach Agent Runtime. Try again.');
         },
       });
+  }
+
+  pushVoiceTranscript(
+    sender: ChatMessage['sender'],
+    content: string,
+    createdAt = new Date().toISOString(),
+  ): void {
+    this.messages.update((messages) => [
+      ...messages,
+      {
+        id: `voice-${messages.length}-${Date.now()}`,
+        sender,
+        content,
+        kind: 'VOICE_TRANSCRIPT',
+        createdAt,
+        agentActivities: [],
+        memoryEvidence: null,
+      },
+    ]);
   }
 
   private loadHistory(conversationId: string): void {

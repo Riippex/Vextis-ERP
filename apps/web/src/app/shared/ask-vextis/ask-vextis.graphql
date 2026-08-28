@@ -47,3 +47,16 @@ query AskVextisConversation($id: ID!) {
     }
   }
 }
+
+mutation CreateLiveSession($input: CreateLiveSessionInput!) {
+  createLiveSession(input: $input) {
+    id
+    websocketUrl
+    sessionToken
+    expiresAt
+  }
+}
+
+mutation CloseLiveSession($id: ID!) {
+  closeLiveSession(id: $id)
+}
