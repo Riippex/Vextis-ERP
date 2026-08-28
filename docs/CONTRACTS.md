@@ -95,7 +95,7 @@ The public API uses specific queries and mutations. Resolvers are adapters to En
 
 Minimum resources:
 
-- purchase orders and document ingestion;
+- purchase orders;
 - customers, opportunities, and quotes;
 - products, stock, and reservations;
 - invoices and credit;
@@ -103,6 +103,12 @@ Minimum resources:
 - approvals and decisions;
 - visible registry and agent audit;
 - authorization, query, and closing of Live sessions.
+
+Document ingestion is **not** part of the public API. There is no upload
+mutation and no upload UI: a document enters the knowledge base only through the
+internal tools API below, driven by an operator running
+`python -m vextis_agents.rag.ingest`. Read paths (`knowledgeDocuments`) are
+public; write paths are not.
 
 ### Chat completion API â€” Enterprise Core to Agent Runtime
 
@@ -174,6 +180,20 @@ before ADK receives them, use the coordinator's service identity, and never muta
 - `register_quote_asset(quote_id, storage_uri, media_type, model_id, idempotency_key)`
 
 Imagen and Veo are invoked from Agent Runtime with its service identity. The file is saved to Cloud Storage, and only then does Enterprise Core register the asset against the quote. Failing to generate or register an image or video does not roll back or block the business transaction.
+
+### Knowledge base — embedding space
+
+Every stored chunk records the `provider:model:dimension` that produced its
+vector, and `POST /internal/agent-tools/v1/rag/search` requires the same
+`embeddingSpace` on the query. Enterprise Core compares vectors only within one
+space, so a query embedded by one model can never be answered with chunks
+embedded by another. `POST /internal/agent-tools/v1/rag/documents` is the only
+write path into the index; it requires the `ingest_knowledge_document` tool,
+which is granted to `vextis_document_ingestor` and to no retrieval agent.
+
+Similarity is floored at `vextis.rag.min-similarity` (0.55 by default). A caller
+may raise that floor and may not remove it: an unfiltered nearest-neighbour list
+reads downstream as if every chunk it returns were relevant evidence.
 
 ### Live Session
 

@@ -1,5 +1,5 @@
 import math
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
 
@@ -96,10 +96,10 @@ async def test_vertex_embedder_rejects_a_wrong_dimension_response(
     embedder = VertexTextEmbedder(Settings(google_cloud_project="vextis-erp"), dimension=768)
 
     class _Embedding:
-        values = [0.1] * 256
+        values: ClassVar[list[float]] = [0.1] * 256
 
     class _Response:
-        embeddings = [_Embedding()]
+        embeddings: ClassVar[list[_Embedding]] = [_Embedding()]
 
     monkeypatch.setattr(embedder, "_embed_sync", lambda _texts: _Response())
 

@@ -11,6 +11,7 @@ from vextis_agents.rag.embedding import (
     VertexTextEmbedder,
     build_text_embedder,
 )
+from vextis_agents.rag.ingestion import DocumentIngestor, IngestedDocument
 from vextis_agents.rag.retriever import KnowledgeRetriever
 from vextis_agents.rag.security import (
     KnowledgeMatch,
@@ -22,9 +23,11 @@ __all__ = [
     "MOCK_EMBEDDING_SPACE",
     "DeterministicMockEmbedder",
     "DocumentChunk",
+    "DocumentIngestor",
     "EmbeddingConfigurationError",
     "EmbeddingSpace",
     "EmbeddingUnavailableError",
+    "IngestedDocument",
     "KnowledgeMatch",
     "KnowledgeRetriever",
     "TextEmbedder",

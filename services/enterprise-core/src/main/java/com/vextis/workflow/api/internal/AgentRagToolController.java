@@ -1,12 +1,16 @@
 package com.vextis.workflow.api.internal;
 
+import com.vextis.rag.RagChunkInput;
 import com.vextis.rag.RagDirectory;
+import com.vextis.rag.RagDocument;
 import com.vextis.rag.RagSearchResult;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
@@ -84,6 +88,84 @@ class AgentRagToolController {
             @Min(1) @Max(20) Integer limit,
             @Min(0) @Max(1) Double minScore
     ) {}
+
+    /**
+     * Governed ingestion. Agent Runtime chunks and embeds a document, then hands
+     * the result here: Enterprise Core stays the only writer of the knowledge
+     * base and applies the same tenant and tool-allowlist checks it applies to
+     * every other business mutation.
+     *
+     * <p>The embedding space is recorded per chunk so a later query can only
+     * retrieve what was embedded the same way.
+     */
+    @PostMapping("/documents")
+    @ResponseStatus(HttpStatus.OK)
+    IngestKnowledgeDocumentResponse ingest(
+            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
+            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 100) String tenantId,
+            @RequestHeader("X-Agent-Id") @NotBlank @Size(max = 150) String agentId,
+            @RequestHeader("X-Correlation-Id") @NotBlank @Size(max = 100) String correlationId,
+            @RequestBody @Valid IngestKnowledgeDocumentRequest request
+    ) {
+        authorizer.authorize(authorization, agentId, tenantId, AgentTool.INGEST_KNOWLEDGE_DOCUMENT);
+
+        List<RagChunkInput> chunks = request.chunks().stream()
+                .map(chunk -> new RagChunkInput(
+                        chunk.chunkIndex(),
+                        chunk.chunkText(),
+                        chunk.tokenCount(),
+                        chunk.embedding(),
+                        request.embeddingSpace(),
+                        chunk.metadata() == null ? Map.of() : chunk.metadata()))
+                .toList();
+
+        RagDocument document = ragDirectory.ingestDocument(
+                tenantId,
+                request.documentUri(),
+                request.fileName(),
+                request.contentType(),
+                request.contentHash(),
+                chunks);
+
+        return IngestKnowledgeDocumentResponse.from(document);
+    }
+
+    record IngestKnowledgeDocumentRequest(
+            @NotBlank @Size(max = 1000)
+            @Pattern(regexp = "^(gs://|urn:).+", message = "documentUri must start with gs:// or urn:")
+            String documentUri,
+            @NotBlank @Size(max = 255) String fileName,
+            @NotBlank @Size(max = 100) String contentType,
+            @NotBlank @Pattern(regexp = "^[0-9a-f]{64}$", message = "contentHash must be a SHA-256 hex digest")
+            String contentHash,
+            @NotBlank @Size(max = 120) String embeddingSpace,
+            @NotEmpty @Size(max = 500) List<@Valid IngestKnowledgeChunk> chunks
+    ) {}
+
+    record IngestKnowledgeChunk(
+            @Min(0) int chunkIndex,
+            @NotBlank @Size(max = 8000) String chunkText,
+            @Min(0) int tokenCount,
+            @NotNull @Size(min = 768, max = 768) List<Double> embedding,
+            Map<String, Object> metadata
+    ) {}
+
+    record IngestKnowledgeDocumentResponse(
+            UUID documentId,
+            String documentUri,
+            int version,
+            String status,
+            int chunkCount
+    ) {
+        static IngestKnowledgeDocumentResponse from(RagDocument document) {
+            return new IngestKnowledgeDocumentResponse(
+                    document.id(),
+                    document.documentUri(),
+                    document.version(),
+                    document.status().name(),
+                    document.chunkCount());
+        }
+    }
 
     record SearchKnowledgeResponse(List<KnowledgeChunkMatchResponse> matches) {}
 
