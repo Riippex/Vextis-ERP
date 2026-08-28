@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator
+from datetime import UTC, datetime, timedelta
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -52,10 +53,14 @@ class MockSessionValidator:
         self.validation_calls.append((session_id, token, correlation_id))
         if self.should_fail:
             raise LiveSessionValidationError("Core validation service unreachable")
+        # Enterprise Core always returns the session's expiry alongside the
+        # verdict; Agent Runtime now refuses to open a bridge without one.
+        expires_at = (datetime.now(UTC) + timedelta(minutes=5)).isoformat().replace("+00:00", "Z")
         return LiveSessionValidation(
             valid=self.is_valid,
             tenantId="demo-tenant" if self.is_valid else None,
             conversationId="conv-live-1" if self.is_valid else None,
+            expiresAt=expires_at if self.is_valid else None,
         )
 
 
