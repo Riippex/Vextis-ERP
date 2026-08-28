@@ -42,6 +42,10 @@ export type AuditResult =
   | 'FAILED'
   | 'SUCCEEDED';
 
+export type CreateLiveSessionInput = {
+  conversationId: string | number;
+};
+
 export type CreditStanding =
   | 'BLOCKED'
   | 'GOOD'
@@ -194,6 +198,20 @@ export type AskVextisConversationQueryVariables = Exact<{
 
 
 export type AskVextisConversationQuery = { askVextisConversation: { id: string, messages: Array<{ id: string, sender: AskVextisMessageSender, content: string, kind: AskVextisMessageKind, createdAt: string, agentActivities: Array<{ agentId: string, agentVersion: string, displayName: string, modelId: string, promptVersion: string, tools: Array<string> }>, memoryEvidence: { provider: string, available: boolean, contextCount: number, preferenceStored: boolean } | null }> } | null };
+
+export type CreateLiveSessionMutationVariables = Exact<{
+  input: CreateLiveSessionInput;
+}>;
+
+
+export type CreateLiveSessionMutation = { createLiveSession: { id: string, websocketUrl: string, sessionToken: string, expiresAt: string } };
+
+export type CloseLiveSessionMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type CloseLiveSessionMutation = { closeLiveSession: boolean };
 
 export const HealthDocument = gql`
     query Health {
@@ -793,6 +811,43 @@ export const AskVextisConversationDocument = gql`
   })
   export class AskVextisConversationGQL extends Apollo.Query<AskVextisConversationQuery, AskVextisConversationQueryVariables> {
     document = AskVextisConversationDocument;
+
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const CreateLiveSessionDocument = gql`
+    mutation CreateLiveSession($input: CreateLiveSessionInput!) {
+  createLiveSession(input: $input) {
+    id
+    websocketUrl
+    sessionToken
+    expiresAt
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class CreateLiveSessionGQL extends Apollo.Mutation<CreateLiveSessionMutation, CreateLiveSessionMutationVariables> {
+    document = CreateLiveSessionDocument;
+
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const CloseLiveSessionDocument = gql`
+    mutation CloseLiveSession($id: ID!) {
+  closeLiveSession(id: $id)
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class CloseLiveSessionGQL extends Apollo.Mutation<CloseLiveSessionMutation, CloseLiveSessionMutationVariables> {
+    document = CloseLiveSessionDocument;
 
     constructor(apollo: Apollo.Apollo) {
       super(apollo);
