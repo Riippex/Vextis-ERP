@@ -30,7 +30,7 @@ Push-Location (Join-Path $repositoryRoot 'services/agent-runtime')
 try {
     & uv run ruff check .
     if ($LASTEXITCODE -ne 0) { throw 'Agent Runtime lint failed.' }
-    & uv run mypy src
+    & uv run mypy src tests
     if ($LASTEXITCODE -ne 0) { throw 'Agent Runtime type check failed.' }
     & uv run pytest
     if ($LASTEXITCODE -ne 0) { throw 'Agent Runtime tests failed.' }
