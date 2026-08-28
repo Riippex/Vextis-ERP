@@ -43,10 +43,18 @@ only.
   `VEXTIS_MEMORY_BANK_ENABLED` all false. `create_app` mounts routers behind
   those flags, so the public surface is `/health` plus `/v1/live/{session_id}`
   and nothing else.
-- **Its own identity.** `vextis-agent-live-hackathon` holds exactly
-  `roles/aiplatform.user`, accessor on the agent-tools token, and invoker on the
-  private Enterprise Core. It does not get the chat callback token or the
-  storage grants the private runtime identity holds.
+- **Its own identity and its own credential.** `vextis-agent-live-hackathon`
+  holds `roles/aiplatform.user`, invoker on the private Enterprise Core, and
+  accessor on `vextis-live-gateway-token` — not on the agent-tools token, and
+  not on the chat callback token or the storage grants the private runtime
+  identity holds. Enterprise Core resolves that credential to the service
+  identity `live-gateway-agent`, and V20 binds four read-only registry entries
+  to it: a voice session can look up a customer, check stock, check credit
+  standing and search the knowledge base, and nothing else. Reserving stock,
+  issuing an invoice, recording a plan and writing to the knowledge base stay
+  with `coordinator-agent`, whose credential exists only on the private runtime.
+  Separating the credential without narrowing what it can do would have been a
+  different string with identical authority.
 - **The private service stays private.** `vextis-agent-runtime` keeps Pub/Sub
   push and the internal chat endpoint, now with `VEXTIS_LIVE_ENABLED=false` and
   its request timeout back to 300s.

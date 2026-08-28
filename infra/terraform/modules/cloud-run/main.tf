@@ -64,6 +64,17 @@ resource "google_cloud_run_v2_service" "enterprise_core" {
         }
       }
       env {
+        # Recognises the public Live gateway credential and resolves it to the
+        # read-only live-gateway-agent service identity.
+        name = "VEXTIS_LIVE_GATEWAY_TOKEN"
+        value_source {
+          secret_key_ref {
+            secret  = var.live_gateway_secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
         # Administrative credential for /internal/demo/**, deliberately not the
         # agent-tools token: the demo reset is destructive and Agent Runtime has
         # no business triggering it.

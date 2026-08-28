@@ -27,7 +27,7 @@ class KnowledgeRetriever:
         settings: Settings,
         tenant_id: str,
         correlation_id: str | None = None,
-        agent_id: str = "vextis_coordinator",
+        agent_id: str | None = None,
         embedder: TextEmbedder | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
         identity_token_provider: IdentityTokenProvider | None = None,
@@ -40,7 +40,10 @@ class KnowledgeRetriever:
         self._base_url = settings.enterprise_core_url.rstrip("/")
         self._tenant_id = tenant_id
         self._correlation_id = correlation_id or str(uuid4())
-        self._agent_id = agent_id
+        # From settings, not hardcoded: the Live gateway runs under its own
+        # read-only registry agent, and Enterprise Core authorizes on the id it
+        # is given.
+        self._agent_id = agent_id or settings.coordinator_logical_agent_id
         self._service_token = settings.agent_tools_token.get_secret_value()
         self._embedder = embedder or build_text_embedder(settings)
         self._min_score = settings.rag_min_similarity

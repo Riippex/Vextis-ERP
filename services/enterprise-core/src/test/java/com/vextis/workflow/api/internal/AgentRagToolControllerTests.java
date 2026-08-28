@@ -1,5 +1,6 @@
 package com.vextis.workflow.api.internal;
 
+import com.vextis.shared.ConfiguredServiceCallerIdentities;
 import com.vextis.agentregistry.AgentDirectory;
 import com.vextis.rag.RagChunkInput;
 import com.vextis.rag.RagDirectory;
@@ -37,7 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AgentRagToolController.class)
-@Import(AgentToolAuthorizer.class)
+@Import({AgentToolAuthorizer.class, ConfiguredServiceCallerIdentities.class})
 class AgentRagToolControllerTests {
 
     private static final String VERTEX_SPACE = "vertex:text-embedding-004:768";

@@ -1,5 +1,6 @@
 package com.vextis.workflow.api.internal;
 
+import com.vextis.shared.ConfiguredServiceCallerIdentities;
 import com.vextis.agentregistry.AgentDirectory;
 import com.vextis.inventory.StockReservation;
 import com.vextis.workflow.application.ReserveApprovedStockCommand;
@@ -27,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AgentInventoryToolController.class)
-@Import(AgentToolAuthorizer.class)
+@Import({AgentToolAuthorizer.class, ConfiguredServiceCallerIdentities.class})
 class AgentInventoryToolControllerTests {
 
     private static final UUID ORDER_ID = UUID.fromString("77cc63cc-3c91-4d80-a918-605b7f231cf8");

@@ -23,6 +23,11 @@ variable "agent_tools_secret_id" {
   type        = string
 }
 
+variable "live_gateway_secret_id" {
+  description = "Secret Manager identifier for the public Live gateway service credential."
+  type        = string
+}
+
 variable "demo_admin_secret_id" {
   description = "Secret Manager identifier for the demo seeding and reset credential."
   type        = string

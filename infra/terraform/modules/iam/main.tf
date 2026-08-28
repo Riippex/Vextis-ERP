@@ -183,6 +183,21 @@ resource "google_secret_manager_secret" "agent_tools_token" {
 # Demo seeding and the destructive tenant reset are administrative, so they do
 # not share the agent-tools credential: a compromised Agent Runtime must not be
 # able to purge the tenant.
+# The publicly reachable Live gateway authenticates to Enterprise Core with its
+# own credential. Enterprise Core resolves it to the service identity
+# live-gateway-agent, whose registry entries are read-only, so a leak of this
+# token cannot reserve stock, issue an invoice or record a plan.
+resource "google_secret_manager_secret" "live_gateway_token" {
+  project             = var.project_id
+  secret_id           = var.live_gateway_secret_id
+  labels              = var.labels
+  deletion_protection = true
+
+  replication {
+    auto {}
+  }
+}
+
 resource "google_secret_manager_secret" "demo_admin_token" {
   project             = var.project_id
   secret_id           = var.demo_admin_secret_id
@@ -233,11 +248,23 @@ resource "google_secret_manager_secret_iam_member" "agent_runtime_agent_tools_to
   member    = "serviceAccount:${google_service_account.agent_runtime.email}"
 }
 
-resource "google_secret_manager_secret_iam_member" "agent_runtime_live_agent_tools_token" {
+# The Live gateway deliberately does not get agent_tools_token: that credential
+# carries the private runtime authority, and the gateway is the one surface an
+# unauthenticated caller can reach.
+resource "google_secret_manager_secret_iam_member" "agent_runtime_live_gateway_token" {
   project   = var.project_id
-  secret_id = google_secret_manager_secret.agent_tools_token.secret_id
+  secret_id = google_secret_manager_secret.live_gateway_token.secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.agent_runtime_live.email}"
+}
+
+# The private Enterprise Core has to recognise the gateway credential to resolve
+# it to a service identity.
+resource "google_secret_manager_secret_iam_member" "enterprise_core_live_gateway_token" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.live_gateway_token.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.enterprise_core.email}"
 }
 
 # Only the private Enterprise Core serves /internal/demo/**; the public one
