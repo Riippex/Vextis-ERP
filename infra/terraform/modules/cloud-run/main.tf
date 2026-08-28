@@ -202,8 +202,10 @@ resource "google_cloud_run_v2_service" "enterprise_core_public" {
         }
       }
       env {
+        # The browser-facing WebSocket lives on the separate Live gateway, the
+        # only Agent Runtime surface with a public invoker binding.
         name  = "VEXTIS_AGENT_RUNTIME_PUBLIC_WS_URL"
-        value = replace(google_cloud_run_v2_service.agent_runtime.uri, "https://", "wss://")
+        value = replace(google_cloud_run_v2_service.agent_runtime_live.uri, "https://", "wss://")
       }
       env {
         name  = "GRAPHQL_GRAPHIQL_ENABLED"
@@ -252,10 +254,10 @@ resource "google_cloud_run_v2_service" "agent_runtime" {
 
   template {
     service_account = var.agent_runtime_service_account_email
-    # 1800s (Cloud Run's max is 3600s), not the default 300s: a Live voice
-    # session's WebSocket is one long-lived request, unlike the short
-    # request/response tool calls this timeout used to only need to cover.
-    timeout                          = "1800s"
+    # Back to a request/response timeout: the long-lived Live WebSocket now
+    # runs on vextis-agent-runtime-live, and this service only handles Pub/Sub
+    # push deliveries and internal chat calls.
+    timeout                          = "300s"
     max_instance_request_concurrency = 20
 
     scaling {
@@ -327,12 +329,12 @@ resource "google_cloud_run_v2_service" "agent_runtime" {
         }
       }
       env {
-        # Not yet reachable by a browser: no allUsers invoker binding exists
-        # on this service until the Phase 5 public-exposure change is
-        # separately reviewed and applied. Mounting the route now only
-        # allows already-IAM-authorized private callers to test it.
+        # Live is served exclusively by vextis-agent-runtime-live. This
+        # service stays private (Pub/Sub push and the internal chat callback
+        # only), so mounting the WebSocket route here would only add an
+        # unreachable surface.
         name  = "VEXTIS_LIVE_ENABLED"
-        value = "true"
+        value = "false"
       }
       env {
         name  = "VEXTIS_LIVE_MODEL"

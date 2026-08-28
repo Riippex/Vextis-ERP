@@ -12,10 +12,14 @@ public record RagChunk(
         String chunkText,
         int tokenCount,
         List<Double> embedding,
+        String embeddingSpace,
         String metadataJson,
         Instant createdAt
 ) {
     public RagChunk {
+        if (embeddingSpace == null || embeddingSpace.isBlank()) {
+            throw new IllegalArgumentException("embeddingSpace must not be blank");
+        }
         if (id == null) {
             throw new IllegalArgumentException("id must not be null");
         }

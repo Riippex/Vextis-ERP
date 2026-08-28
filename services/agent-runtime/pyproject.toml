@@ -34,8 +34,14 @@ build-backend = "hatchling.build"
 packages = ["src/vextis_agents"]
 
 [tool.pytest.ini_options]
-addopts = "--strict-markers --strict-config --cov=vextis_agents --cov-report=term-missing"
+# model_eval is deselected here, not excluded from testpaths: the behavioural
+# evals call Vertex AI and are non-deterministic, which does not belong in the
+# CI gate, but "uv run pytest -m model_eval" still finds and runs them.
+addopts = "--strict-markers --strict-config --cov=vextis_agents --cov-report=term-missing -m 'not model_eval'"
 testpaths = ["tests"]
+markers = [
+    "model_eval: behavioural evaluation against a real Vertex AI model; needs GOOGLE_CLOUD_PROJECT and VEXTIS_GEMINI_MODEL",
+]
 
 [tool.ruff]
 line-length = 100

@@ -43,6 +43,7 @@ class KnowledgeRetriever:
         self._agent_id = agent_id
         self._service_token = settings.agent_tools_token.get_secret_value()
         self._embedder = embedder or build_text_embedder(settings)
+        self._min_score = settings.rag_min_similarity
         self._transport = transport
         self._identity_token_provider = identity_token_provider
 
@@ -51,11 +52,16 @@ class KnowledgeRetriever:
                 settings.enterprise_core_audience
             )
 
+    @property
+    def embedding_space(self) -> str:
+        """The space this retriever queries in; Core scopes the search to it."""
+        return self._embedder.space.identifier
+
     async def search(
         self,
         query: str,
         limit: int = 5,
-        min_score: float = 0.0,
+        min_score: float | None = None,
     ) -> list[KnowledgeMatch]:
         clean_query = query.strip()
         if not clean_query:
@@ -65,11 +71,16 @@ class KnowledgeRetriever:
         if not embedding:
             return []
 
+        effective_min_score = self._min_score if min_score is None else min_score
         payload = {
             "query": clean_query[:1000],
             "embedding": embedding,
+            # Enterprise Core compares this vector only against chunks embedded
+            # the same way, so a Vertex query can never be answered with the
+            # mock vectors a local seed wrote, or vice versa.
+            "embeddingSpace": self.embedding_space,
             "limit": max(1, min(limit, 20)),
-            "minScore": max(0.0, min(min_score, 1.0)),
+            "minScore": max(0.0, min(effective_min_score, 1.0)),
         }
 
         headers = {
@@ -119,7 +130,7 @@ class KnowledgeRetriever:
         self,
         query: str,
         limit: int = 5,
-        min_score: float = 0.0,
+        min_score: float | None = None,
     ) -> str:
         """
         Retrieves knowledge matches and returns a safe, structured, untrusted

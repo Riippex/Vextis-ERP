@@ -26,5 +26,11 @@ public interface RagDocumentRepository {
 
     void saveChunks(List<RagChunk> chunks);
 
-    List<RagSearchResult> searchSimilar(String tenantId, List<Double> embedding, int limit, double minScore);
+    List<RagSearchResult> searchSimilar(
+            String tenantId,
+            String embeddingSpace,
+            List<Double> embedding,
+            int limit,
+            double minScore
+    );
 }

@@ -1,58 +1,202 @@
+<#
+.SYNOPSIS
+    Verifies that a running Vextis deployment answers on its Core and Agent
+    Runtime entry points and can reset its demo tenant.
+
+.DESCRIPTION
+    Exits non-zero when any check fails, so CI, a deployment gate or an operator
+    running it by hand learns that the deployment is down. Unreachable services
+    are failures, not skips.
+
+    Against Cloud Run, the private Enterprise Core requires an IAM identity
+    token. Cloud Run consumes X-Serverless-Authorization for that and forwards
+    Authorization to the application, which is where the agent-tools service
+    token goes, so both travel on the same request.
+
+.PARAMETER Offline
+    Explicitly opt out of the network checks, for a machine with nothing
+    running. Without it, an unreachable service fails the run.
+
+.PARAMETER IdentityToken
+    Google-signed identity token for a private Cloud Run service. Use
+    -UseGcloudIdentityToken to mint one from the active gcloud credentials.
+
+.EXAMPLE
+    ./tools/smoke-test.ps1
+
+.EXAMPLE
+    ./tools/smoke-test.ps1 -CoreUrl https://vextis-enterprise-core-xxxx.run.app `
+        -AgentRuntimeUrl https://vextis-agent-runtime-xxxx.run.app `
+        -UseGcloudIdentityToken -ServiceToken $env:VEXTIS_AGENT_TOOLS_TOKEN
+#>
 [CmdletBinding()]
 param(
     [string]$CoreUrl = 'http://localhost:8080',
     [string]$AgentRuntimeUrl = 'http://localhost:8081',
     [string]$TenantId = 'demo-tenant',
-    [string]$ServiceToken = $env:VEXTIS_AGENT_TOOLS_TOKEN
+    [string]$ServiceToken = $env:VEXTIS_AGENT_TOOLS_TOKEN,
+    [string]$IdentityToken = $env:VEXTIS_SMOKE_IDENTITY_TOKEN,
+    [switch]$UseGcloudIdentityToken,
+    [switch]$SkipDemoReset,
+    [switch]$Offline,
+    [int]$TimeoutSec = 10
 )
 
 $ErrorActionPreference = 'Stop'
 
-Write-Host "=== Starting Vextis Smoke Test ===" -ForegroundColor Cyan
+$script:Failures = @()
+$script:Skipped = @()
 
-# 1. Check Agent Runtime Health
-Write-Host "1. Checking Agent Runtime health on $AgentRuntimeUrl/health..." -NoNewline
-try {
-    $agentHealth = Invoke-RestMethod -Uri "$AgentRuntimeUrl/health" -Method Get -TimeoutSec 5
-    if ($agentHealth.status -eq 'ok' -or $agentHealth.status -eq 'healthy') {
-        Write-Host " [PASS]" -ForegroundColor Green
-    } else {
-        Write-Host " [WARN: status=$($agentHealth.status)]" -ForegroundColor Yellow
-    }
-} catch {
-    Write-Host " [SKIPPED - Runtime offline in offline test mode: $_]" -ForegroundColor Yellow
+function Write-Pass([string]$Name, [string]$Detail = '') {
+    $suffix = if ($Detail) { " ($Detail)" } else { '' }
+    Write-Host "  [PASS] $Name$suffix" -ForegroundColor Green
 }
 
-# 2. Check Enterprise Core GraphQL endpoint
-Write-Host "2. Checking Enterprise Core GraphQL endpoint on $CoreUrl/graphql..." -NoNewline
-try {
-    $gqlBody = @{ query = '{ __typename }' } | ConvertTo-Json
-    $gqlResponse = Invoke-RestMethod -Uri "$CoreUrl/graphql" -Method Post -ContentType 'application/json' -Body $gqlBody -TimeoutSec 5
-    if ($gqlResponse.data.__typename) {
-        Write-Host " [PASS]" -ForegroundColor Green
-    } else {
-        Write-Host " [WARN]" -ForegroundColor Yellow
-    }
-} catch {
-    Write-Host " [SKIPPED - Core offline in offline test mode: $_]" -ForegroundColor Yellow
+function Write-Fail([string]$Name, [string]$Detail) {
+    $script:Failures += "$Name`: $Detail"
+    Write-Host "  [FAIL] $Name - $Detail" -ForegroundColor Red
 }
 
-# 3. Check Deterministic Demo Seeding
-Write-Host "3. Invoking Deterministic Demo Seed on $CoreUrl/internal/demo/seed..." -NoNewline
-try {
-    $headers = @{ 'Content-Type' = 'application/json' }
-    if (-not [string]::IsNullOrWhiteSpace($ServiceToken)) {
+function Write-Skip([string]$Name, [string]$Reason) {
+    $script:Skipped += $Name
+    Write-Host "  [SKIP] $Name - $Reason" -ForegroundColor Yellow
+}
+
+function Get-IdentityToken([string]$Audience) {
+    if ($IdentityToken) {
+        return $IdentityToken
+    }
+    if (-not $UseGcloudIdentityToken) {
+        return $null
+    }
+    $token = & gcloud auth print-identity-token "--audiences=$Audience" 2>$null
+    if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($token)) {
+        throw "gcloud could not mint an identity token for $Audience"
+    }
+    return ($token | Select-Object -First 1).Trim()
+}
+
+function New-CoreHeaders([string]$BaseUrl, [switch]$WithServiceToken) {
+    $headers = @{}
+    if ($WithServiceToken -and -not [string]::IsNullOrWhiteSpace($ServiceToken)) {
         $headers['Authorization'] = "Bearer $ServiceToken"
     }
-    $seedBody = @{ tenantId = $TenantId; actorId = 'smoke-test' } | ConvertTo-Json
-    $seedRes = Invoke-RestMethod -Uri "$CoreUrl/internal/demo/seed" -Method Post -Headers $headers -Body $seedBody -TimeoutSec 5
-    if ($seedRes.status -eq 'SEEDED') {
-        Write-Host " [PASS: $($seedRes.customersCount) customers, $($seedRes.inventorySkusCount) SKUs, $($seedRes.knowledgeDocumentsCount) docs]" -ForegroundColor Green
-    } else {
-        Write-Host " [WARN]" -ForegroundColor Yellow
+    $identity = Get-IdentityToken -Audience $BaseUrl
+    if ($identity) {
+        # Cloud Run strips this one for its own IAM check and leaves
+        # Authorization for the application.
+        $headers['X-Serverless-Authorization'] = "Bearer $identity"
+        if (-not $headers.ContainsKey('Authorization')) {
+            $headers['Authorization'] = "Bearer $identity"
+        }
     }
-} catch {
-    Write-Host " [SKIPPED - Core offline in offline test mode: $_]" -ForegroundColor Yellow
+    return $headers
 }
 
-Write-Host "=== Smoke test execution finished ===" -ForegroundColor Cyan
+function Invoke-Check {
+    param(
+        [string]$Name,
+        [scriptblock]$Action,
+        [scriptblock]$Assert
+    )
+
+    if ($Offline) {
+        Write-Skip $Name 'offline mode requested'
+        return
+    }
+
+    try {
+        $response = & $Action
+    } catch {
+        Write-Fail $Name "request failed: $($_.Exception.Message)"
+        return
+    }
+
+    try {
+        $detail = & $Assert $response
+    } catch {
+        Write-Fail $Name $_.Exception.Message
+        return
+    }
+
+    Write-Pass $Name $detail
+}
+
+Write-Host '=== Vextis smoke test ===' -ForegroundColor Cyan
+Write-Host "  Core:          $CoreUrl"
+Write-Host "  Agent Runtime: $AgentRuntimeUrl"
+Write-Host "  Tenant:        $TenantId"
+if ($Offline) {
+    Write-Host '  Mode:          OFFLINE (checks are skipped on request)' -ForegroundColor Yellow
+}
+Write-Host ''
+
+Invoke-Check -Name 'Agent Runtime health' -Action {
+    $headers = New-CoreHeaders -BaseUrl $AgentRuntimeUrl
+    Invoke-RestMethod -Uri "$AgentRuntimeUrl/health" -Method Get -Headers $headers -TimeoutSec $TimeoutSec
+} -Assert {
+    param($response)
+    $status = "$($response.status)"
+    if ($status -notmatch '^(?i)(UP|ok|healthy)$') {
+        throw "unexpected status '$status'"
+    }
+    "status=$status"
+}
+
+Invoke-Check -Name 'Enterprise Core GraphQL' -Action {
+    $headers = New-CoreHeaders -BaseUrl $CoreUrl
+    $headers['Content-Type'] = 'application/json'
+    $body = @{ query = '{ __typename }' } | ConvertTo-Json -Compress
+    Invoke-RestMethod -Uri "$CoreUrl/graphql" -Method Post -Headers $headers -Body $body -TimeoutSec $TimeoutSec
+} -Assert {
+    param($response)
+    if (-not $response.data.__typename) {
+        throw 'response carried no data.__typename'
+    }
+    "typename=$($response.data.__typename)"
+}
+
+Invoke-Check -Name 'Demo seed' -Action {
+    $headers = New-CoreHeaders -BaseUrl $CoreUrl -WithServiceToken
+    $headers['Content-Type'] = 'application/json'
+    $body = @{ tenantId = $TenantId; actorId = 'smoke-test' } | ConvertTo-Json -Compress
+    Invoke-RestMethod -Uri "$CoreUrl/internal/demo/seed" -Method Post -Headers $headers -Body $body -TimeoutSec $TimeoutSec
+} -Assert {
+    param($response)
+    if ($response.status -ne 'SEEDED') {
+        throw "unexpected status '$($response.status)'"
+    }
+    "$($response.customersCount) customers, $($response.inventorySkusCount) SKUs, $($response.knowledgeDocumentsCount) docs"
+}
+
+if (-not $SkipDemoReset) {
+    Invoke-Check -Name 'Demo reset' -Action {
+        $headers = New-CoreHeaders -BaseUrl $CoreUrl -WithServiceToken
+        $headers['Content-Type'] = 'application/json'
+        $body = @{ tenantId = $TenantId; actorId = 'smoke-test' } | ConvertTo-Json -Compress
+        Invoke-RestMethod -Uri "$CoreUrl/internal/demo/reset" -Method Post -Headers $headers -Body $body -TimeoutSec $TimeoutSec
+    } -Assert {
+        param($response)
+        if ($response.status -ne 'RESET') {
+            throw "unexpected status '$($response.status)'; /internal/demo/reset must purge, not re-seed"
+        }
+        "purged $($response.purgedRowsTotal) rows, reseeded $($response.customersCount) customers"
+    }
+}
+
+Write-Host ''
+if ($script:Failures.Count -gt 0) {
+    Write-Host "=== Smoke test FAILED ($($script:Failures.Count) check(s)) ===" -ForegroundColor Red
+    foreach ($failure in $script:Failures) {
+        Write-Host "  - $failure" -ForegroundColor Red
+    }
+    exit 1
+}
+
+if ($Offline) {
+    Write-Host "=== Smoke test skipped $($script:Skipped.Count) check(s) in offline mode ===" -ForegroundColor Yellow
+    exit 0
+}
+
+Write-Host '=== Smoke test PASSED ===' -ForegroundColor Green
+exit 0

@@ -1,3 +1,4 @@
+import logging
 from collections.abc import Callable
 from typing import Any
 
@@ -10,12 +11,15 @@ from vextis_agents.agents.crm import build_crm_agent
 from vextis_agents.agents.inventory import build_inventory_agent
 from vextis_agents.app.config import Settings
 from vextis_agents.gemini import build_gemini_model
+from vextis_agents.rag.embedding import EmbeddingConfigurationError
 from vextis_agents.rag.retriever import KnowledgeRetriever
 from vextis_agents.tools.core_api.business_reads import (
     BusinessReadTool,
     EnterpriseCoreBusinessReadClient,
 )
 from vextis_agents.workflows.order_to_cash.planning import GeneratedPlan
+
+logger = logging.getLogger(__name__)
 
 
 def build_coordinator(
@@ -46,7 +50,16 @@ def build_coordinator(
         core_reads = EnterpriseCoreBusinessReadClient(settings, tenant_id, correlation_id)
 
     if tenant_id is not None and knowledge_retriever is None and settings.agent_tools_token:
-        knowledge_retriever = KnowledgeRetriever(settings, tenant_id, correlation_id)
+        try:
+            knowledge_retriever = KnowledgeRetriever(settings, tenant_id, correlation_id)
+        except EmbeddingConfigurationError:
+            # No embedding provider is configured. Leaving the tool off is the
+            # honest outcome: mounting it with hash vectors would answer with
+            # confident nonsense instead of admitting there is no index here.
+            logger.warning(
+                "search_knowledge_base is unavailable: no embedding provider is configured"
+            )
+            knowledge_retriever = None
 
     coordinator_tools: list[Callable[..., Any] | BaseTool | BaseToolset] = []
     if knowledge_retriever is not None:

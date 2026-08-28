@@ -32,7 +32,15 @@ public class DemoSeedingService {
     public static final UUID DEMO_CUSTOMER_1_ID = UUID.fromString("77cc63cc-3c91-4d80-a918-605b7f231cf8");
     public static final UUID DEMO_CUSTOMER_2_ID = UUID.fromString("88dd74dd-4d02-5e91-b029-716c80342da9");
 
+    /**
+     * Identifies the vectors {@link #generateDeterministicMockVector} produces.
+     * It has to differ from any real provider space so a Vertex query can never
+     * match a seeded chunk.
+     */
+    public static final String MOCK_EMBEDDING_SPACE = "mock-sha256:sha256-v1:768";
+
     private final String defaultTenantId;
+    private final boolean mockEmbeddingsEnabled;
     private final CustomerAdministration customerAdmin;
     private final CreditAdministration creditAdmin;
     private final StockAdministration stockAdmin;
@@ -40,12 +48,14 @@ public class DemoSeedingService {
 
     public DemoSeedingService(
             @Value("${vextis.demo.tenant-id:demo-tenant}") String defaultTenantId,
+            @Value("${vextis.rag.mock-embeddings.enabled:false}") boolean mockEmbeddingsEnabled,
             CustomerAdministration customerAdmin,
             CreditAdministration creditAdmin,
             StockAdministration stockAdmin,
             RagDirectory ragDirectory
     ) {
         this.defaultTenantId = defaultTenantId;
+        this.mockEmbeddingsEnabled = mockEmbeddingsEnabled;
         this.customerAdmin = customerAdmin;
         this.creditAdmin = creditAdmin;
         this.stockAdmin = stockAdmin;
@@ -104,6 +114,19 @@ public class DemoSeedingService {
     }
 
     private List<RagDocument> seedRagDocuments(String tenantId) {
+        if (!mockEmbeddingsEnabled) {
+            // Mock vectors are only meaningful next to mock queries. Writing them
+            // into an environment whose agents embed with Vertex would leave
+            // chunks that no real query can retrieve, so the seeder writes
+            // nothing and knowledge has to arrive through governed ingestion.
+            log.info(
+                    "Skipping demo knowledge documents for tenant={}: mock embeddings are disabled "
+                            + "(set vextis.rag.mock-embeddings.enabled=true for local or test runs)",
+                    tenantId
+            );
+            return List.of();
+        }
+
         // Doc 1: Commercial Policy
         String doc1Uri = "gs://vextis-demo-docs/commercial_policy.pdf";
         String doc1Name = "commercial_policy.pdf";
@@ -111,8 +134,8 @@ public class DemoSeedingService {
         String text1Chunk1 = "Credit terms and billing: Invoices are generated upon successful inventory reservation. Customers in GOOD standing may purchase up to credit limits.";
         String hash1 = computeSha256(text1Chunk0 + text1Chunk1);
 
-        RagChunkInput c1_0 = new RagChunkInput(0, text1Chunk0, text1Chunk0.length() / 4, generateDeterministicMockVector(text1Chunk0, 768), Map.of("section", "commercial"));
-        RagChunkInput c1_1 = new RagChunkInput(1, text1Chunk1, text1Chunk1.length() / 4, generateDeterministicMockVector(text1Chunk1, 768), Map.of("section", "billing"));
+        RagChunkInput c1_0 = mockChunk(0, text1Chunk0, Map.of("section", "commercial"));
+        RagChunkInput c1_1 = mockChunk(1, text1Chunk1, Map.of("section", "billing"));
         RagDocument doc1 = ragDirectory.ingestDocument(tenantId, doc1Uri, doc1Name, "application/pdf", hash1, List.of(c1_0, c1_1));
 
         // Doc 2: Inventory Terms
@@ -121,10 +144,21 @@ public class DemoSeedingService {
         String text2Chunk0 = "Inventory and Returns Policy: Standard return window is 30 days from invoice issuance in original packaging. Stock reservations expire after 24 hours if unconfirmed.";
         String hash2 = computeSha256(text2Chunk0);
 
-        RagChunkInput c2_0 = new RagChunkInput(0, text2Chunk0, text2Chunk0.length() / 4, generateDeterministicMockVector(text2Chunk0, 768), Map.of("section", "inventory"));
+        RagChunkInput c2_0 = mockChunk(0, text2Chunk0, Map.of("section", "inventory"));
         RagDocument doc2 = ragDirectory.ingestDocument(tenantId, doc2Uri, doc2Name, "application/pdf", hash2, List.of(c2_0));
 
         return List.of(doc1, doc2);
+    }
+
+    private static RagChunkInput mockChunk(int index, String text, Map<String, Object> metadata) {
+        return new RagChunkInput(
+                index,
+                text,
+                text.length() / 4,
+                generateDeterministicMockVector(text, 768),
+                MOCK_EMBEDDING_SPACE,
+                metadata
+        );
     }
 
     public static List<Double> generateDeterministicMockVector(String text, int dimension) {

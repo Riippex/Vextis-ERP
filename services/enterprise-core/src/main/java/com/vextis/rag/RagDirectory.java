@@ -6,7 +6,18 @@ import java.util.UUID;
 
 public interface RagDirectory {
 
-    List<RagSearchResult> search(String tenantId, List<Double> queryEmbedding, int limit, double minScore);
+    /**
+     * Nearest-neighbour search restricted to one embedding space. Chunks embedded
+     * by a different provider, model or dimension are not comparable to this
+     * query vector and are excluded rather than scored.
+     */
+    List<RagSearchResult> search(
+            String tenantId,
+            String embeddingSpace,
+            List<Double> queryEmbedding,
+            int limit,
+            double minScore
+    );
 
     RagDocument ingestDocument(
             String tenantId,

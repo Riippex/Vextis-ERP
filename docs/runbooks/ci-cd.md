@@ -86,6 +86,46 @@ Content-hashed JavaScript and CSS assets remain immutable and cached for one yea
 Firebase Hosting rewrites only `/graphql` to the public Core; all SPA routes fall
 back to `index.html`.
 
+## Smoke test
+
+`tools/smoke-test.ps1` checks Agent Runtime health, the Enterprise Core GraphQL
+endpoint, demo seeding and the deterministic demo reset. It exits non-zero when
+any check fails, so it can gate a deployment. An unreachable service is a
+failure; the only way to get a zero exit from a deployment that is not answering
+is to pass `-Offline` deliberately.
+
+`tools/smoke-test.tests.ps1` pins that exit-code contract against stub services
+and runs in CI as the **Smoke Test Contract** job. It needs no deployment.
+
+Local, against `tools/dev.ps1`:
+
+```powershell
+./tools/smoke-test.ps1
+```
+
+Against the hackathon deployment. The private Enterprise Core requires a Cloud
+Run IAM identity token, which the script sends as `X-Serverless-Authorization`
+so `Authorization` stays available for the agent-tools service token. The caller
+needs `roles/run.invoker` on the service being checked:
+
+```powershell
+$core  = gcloud run services describe vextis-enterprise-core `
+    --project=vextis-erp --region=us-central1 --format='value(status.url)'
+$agent = gcloud run services describe vextis-agent-runtime `
+    --project=vextis-erp --region=us-central1 --format='value(status.url)'
+
+./tools/smoke-test.ps1 -CoreUrl $core -AgentRuntimeUrl $agent `
+    -UseGcloudIdentityToken `
+    -ServiceToken (gcloud secrets versions access latest --secret=vextis-agent-tools-token)
+```
+
+The public Enterprise Core (`vextis-enterprise-core-public`) is not a smoke-test
+target: it is Firebase-authenticated, and its `/internal/**` paths must stay
+`403`, which the recovery checks below cover separately.
+
+Run it with `-SkipDemoReset` against any environment whose data must survive:
+reset purges the tenant.
+
 ## Recovery
 
 1. Identify the failed component and validated commit SHA in GitHub Actions.

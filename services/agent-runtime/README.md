@@ -64,3 +64,72 @@ The service stores no raw Firebase UID, conversation transcript, secret, stock, 
 balance, or accounting fact. Retrieval is capped at five 500-character preference snippets and is
 injected as untrusted context. Normal retrieval failures fail open and are disclosed as bounded
 evidence; an explicit preference write fails closed instead of claiming it was stored.
+
+## Knowledge base: embeddings and ingestion
+
+Documents and queries are pinned to one embedding space, identified as
+`provider:model:dimension` and stored on every chunk. Enterprise Core only
+compares vectors within a space, so a Vertex query cannot be answered with
+mock-embedded chunks and vice versa.
+
+```text
+VEXTIS_RAG_EMBEDDING_MODEL=text-embedding-004
+VEXTIS_RAG_EMBEDDING_DIMENSION=768
+VEXTIS_RAG_EMBEDDING_LOCATION=us-central1
+VEXTIS_RAG_MIN_SIMILARITY=0.55
+VEXTIS_RAG_MOCK_EMBEDDINGS_ENABLED=false
+```
+
+A Vertex embedding failure raises; it never degrades to the deterministic
+SHA-256 mock. The mock is reachable only through
+`VEXTIS_RAG_MOCK_EMBEDDINGS_ENABLED=true`, which exists for offline tests and
+local runs, and it declares its own space so nothing it writes can be confused
+with real content. With neither Vertex nor the flag configured, the coordinator
+omits `search_knowledge_base` rather than answering from an empty index.
+
+### Ingesting a document
+
+Ingestion is a command, not a product feature: there is no upload UI and no
+public GraphQL mutation. The command chunks and embeds the file locally with the
+same embedder the agents query with, then posts it to Enterprise Core, which
+enforces the tenant and the `ingest_knowledge_document` allowlist entry on the
+`vextis_document_ingestor` registry agent before writing anything.
+
+```bash
+uv run python -m vextis_agents.rag.ingest \
+  --tenant demo-tenant \
+  --document-uri urn:vextis:policy:commercial \
+  --file ../../docs/commercial_policy.md
+```
+
+Re-running it with unchanged content is idempotent; changed content stores a new
+version and replaces the previous chunks.
+
+## Tests and evaluations
+
+```bash
+uv run pytest          # deterministic suites, what CI gates on
+uv run ruff check src tests
+uv run mypy src tests
+```
+
+`tests/unit` and the flat files under `tests/evals` are deterministic contract
+checks — prompts, schemas, tool wiring, sanitisation — and call no model.
+
+`tests/evals/behavior` holds the behavioural evaluations: they build the real
+coordinator, call a real Vertex model, and assert on what it does for grounded
+RAG, prompt injection, delegation, and policy denial. Enterprise Core is stubbed
+per scenario so a run is reproducible and costs only model tokens.
+
+They are marked `model_eval` and deselected by default, because they need Vertex
+credentials and are non-deterministic. Run them explicitly:
+
+```bash
+GOOGLE_CLOUD_PROJECT=<project-id> \
+VEXTIS_GEMINI_MODEL=gemini-3.5-flash \
+GOOGLE_GENAI_USE_VERTEXAI=true \
+uv run pytest -m model_eval
+```
+
+Without those variables the suite skips with an explicit reason rather than
+reporting a pass.
