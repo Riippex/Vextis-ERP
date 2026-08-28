@@ -8,9 +8,13 @@ public record RagChunkInput(
         String chunkText,
         int tokenCount,
         List<Double> embedding,
+        String embeddingSpace,
         Map<String, Object> metadata
 ) {
     public RagChunkInput {
+        if (embeddingSpace == null || embeddingSpace.isBlank()) {
+            throw new IllegalArgumentException("embeddingSpace must not be blank");
+        }
         if (chunkIndex < 0) {
             throw new IllegalArgumentException("chunkIndex must not be negative");
         }

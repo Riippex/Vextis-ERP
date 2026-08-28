@@ -34,6 +34,16 @@ class Settings(BaseSettings):
     live_max_session_seconds: int = 900
     gemini_model: str | None = None
     gemini_location: str = "us"
+    # Documents and queries must share one embedding space; these settings
+    # define it for this process. The mock is opt-in, never a fallback.
+    rag_embedding_model: str = "text-embedding-004"
+    rag_embedding_dimension: int = 768
+    rag_embedding_location: str = "us-central1"
+    rag_mock_embeddings_enabled: bool = False
+    # A 0.0 floor returns the nearest chunks however unrelated they are, which
+    # reads downstream as grounded evidence. Enterprise Core enforces its own
+    # floor as well.
+    rag_min_similarity: float = 0.55
     memory_bank_enabled: bool = False
     memory_bank_agent_engine_id: str | None = None
     memory_bank_location: str = "us-central1"

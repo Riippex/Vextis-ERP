@@ -131,10 +131,11 @@ class JdbcRagDocumentRepository implements RagDocumentRepository {
         String sql = """
                 INSERT INTO rag_document_chunks (
                     id, document_id, tenant_id, chunk_index, chunk_text,
-                    token_count, embedding, metadata, created_at
+                    token_count, embedding, embedding_space, metadata, created_at
                 ) VALUES (
                     :id, :documentId, :tenantId, :chunkIndex, :chunkText,
-                    :tokenCount, CAST(:embedding AS vector), CAST(:metadata AS jsonb), :createdAt
+                    :tokenCount, CAST(:embedding AS vector), :embeddingSpace,
+                    CAST(:metadata AS jsonb), :createdAt
                 )
                 """;
         SqlParameterSource[] batchParams = chunks.stream()
@@ -146,6 +147,7 @@ class JdbcRagDocumentRepository implements RagDocumentRepository {
                         .addValue("chunkText", chunk.chunkText())
                         .addValue("tokenCount", chunk.tokenCount())
                         .addValue("embedding", formatVector(chunk.embedding()))
+                        .addValue("embeddingSpace", chunk.embeddingSpace())
                         .addValue("metadata", chunk.metadataJson() != null ? chunk.metadataJson() : "{}")
                         .addValue("createdAt", Timestamp.from(chunk.createdAt()), Types.TIMESTAMP_WITH_TIMEZONE))
                 .toArray(SqlParameterSource[]::new);
@@ -153,7 +155,13 @@ class JdbcRagDocumentRepository implements RagDocumentRepository {
     }
 
     @Override
-    public List<RagSearchResult> searchSimilar(String tenantId, List<Double> embedding, int limit, double minScore) {
+    public List<RagSearchResult> searchSimilar(
+            String tenantId,
+            String embeddingSpace,
+            List<Double> embedding,
+            int limit,
+            double minScore
+    ) {
         if (embedding == null || embedding.isEmpty()) {
             return Collections.emptyList();
         }
@@ -165,6 +173,7 @@ class JdbcRagDocumentRepository implements RagDocumentRepository {
                 FROM rag_document_chunks c
                 JOIN rag_documents d ON c.document_id = d.id
                 WHERE c.tenant_id = :tenantId
+                  AND c.embedding_space = :embeddingSpace
                   AND c.embedding IS NOT NULL
                   AND (1.0 - (c.embedding <=> CAST(:vectorStr AS vector))) >= :minScore
                 ORDER BY c.embedding <=> CAST(:vectorStr AS vector) ASC
@@ -172,6 +181,7 @@ class JdbcRagDocumentRepository implements RagDocumentRepository {
                 """;
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("tenantId", tenantId)
+                .addValue("embeddingSpace", embeddingSpace)
                 .addValue("vectorStr", vectorStr)
                 .addValue("minScore", minScore)
                 .addValue("limit", Math.max(1, Math.min(limit, 20)));

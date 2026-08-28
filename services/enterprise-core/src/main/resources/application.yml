@@ -52,6 +52,14 @@ vextis:
   documents:
     bucket-name: ${VEXTIS_DOCUMENTS_BUCKET:}
     signing-service-account: ${VEXTIS_DOCUMENTS_SIGNING_SERVICE_ACCOUNT:}
+  rag:
+    # Retrieval only compares vectors produced the same way. The demo seeder
+    # writes deterministic SHA-256 mock vectors, which are meaningful only when
+    # the agents query with the same mock embedder, so seeding them is opt-in
+    # and off by default.
+    mock-embeddings:
+      enabled: ${VEXTIS_RAG_MOCK_EMBEDDINGS_ENABLED:false}
+    min-similarity: ${VEXTIS_RAG_MIN_SIMILARITY:0.55}
   agent-runtime:
     chat-url: ${VEXTIS_AGENT_RUNTIME_CHAT_URL:}
     callback-token: ${VEXTIS_CORE_CALLBACK_TOKEN:}

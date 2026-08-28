@@ -126,6 +126,7 @@ def test_coordinator_with_knowledge_retriever_has_tool() -> None:
         gemini_model="gemini-test-model",
         agent_tools_token=SecretStr("token"),
         enterprise_core_url="https://core.vextis.local",
+        rag_mock_embeddings_enabled=True,
     )
     retriever = KnowledgeRetriever(
         settings=settings,
@@ -140,3 +141,22 @@ def test_coordinator_with_knowledge_retriever_has_tool() -> None:
 
     tool_names = [getattr(t, "__name__", None) for t in coordinator.tools]
     assert "search_knowledge_base" in tool_names
+
+
+def test_coordinator_omits_knowledge_tool_when_no_embedding_provider_is_configured() -> None:
+    # Better an absent tool than one answering from an embedding space nothing
+    # was indexed in.
+    from pydantic import SecretStr
+
+    settings = Settings(
+        gemini_model="gemini-test-model",
+        agent_tools_token=SecretStr("token"),
+        enterprise_core_url="https://core.vextis.local",
+        google_cloud_project=None,
+        rag_mock_embeddings_enabled=False,
+    )
+
+    coordinator = build_coordinator(settings=settings, tenant_id="demo-tenant")
+
+    tool_names = [getattr(t, "__name__", None) for t in coordinator.tools]
+    assert "search_knowledge_base" not in tool_names

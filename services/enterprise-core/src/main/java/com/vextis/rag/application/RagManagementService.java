@@ -32,11 +32,20 @@ public class RagManagementService implements RagDirectory {
 
     @Override
     @Transactional(readOnly = true)
-    public List<RagSearchResult> search(String tenantId, List<Double> queryEmbedding, int limit, double minScore) {
+    public List<RagSearchResult> search(
+            String tenantId,
+            String embeddingSpace,
+            List<Double> queryEmbedding,
+            int limit,
+            double minScore
+    ) {
         if (tenantId == null || tenantId.isBlank()) {
             throw new IllegalArgumentException("tenantId must not be blank");
         }
-        return repository.searchSimilar(tenantId, queryEmbedding, limit, minScore);
+        if (embeddingSpace == null || embeddingSpace.isBlank()) {
+            throw new IllegalArgumentException("embeddingSpace must not be blank");
+        }
+        return repository.searchSimilar(tenantId, embeddingSpace, queryEmbedding, limit, minScore);
     }
 
     @Override
@@ -173,6 +182,7 @@ public class RagManagementService implements RagDirectory {
                             input.chunkText(),
                             input.tokenCount(),
                             input.embedding(),
+                            input.embeddingSpace(),
                             metadataJson,
                             now
                     );

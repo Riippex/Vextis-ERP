@@ -22,6 +22,7 @@ import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -32,6 +33,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(AgentRagToolController.class)
 @Import(AgentToolAuthorizer.class)
 class AgentRagToolControllerTests {
+
+    private static final String VERTEX_SPACE = "vertex:text-embedding-004:768";
 
     @Autowired
     private MockMvc mockMvc;
@@ -57,7 +60,7 @@ class AgentRagToolControllerTests {
     @Test
     void authenticatedCoordinatorCanSearchKnowledgeBase() throws Exception {
         UUID docId = UUID.randomUUID();
-        when(ragDirectory.search(eq("demo-tenant"), anyList(), eq(5), eq(0.0))).thenReturn(List.of(
+        when(ragDirectory.search(eq("demo-tenant"), eq(VERTEX_SPACE), anyList(), eq(5), eq(0.55))).thenReturn(List.of(
                 new RagSearchResult(
                         docId,
                         "commercial_terms.pdf",
@@ -73,6 +76,7 @@ class AgentRagToolControllerTests {
                 {
                     "query": "payment terms",
                     "embedding": %s,
+                    "embeddingSpace": "vertex:text-embedding-004:768",
                     "limit": 5,
                     "minScore": 0.0
                 }
@@ -92,14 +96,16 @@ class AgentRagToolControllerTests {
                 .andExpect(jsonPath("$.matches[0].similarityScore").value(0.92))
                 .andExpect(jsonPath("$.matches[0].metadata.category").value("commercial"));
 
-        verify(ragDirectory).search(eq("demo-tenant"), anyList(), eq(5), eq(0.0));
+        // A caller asking for 0.0 still gets the configured floor.
+        verify(ragDirectory).search(eq("demo-tenant"), eq(VERTEX_SPACE), anyList(), eq(5), eq(0.55));
     }
 
     @Test
     void rejectsWhenServiceTokenIsMissing() throws Exception {
         String requestJson = """
                 {
-                    "embedding": %s
+                    "embedding": %s,
+                    "embeddingSpace": "vertex:text-embedding-004:768"
                 }
                 """.formatted(testEmbedding.toString());
 
@@ -124,7 +130,8 @@ class AgentRagToolControllerTests {
 
         String requestJson = """
                 {
-                    "embedding": %s
+                    "embedding": %s,
+                    "embeddingSpace": "vertex:text-embedding-004:768"
                 }
                 """.formatted(testEmbedding.toString());
 
@@ -141,10 +148,63 @@ class AgentRagToolControllerTests {
     }
 
     @Test
+    void rejectsSearchWithoutAnEmbeddingSpace() throws Exception {
+        String requestJson = """
+                {
+                    "query": "payment terms",
+                    "embedding": %s
+                }
+                """.formatted(testEmbedding.toString());
+
+        mockMvc.perform(post("/internal/agent-tools/v1/rag/search")
+                        .header("Authorization", "Bearer test-service-token")
+                        .header("X-Tenant-Id", "demo-tenant")
+                        .header("X-Agent-Id", "vextis_coordinator")
+                        .header("X-Correlation-Id", "01J...")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(ragDirectory);
+    }
+
+    @Test
+    void queriesFromOneEmbeddingSpaceNeverReachChunksFromAnother() throws Exception {
+        // A mock-embedded query must not be answered with Vertex-embedded
+        // chunks or the other way round: the space travels with the request and
+        // the search is scoped to it.
+        when(ragDirectory.search(eq("demo-tenant"), eq("mock-sha256:sha256-v1:768"), anyList(), anyInt(), anyDouble()))
+                .thenReturn(List.of());
+
+        String requestJson = """
+                {
+                    "query": "payment terms",
+                    "embedding": %s,
+                    "embeddingSpace": "mock-sha256:sha256-v1:768"
+                }
+                """.formatted(testEmbedding.toString());
+
+        mockMvc.perform(post("/internal/agent-tools/v1/rag/search")
+                        .header("Authorization", "Bearer test-service-token")
+                        .header("X-Tenant-Id", "demo-tenant")
+                        .header("X-Agent-Id", "vextis_coordinator")
+                        .header("X-Correlation-Id", "01J...")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.matches").isEmpty());
+
+        verify(ragDirectory).search(
+                eq("demo-tenant"), eq("mock-sha256:sha256-v1:768"), anyList(), anyInt(), anyDouble());
+        verify(ragDirectory, never()).search(eq("demo-tenant"), eq(VERTEX_SPACE), anyList(), anyInt(), anyDouble());
+    }
+
+    @Test
     void rejectsWhenTenantDoesNotMatch() throws Exception {
         String requestJson = """
                 {
-                    "embedding": %s
+                    "embedding": %s,
+                    "embeddingSpace": "vertex:text-embedding-004:768"
                 }
                 """.formatted(testEmbedding.toString());
 
