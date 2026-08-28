@@ -64,6 +64,18 @@ resource "google_cloud_run_v2_service" "enterprise_core" {
         }
       }
       env {
+        # Administrative credential for /internal/demo/**, deliberately not the
+        # agent-tools token: the demo reset is destructive and Agent Runtime has
+        # no business triggering it.
+        name = "VEXTIS_DEMO_ADMIN_TOKEN"
+        value_source {
+          secret_key_ref {
+            secret  = var.demo_admin_secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
         name  = "GOOGLE_CLOUD_PROJECT"
         value = var.project_id
       }

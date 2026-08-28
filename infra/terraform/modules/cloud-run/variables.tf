@@ -63,6 +63,11 @@ variable "agent_tools_secret_id" {
   type        = string
 }
 
+variable "demo_admin_secret_id" {
+  description = "Secret Manager identifier for the demo seeding and reset credential."
+  type        = string
+}
+
 variable "core_callback_secret_id" {
   description = "Secret Manager identifier for the Ask Vextis chat callback token."
   type        = string

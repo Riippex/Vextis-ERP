@@ -33,6 +33,11 @@ output "agent_tools_secret_id" {
   value       = google_secret_manager_secret.agent_tools_token.secret_id
 }
 
+output "demo_admin_secret_id" {
+  description = "Secret Manager identifier for the demo administration credential."
+  value       = google_secret_manager_secret.demo_admin_token.secret_id
+}
+
 output "core_callback_secret_id" {
   description = "Secret Manager identifier for the Ask Vextis chat callback token."
   value       = google_secret_manager_secret.core_callback_token.secret_id

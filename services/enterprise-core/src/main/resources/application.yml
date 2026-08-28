@@ -40,6 +40,11 @@ vextis:
   demo:
     tenant-id: ${VEXTIS_DEMO_TENANT_ID:demo-tenant}
     actor-id: ${VEXTIS_DEMO_ACTOR_ID:demo-user}
+    # Seeding and the destructive reset are administrative, not agent tools:
+    # they get their own credential so the token Agent Runtime carries for
+    # business reads cannot purge a tenant. Unset means the endpoints are
+    # disabled, except under LOCAL exposure.
+    admin-token: ${VEXTIS_DEMO_ADMIN_TOKEN:}
   agent-tools:
     service-token: ${VEXTIS_AGENT_TOOLS_TOKEN:}
     coordinator-agent-id: ${VEXTIS_COORDINATOR_AGENT_ID:coordinator-agent}

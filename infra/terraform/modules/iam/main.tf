@@ -180,6 +180,20 @@ resource "google_secret_manager_secret" "agent_tools_token" {
   }
 }
 
+# Demo seeding and the destructive tenant reset are administrative, so they do
+# not share the agent-tools credential: a compromised Agent Runtime must not be
+# able to purge the tenant.
+resource "google_secret_manager_secret" "demo_admin_token" {
+  project             = var.project_id
+  secret_id           = var.demo_admin_secret_id
+  labels              = var.labels
+  deletion_protection = true
+
+  replication {
+    auto {}
+  }
+}
+
 resource "google_secret_manager_secret" "core_callback_token" {
   project             = var.project_id
   secret_id           = var.core_callback_secret_id
@@ -224,6 +238,15 @@ resource "google_secret_manager_secret_iam_member" "agent_runtime_live_agent_too
   secret_id = google_secret_manager_secret.agent_tools_token.secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.agent_runtime_live.email}"
+}
+
+# Only the private Enterprise Core serves /internal/demo/**; the public one
+# denies /internal/** outright and has no reason to hold this credential.
+resource "google_secret_manager_secret_iam_member" "enterprise_core_demo_admin_token" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.demo_admin_token.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.enterprise_core.email}"
 }
 
 resource "google_secret_manager_secret_iam_member" "enterprise_core_public_callback_token" {
