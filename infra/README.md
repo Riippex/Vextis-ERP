@@ -21,30 +21,38 @@ only through process memory and standard input.
 
 Terraform creates every Secret Manager **secret** (the named container) but
 deliberately creates no **version** (the actual value) for any of them, for the
-reason above. Every Cloud Run service references its secret at
-`version = "latest"`, and `module.cloud_run` depends on `module.iam`, so a
-single unscoped `terraform apply` on a first deploy tries to create those Cloud
-Run revisions in the same run that first creates the secret containers —
-before any version can exist. Cloud Run then fails to come up at all, not
-fails at runtime, and the apply that was supposed to hand you a working
-environment errors out instead.
+reason above — and, for the same reason, it never creates the `vextis_app`
+Cloud SQL **user** either: there is no `google_sql_user` resource, only the
+`google_sql_database_instance` and `google_sql_database` it runs on. Every
+Cloud Run service references its secret at `version = "latest"`, and
+`module.cloud_run` depends on `module.iam`, so a single unscoped `terraform
+apply` on a first deploy tries to create those Cloud Run revisions in the same
+run that first creates the secret containers — before any version can exist,
+and before a `vextis_app` user exists to generate `vextis-db-password`'s value
+from in the first place. Cloud Run then fails to come up at all, not fails at
+runtime, and the apply that was supposed to hand you a working environment
+errors out instead.
 
 **A first deploy in a new project must therefore run in three phases, in this
-order.** A redeploy of an existing environment (secrets already have versions)
-just runs phase 3.
+order.** A redeploy of an existing environment (instance, database, user and
+secrets already exist) just runs phase 3.
 
-**Phase 1 — create only the Secret Manager containers**, with `-target` so
-Cloud Run and everything else in the plan stays out of this apply:
+**Phase 1 — create the Cloud SQL instance and database, and every Secret
+Manager container**, with `-target` so Cloud Run and everything else in the
+plan stays out of this apply:
 
 ```bash
 cd terraform/environments/hackathon
-terraform apply     -target=module.cloud_sql.google_secret_manager_secret.database_password     -target=module.iam.google_secret_manager_secret.agent_tools_token     -target=module.iam.google_secret_manager_secret.live_gateway_token     -target=module.iam.google_secret_manager_secret.demo_admin_token     -target=module.iam.google_secret_manager_secret.core_callback_token
+terraform apply     -target=module.cloud_sql.google_sql_database_instance.postgres     -target=module.cloud_sql.google_sql_database.application     -target=module.cloud_sql.google_secret_manager_secret.database_password     -target=module.iam.google_secret_manager_secret.agent_tools_token     -target=module.iam.google_secret_manager_secret.live_gateway_token     -target=module.iam.google_secret_manager_secret.demo_admin_token     -target=module.iam.google_secret_manager_secret.core_callback_token
 ```
 
-If any of these five secrets already exists in the project (for example, a
-partially-applied previous attempt), import it instead of letting `apply`
-fail on a name collision: `terraform import <target address> <secret_id>`,
-using the same address as its `-target` above and the literal secret ID (e.g.
+The Cloud SQL instance alone can take several minutes to come up — this is the
+slow step in the phase, not a hang. On a redeploy or a retry after a partial
+failure this is a no-op for anything that already exists; if any of the five
+secrets exists in the project but outside this state (for example, created by
+hand in an earlier partial attempt), import it instead of letting `apply` fail
+on a name collision: `terraform import <target address> <secret_id>`, using
+the same address as its `-target` above and the literal secret ID (e.g.
 `vextis-agent-tools-token`) as the import ID.
 
 **Phase 2 — give every secret a version**, following the commands below. Do
@@ -68,15 +76,28 @@ provisions five secrets that need a version this way:
 | `vextis-live-gateway-token` | Agent Runtime (Live gateway), Enterprise Core (private) | this change |
 
 `vextis-db-password` is the one exception to the generic command above: its
-value has to match the actual Cloud SQL user's password, so set the user first
-and feed Secret Manager the same value:
+value has to match the actual Cloud SQL user's password, and — because
+Terraform creates the instance and database but not the user — that user may
+not exist yet either. Check for it first and branch: `create` on a first
+deploy (the instance from Phase 1 exists, but no application user does yet),
+`set-password` on a redeploy or a rotation (the user is already there from a
+previous run of this same block). Either way, the same generated password ends
+up in both the Cloud SQL user and the secret version:
 
 ```bash
 DB_PASSWORD="$(openssl rand -base64 32)"
-gcloud sql users set-password vextis_app     --project=vextis-erp --instance=vextis-hackathon-pg     --password="$DB_PASSWORD"
+if gcloud sql users list     --project=vextis-erp --instance=vextis-hackathon-pg     --format="value(name)" | grep -qx vextis_app; then
+  gcloud sql users set-password vextis_app       --project=vextis-erp --instance=vextis-hackathon-pg       --password="$DB_PASSWORD"
+else
+  gcloud sql users create vextis_app       --project=vextis-erp --instance=vextis-hackathon-pg       --password="$DB_PASSWORD"
+fi
 printf '%s' "$DB_PASSWORD" | gcloud secrets versions add vextis-db-password     --project=vextis-erp --data-file=-
 unset DB_PASSWORD
 ```
+
+Both branches leave `vextis-db-password`'s new version matching whatever
+`vextis_app`'s live password actually is, so this block is safe to re-run on a
+partially-deployed install without knowing in advance which case it's in.
 
 The other four are opaque bearer tokens compared byte-for-byte by the
 application (`MessageDigest.isEqual`), so any sufficiently random value works;
