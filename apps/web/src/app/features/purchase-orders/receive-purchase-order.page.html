@@ -294,11 +294,11 @@
           @for (asset of currentReceipt.execution.proposalAssets; track asset.id) {
             <div class="proposal-asset-card">
               @if (asset.mediaType === 'VIDEO') {
-                @if (asset.imageUrl) {
+                @if (asset.mediaUrl) {
                   <video
                     class="proposal-asset-card__video"
                     controls
-                    [src]="asset.imageUrl"
+                    [src]="asset.mediaUrl"
                     [attr.aria-label]="asset.aiLabel"
                   ></video>
                 } @else {

@@ -50,7 +50,7 @@ public class ProposalAssetService implements RegisterProposalAssetUseCase {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public PreflightResult preflight(PreflightCommand command) {
         QuoteExecutionLookup.QuoteExecution quote = quoteLookup.findQuote(command.tenantId(), command.quoteId())
                 .orElseThrow(() -> new NoSuchElementException("No quote or order found for this tenant"));
@@ -63,18 +63,51 @@ public class ProposalAssetService implements RegisterProposalAssetUseCase {
         String tenantPrefix = GcsProposalAssetStorage.objectPrefix(command.tenantId());
 
         if (command.idempotencyKey() != null && !command.idempotencyKey().isBlank()) {
-            Optional<ProposalAssetDirectory.ProposalAssetView> existing = proposalAssets.findByIdempotencyKey(
-                    command.tenantId(), command.idempotencyKey());
-            if (existing.isPresent()) {
-                ProposalAssetDirectory.ProposalAssetView view = existing.get();
-                if (view.quoteId().equals(command.quoteId().toString())
-                        && (command.promptSummary() == null || view.promptSummary().equals(command.promptSummary()))) {
-                    return new PreflightResult(command.quoteId(), tenantPrefix, quote.correlationId(), true, true, view);
-                }
+            String fingerprint = ProposalAssetDirectory.computeFingerprint(
+                    command.quoteId().toString(), command.promptSummary());
+            ProposalAssetDirectory.ReservationResult reservation = proposalAssets.reserve(
+                    command.tenantId(),
+                    command.quoteId().toString(),
+                    command.idempotencyKey(),
+                    fingerprint,
+                    command.agentId()
+            );
+
+            if (reservation.status() == ProposalAssetDirectory.ReservationStatus.COMPLETED) {
+                return new PreflightResult(
+                        command.quoteId(),
+                        tenantPrefix,
+                        quote.correlationId(),
+                        true,
+                        ProposalAssetDirectory.ReservationStatus.COMPLETED,
+                        false,
+                        true,
+                        reservation.existingAsset().orElse(null)
+                );
             }
+
+            return new PreflightResult(
+                    command.quoteId(),
+                    tenantPrefix,
+                    quote.correlationId(),
+                    true,
+                    reservation.status(),
+                    reservation.isOwner(),
+                    false,
+                    null
+            );
         }
 
-        return new PreflightResult(command.quoteId(), tenantPrefix, quote.correlationId(), true, false, null);
+        return new PreflightResult(
+                command.quoteId(),
+                tenantPrefix,
+                quote.correlationId(),
+                true,
+                ProposalAssetDirectory.ReservationStatus.RESERVED,
+                true,
+                false,
+                null
+        );
     }
 
     @Override
@@ -134,20 +167,20 @@ public class ProposalAssetService implements RegisterProposalAssetUseCase {
                     now
             ));
 
-            // 2. Outbox event: quote.visual.generated (version 1)
+            // 2. Outbox event: quote.visual.generated (version 1 with snake_case payload)
             UUID eventId = UUID.randomUUID();
             Map<String, Object> payload = Map.ofEntries(
-                    Map.entry("assetId", asset.id().toString()),
-                    Map.entry("quoteId", asset.quoteId()),
-                    Map.entry("storageUri", asset.storageUri()),
-                    Map.entry("storageGeneration", asset.storageGeneration() != null ? asset.storageGeneration() : 0L),
-                    Map.entry("mediaType", asset.mediaType().name()),
-                    Map.entry("modelId", asset.modelId()),
-                    Map.entry("promptSummary", asset.promptSummary()),
-                    Map.entry("aiLabel", asset.aiLabel()),
-                    Map.entry("agentId", command.agentId()),
-                    Map.entry("correlationId", authoritativeCorrelationId),
-                    Map.entry("createdAt", asset.createdAt().toString())
+                    Map.entry("asset_id", asset.id().toString()),
+                    Map.entry("quote_id", asset.quoteId()),
+                    Map.entry("storage_uri", asset.storageUri()),
+                    Map.entry("storage_generation", asset.storageGeneration() != null ? asset.storageGeneration() : 0L),
+                    Map.entry("media_type", asset.mediaType().name()),
+                    Map.entry("model_id", asset.modelId()),
+                    Map.entry("prompt_summary", asset.promptSummary()),
+                    Map.entry("ai_label", asset.aiLabel()),
+                    Map.entry("agent_id", command.agentId()),
+                    Map.entry("correlation_id", authoritativeCorrelationId),
+                    Map.entry("created_at", asset.createdAt().toString())
             );
 
             Map<String, Object> envelope = Map.of(

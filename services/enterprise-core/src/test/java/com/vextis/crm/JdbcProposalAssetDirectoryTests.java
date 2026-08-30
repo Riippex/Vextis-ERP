@@ -206,4 +206,49 @@ class JdbcProposalAssetDirectoryTests {
         verify(jdbc).query(anyString(), argThat((Map<String, Object> map) ->
                 map.get("limit").equals(50) && map.get("quoteId").equals("quote-001")), any(RowMapper.class));
     }
+
+    @Test
+    void reserveInsertsPendingReservationWhenNoPriorReservation() {
+        when(jdbc.update(anyString(), anyMap())).thenReturn(1);
+
+        String fingerprint = JdbcProposalAssetDirectory.computeFingerprint("quote-001", "Chair visual");
+        ProposalAssetDirectory.ReservationResult result = directory.reserve(
+                "demo-tenant", "quote-001", "idemp-res-1", fingerprint, "vextis_crm_agent");
+
+        assertThat(result.status()).isEqualTo(ProposalAssetDirectory.ReservationStatus.RESERVED);
+        assertThat(result.isOwner()).isTrue();
+        assertThat(result.fingerprint()).isEqualTo(fingerprint);
+    }
+
+    @Test
+    void reserveReturnsPendingForConcurrentCaller() {
+        when(jdbc.update(anyString(), anyMap())).thenReturn(0);
+
+        String fingerprint = JdbcProposalAssetDirectory.computeFingerprint("quote-001", "Chair visual");
+        when(jdbc.queryForList(anyString(), anyMap())).thenReturn(List.of(
+                Map.of("fingerprint", fingerprint, "status", "PENDING", "owner_agent_id", "vextis_other_agent")
+        ));
+
+        ProposalAssetDirectory.ReservationResult result = directory.reserve(
+                "demo-tenant", "quote-001", "idemp-res-1", fingerprint, "vextis_crm_agent");
+
+        assertThat(result.status()).isEqualTo(ProposalAssetDirectory.ReservationStatus.PENDING);
+        assertThat(result.isOwner()).isFalse();
+    }
+
+    @Test
+    void reserveThrowsConflictWhenFingerprintMismatches() {
+        when(jdbc.update(anyString(), anyMap())).thenReturn(0);
+
+        String existingFingerprint = "fingerprint-original";
+        when(jdbc.queryForList(anyString(), anyMap())).thenReturn(List.of(
+                Map.of("fingerprint", existingFingerprint, "status", "PENDING", "owner_agent_id", "vextis_other_agent")
+        ));
+
+        String newFingerprint = "fingerprint-different";
+        assertThatThrownBy(() -> directory.reserve(
+                "demo-tenant", "quote-001", "idemp-res-1", newFingerprint, "vextis_crm_agent"))
+                .isInstanceOf(ProposalAssetConflictException.class)
+                .hasMessageContaining("different payload fingerprint");
+    }
 }

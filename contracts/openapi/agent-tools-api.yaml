@@ -45,8 +45,8 @@ paths:
       operationId: preflightProposalAsset
       x-vextis-tool-policy: register_quote_asset
       description: >-
-        Validates authorization, quote ownership, and correlation before generating or
-        uploading an asset. Guarantees zero Vertex/Storage spend on invalid requests.
+        Validates authorization, quote ownership, and correlation, and reserves an atomic
+        idempotency slot before generating or uploading an asset. Guarantees zero Vertex/Storage spend on invalid requests.
       security:
         - serviceBearer: []
       parameters:
@@ -60,6 +60,12 @@ paths:
         - $ref: "#/components/parameters/AgentId"
         - $ref: "#/components/parameters/CorrelationId"
         - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PreflightProposalAssetRequest"
       responses:
         "200":
           description: Preflight validation successful; generation is authorized
@@ -75,6 +81,8 @@ paths:
           description: Logical agent is inactive or not authorized for this tool
         "404":
           description: Quote or execution was not found for this tenant
+        "409":
+          description: Idempotency key conflict (existing reservation has different payload fingerprint)
         "503":
           description: Enterprise Core is temporarily unavailable
   /crm/quotes/{quoteId}/assets:
@@ -1031,6 +1039,16 @@ components:
           type: string
           minLength: 1
           maxLength: 100
+    PreflightProposalAssetRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        promptSummary:
+          type: string
+          maxLength: 500
+        fingerprint:
+          type: string
+          maxLength: 128
     PreflightProposalAssetResponse:
       type: object
       additionalProperties: false
@@ -1045,6 +1063,11 @@ components:
           type: string
         correlationId:
           type: string
+        status:
+          type: string
+          enum: [RESERVED, PENDING, COMPLETED]
+        owner:
+          type: boolean
         alreadyRegistered:
           type: boolean
         existingAsset:

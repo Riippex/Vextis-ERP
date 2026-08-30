@@ -75,6 +75,7 @@ query FindExecution($id: ID!) {
       quoteId
       storageUri
       imageUrl
+      mediaUrl
       mediaType
       modelId
       promptSummary

@@ -22,6 +22,23 @@ CREATE TABLE IF NOT EXISTS proposal_assets (
 CREATE INDEX IF NOT EXISTS idx_proposal_assets_quote
     ON proposal_assets (tenant_id, quote_id, created_at DESC);
 
+CREATE TABLE IF NOT EXISTS proposal_asset_reservations (
+    id UUID PRIMARY KEY,
+    tenant_id VARCHAR(100) NOT NULL,
+    quote_id VARCHAR(100) NOT NULL,
+    idempotency_key VARCHAR(200) NOT NULL,
+    fingerprint VARCHAR(128) NOT NULL,
+    status VARCHAR(20) NOT NULL, -- 'PENDING', 'COMPLETED'
+    owner_agent_id VARCHAR(150) NOT NULL,
+    asset_id UUID,
+    created_at TIMESTAMPTZ NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL,
+    CONSTRAINT uq_proposal_asset_reservations_key UNIQUE (tenant_id, idempotency_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_proposal_asset_reservations_quote
+    ON proposal_asset_reservations (tenant_id, quote_id, created_at DESC);
+
 UPDATE agent_registry_entries
 SET allowed_tools = ARRAY[
     'lookup_customer',

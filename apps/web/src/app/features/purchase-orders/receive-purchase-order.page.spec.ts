@@ -1,4 +1,4 @@
-import { fakeAsync, TestBed, tick } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 import { HttpClient } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
@@ -413,7 +413,8 @@ describe('ReceivePurchaseOrderPage', () => {
                 id: 'asset-video-001',
                 quoteId: '8d3f290d-1322-44a2-8bd7-3b325f170e07',
                 storageUri: 'gs://vextis-bucket/proposals/x/demo.mp4',
-                imageUrl: 'https://storage.googleapis.com/signed-proposal-video.mp4',
+                imageUrl: null,
+                mediaUrl: 'https://storage.googleapis.com/signed-proposal-video.mp4',
                 mediaType: 'VIDEO',
                 modelId: 'veo-2.0-generate-001',
                 promptSummary: '3D animated rotation of product',

@@ -17,7 +17,33 @@ public interface ProposalAssetDirectory {
 
     Optional<ProposalAssetView> findByIdempotencyKey(String tenantId, String idempotencyKey);
 
+    ReservationResult reserve(String tenantId, String quoteId, String idempotencyKey, String fingerprint, String ownerAgentId);
+
     RegisterProposalAssetResult registerAsset(RegisterProposalAssetCommand command);
+
+    static String computeFingerprint(String quoteId, String promptSummary) {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest((quoteId + ":" + (promptSummary != null ? promptSummary.trim() : "")).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            return java.util.HexFormat.of().formatHex(hash);
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 digest algorithm not available", e);
+        }
+    }
+
+    enum ReservationStatus {
+        RESERVED,
+        PENDING,
+        COMPLETED
+    }
+
+    record ReservationResult(
+            ReservationStatus status,
+            boolean isOwner,
+            String fingerprint,
+            Optional<ProposalAssetView> existingAsset
+    ) {
+    }
 
     record RegisterProposalAssetResult(
             ProposalAssetView view,

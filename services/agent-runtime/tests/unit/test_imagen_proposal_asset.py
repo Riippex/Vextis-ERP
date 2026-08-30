@@ -69,19 +69,26 @@ class _FakeStorageClient:
 
 
 class _FailingBlob:
-    def upload_from_string(self, data: bytes, content_type: str | None = None) -> None:
+    def upload_from_string(
+        self,
+        data: bytes,
+        content_type: str | None = None,
+        if_generation_match: int | None = None,
+    ) -> None:
         raise OSError("network unreachable")
 
     def delete(self) -> None:
         pass
 
 
-class _FailingStorageClient:
-    def bucket(self, name: str) -> "_FailingStorageClient":
-        return self
-
+class _FailingBucket:
     def blob(self, object_name: str) -> _FailingBlob:
         return _FailingBlob()
+
+
+class _FailingStorageClient:
+    def bucket(self, name: str) -> _FailingBucket:
+        return _FailingBucket()
 
 
 def test_redact_prompt_removes_sensitive_data() -> None:
@@ -188,7 +195,9 @@ async def test_proposal_asset_client_registers_asset() -> None:
             json={
                 "id": "11223344-5566-7788-99aa-bbccddeeff00",
                 "quoteId": TEST_QUOTE_ID,
-                "storageUri": f"gs://vextis-erp-hackathon-assets/proposals/demo-tenant/{TEST_QUOTE_ID}_abc123.png",
+                "storageUri": (
+                    f"gs://vextis-erp-hackathon-assets/proposals/demo-tenant/{TEST_QUOTE_ID}_abc123.png"
+                ),
                 "mediaType": "IMAGE",
                 "modelId": "imagen-3.0-generate-002",
                 "promptSummary": "3D render of ergonomic chair",
@@ -269,7 +278,9 @@ def test_proposal_asset_generator_rejects_tenant_mismatch() -> None:
     )
 
     with pytest.raises(ValueError, match="tenant"):
-        ProposalAssetGenerator(settings=settings, tenant_id="other-tenant", core_client=core_client)
+        ProposalAssetGenerator(
+            settings=settings, tenant_id="other-tenant", core_client=core_client
+        )
 
 
 @pytest.mark.asyncio
@@ -433,8 +444,8 @@ async def test_proposal_asset_generator_compensates_orphaned_blob_on_core_failur
                     "correlationId": "corr-456",
                 },
             )
-        # Registration fails with conflict or internal error
-        return httpx.Response(409, text="Conflict: duplicate different asset")
+        # Registration fails with definitive 400 Bad Request error
+        return httpx.Response(400, text="Bad Request: payload invalid")
 
     core_client = EnterpriseCoreProposalAssetClient(
         settings=settings,
@@ -592,7 +603,6 @@ async def test_proposal_asset_generator_preserves_blob_on_transient_or_timeout_f
                     "correlationId": "corr-456",
                 },
             )
-        # Server 500 error (transient / ambiguous)
         return httpx.Response(500, text="Internal Server Error")
 
     core_client = EnterpriseCoreProposalAssetClient(
@@ -615,7 +625,6 @@ async def test_proposal_asset_generator_preserves_blob_on_transient_or_timeout_f
             prompt="Executive board meeting table design",
         )
 
-    # The blob must NOT be deleted on transient 5xx / timeout failures
     assert len(fake_storage.uploads) == 1
 
 
@@ -637,6 +646,8 @@ async def test_proposal_asset_timeout_returns_structured_error() -> None:
                 "authorized": True,
                 "tenantPrefix": "proposals/deadbeef",
                 "correlationId": "corr-456",
+                "status": "RESERVED",
+                "owner": True,
             },
         )
 
@@ -670,10 +681,132 @@ async def test_proposal_asset_timeout_returns_structured_error() -> None:
     )
 
     with pytest.raises(ProposalAssetTimeoutError) as exc_info:
+        await generator.generate_and_register(quote_id=TEST_QUOTE_ID, prompt="Slow")
+    assert exc_info.value.error_code == "IMAGEN_TIMEOUT"
+
+
+@pytest.mark.asyncio
+async def test_same_key_different_prompt_preflight_returns_409_conflict() -> None:
+    settings = Settings(
+        enterprise_core_url="http://core.internal",
+        agent_tools_token=SecretStr("service-token-xyz"),
+        crm_agent_id="vextis_crm_agent",
+        imagen_mock_enabled=True,
+        gcs_proposal_assets_bucket="test-assets-bucket",
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(409, json={"message": "Conflict"})
+
+    core_client = EnterpriseCoreProposalAssetClient(
+        settings=settings,
+        tenant_id="demo-tenant",
+        correlation_id="corr-456",
+        transport=httpx.MockTransport(handler),
+    )
+    generator = ProposalAssetGenerator(
+        settings=settings,
+        tenant_id="demo-tenant",
+        core_client=core_client,
+        storage_client=_FakeStorageClient(),
+    )
+
+    with pytest.raises(CoreToolRejectedError):
         await generator.generate_and_register(
             quote_id=TEST_QUOTE_ID,
-            prompt="Slow image",
+            prompt="New prompt",
+            idempotency_key="key",
         )
 
-    assert exc_info.value.error_code == "IMAGEN_TIMEOUT"
-    assert exc_info.value.retryable is True
+
+@pytest.mark.asyncio
+async def test_concurrent_request_waits_and_retrieves_completed_asset() -> None:
+    settings = Settings(
+        enterprise_core_url="http://core.internal",
+        agent_tools_token=SecretStr("service-token-xyz"),
+        crm_agent_id="vextis_crm_agent",
+        imagen_mock_enabled=True,
+        gcs_proposal_assets_bucket="test-assets-bucket",
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "quoteId": TEST_QUOTE_ID,
+                "authorized": True,
+                "status": "COMPLETED",
+                "alreadyRegistered": True,
+                "existingAsset": {
+                    "id": "11223344-5566-7788-99aa-bbccddeeff00",
+                    "quoteId": TEST_QUOTE_ID,
+                    "storageUri": "gs://bucket/asset.png",
+                    "mediaType": "IMAGE",
+                    "modelId": "imagen-3",
+                    "promptSummary": "Chair",
+                    "aiLabel": "AI-Generated",
+                    "createdAt": "2026-08-28T16:00:00Z",
+                },
+            },
+        )
+
+    core_client = EnterpriseCoreProposalAssetClient(
+        settings=settings,
+        tenant_id="demo-tenant",
+        transport=httpx.MockTransport(handler),
+    )
+    generator = ProposalAssetGenerator(
+        settings=settings,
+        tenant_id="demo-tenant",
+        core_client=core_client,
+        storage_client=_FakeStorageClient(),
+    )
+
+    result = await generator.generate_and_register(quote_id=TEST_QUOTE_ID, prompt="Chair")
+    assert str(result.id) == "11223344-5566-7788-99aa-bbccddeeff00"
+
+
+@pytest.mark.asyncio
+async def test_registration_409_conflict_does_not_delete_blob() -> None:
+    settings = Settings(
+        enterprise_core_url="http://core.internal",
+        agent_tools_token=SecretStr("service-token-xyz"),
+        crm_agent_id="vextis_crm_agent",
+        imagen_mock_enabled=True,
+        gcs_proposal_assets_bucket="test-assets-bucket",
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if "/preflight" in str(request.url):
+            return httpx.Response(
+                200,
+                json={
+                    "quoteId": TEST_QUOTE_ID,
+                    "authorized": True,
+                    "status": "RESERVED",
+                    "owner": True,
+                },
+            )
+        return httpx.Response(409, json={"message": "Conflict"})
+
+    core_client = EnterpriseCoreProposalAssetClient(
+        settings=settings,
+        tenant_id="demo-tenant",
+        transport=httpx.MockTransport(handler),
+    )
+    fake_storage = _FakeStorageClient()
+    generator = ProposalAssetGenerator(
+        settings=settings,
+        tenant_id="demo-tenant",
+        core_client=core_client,
+        storage_client=fake_storage,
+    )
+
+    with pytest.raises(CoreToolRejectedError):
+        await generator.generate_and_register(
+            quote_id=TEST_QUOTE_ID,
+            prompt="Chair",
+            idempotency_key="key",
+        )
+
+    assert len(fake_storage.uploads) == 1

@@ -46,9 +46,12 @@ class AgentProposalAssetController {
             @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 100) String tenantId,
             @RequestHeader("X-Agent-Id") @NotBlank @Size(max = 150) String agentId,
             @RequestHeader("X-Correlation-Id") @NotBlank @Size(max = 100) String correlationId,
-            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey,
+            @RequestBody(required = false) PreflightProposalAssetRequest request
     ) {
         authorizer.authorize(authorization, agentId, tenantId, AgentTool.REGISTER_QUOTE_ASSET);
+
+        String promptSummary = request != null ? request.promptSummary() : null;
 
         try {
             RegisterProposalAssetUseCase.PreflightResult result = proposalAssetUseCase.preflight(
@@ -58,7 +61,7 @@ class AgentProposalAssetController {
                             quoteId,
                             correlationId,
                             idempotencyKey,
-                            null
+                            promptSummary
                     )
             );
             return new PreflightProposalAssetResponse(
@@ -66,6 +69,8 @@ class AgentProposalAssetController {
                     result.authorized(),
                     result.tenantPrefix(),
                     result.correlationId(),
+                    result.status().name(),
+                    result.owner(),
                     result.alreadyRegistered(),
                     result.existingAsset() != null ? ProposalAssetResponse.from(result.existingAsset()) : null
             );
@@ -75,6 +80,8 @@ class AgentProposalAssetController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception);
         } catch (IllegalStateException exception) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage(), exception);
+        } catch (ProposalAssetConflictException exception) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, exception.getMessage(), exception);
         }
     }
 
@@ -119,11 +126,18 @@ class AgentProposalAssetController {
         }
     }
 
+    record PreflightProposalAssetRequest(
+            @Size(max = 500) String promptSummary
+    ) {
+    }
+
     record PreflightProposalAssetResponse(
             String quoteId,
             boolean authorized,
             String tenantPrefix,
             String correlationId,
+            String status,
+            boolean owner,
             boolean alreadyRegistered,
             ProposalAssetResponse existingAsset
     ) {

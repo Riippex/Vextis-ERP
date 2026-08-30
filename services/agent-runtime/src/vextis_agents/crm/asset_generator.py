@@ -94,8 +94,10 @@ class PreflightProposalAsset(BaseModel):
 
     quote_id: str = Field(alias="quoteId")
     authorized: bool
-    tenant_prefix: str = Field(alias="tenantPrefix")
-    correlation_id: str = Field(alias="correlationId")
+    tenant_prefix: str = Field(default="", alias="tenantPrefix")
+    correlation_id: str = Field(default="", alias="correlationId")
+    status: str = Field(default="RESERVED")
+    owner: bool = Field(default=True)
     already_registered: bool = Field(default=False, alias="alreadyRegistered")
     existing_asset: RegisteredProposalAsset | None = Field(default=None, alias="existingAsset")
 
@@ -136,10 +138,13 @@ class EnterpriseCoreProposalAssetClient:
         return self._correlation_id
 
     async def preflight_asset(
-        self, quote_id: str, idempotency_key: str | None = None
+        self,
+        quote_id: str,
+        idempotency_key: str | None = None,
+        prompt_summary: str | None = None,
     ) -> PreflightProposalAsset:
         """Validates that quoteId exists and belongs to this tenant, caller is authorized,
-        and checks if idempotency_key is already registered."""
+        and atomically reserves or checks the idempotency slot."""
         headers = {
             "Authorization": f"Bearer {self._service_token}",
             "X-Tenant-Id": self._tenant_id,
@@ -157,6 +162,8 @@ class EnterpriseCoreProposalAssetClient:
                     "Cloud Run identity token could not be obtained"
                 ) from exception
 
+        payload = {"promptSummary": prompt_summary} if prompt_summary else None
+
         try:
             async with httpx.AsyncClient(
                 base_url=self._base_url,
@@ -166,6 +173,7 @@ class EnterpriseCoreProposalAssetClient:
                 response = await client.post(
                     f"/internal/agent-tools/v1/crm/quotes/{quote_id}/assets/preflight",
                     headers=headers,
+                    json=payload,
                 )
         except httpx.HTTPError as exception:
             raise CoreToolUnavailableError("Enterprise Core could not be reached") from exception
@@ -174,6 +182,10 @@ class EnterpriseCoreProposalAssetClient:
             return PreflightProposalAsset.model_validate(response.json())
         if response.status_code == 404:
             raise CoreToolRejectedError("No quote or order found for this tenant")
+        if response.status_code == 409:
+            raise CoreToolRejectedError(
+                f"Idempotency key conflict for quote {quote_id}: {response.text}"
+            )
         if response.status_code >= 500:
             raise CoreToolUnavailableError("Enterprise Core returned a transient failure")
         raise CoreToolRejectedError(
@@ -230,6 +242,10 @@ class EnterpriseCoreProposalAssetClient:
 
         if response.status_code in (200, 201):
             return RegisteredProposalAsset.model_validate(response.json())
+        if response.status_code == 409:
+            raise CoreToolRejectedError(
+                f"Idempotency conflict during asset registration: {response.text}"
+            )
         if response.status_code >= 500:
             raise CoreToolUnavailableError("Enterprise Core returned a transient failure")
         raise CoreToolRejectedError(
@@ -262,30 +278,31 @@ class ProposalAssetGenerator:
         self._generation_timeout_seconds = generation_timeout_seconds
 
     def _resolve_storage_client(self) -> ImageObjectStore:
-        if self._storage_client is None:
-            import google.cloud.storage
+        if self._storage_client is not None:
+            return self._storage_client
+        import google.cloud.storage
 
-            self._storage_client = cast(ImageObjectStore, google.cloud.storage.Client())
-        return self._storage_client
+        return cast(ImageObjectStore, google.cloud.storage.Client())
 
     def _upload(
-        self, bucket_name: str, object_name: str, generation: ImagenGenerationResult
+        self,
+        bucket_name: str,
+        object_name: str,
+        generation: ImagenGenerationResult,
     ) -> None:
-        blob = self._resolve_storage_client().bucket(bucket_name).blob(object_name)
+        """Uploads image bytes to Cloud Storage with if_generation_match=0."""
         try:
+            blob = self._resolve_storage_client().bucket(bucket_name).blob(object_name)
             blob.upload_from_string(
                 generation.image_bytes,
                 content_type=generation.mime_type,
                 if_generation_match=0,
             )
+            logger.info("Uploaded proposal asset to gs://%s/%s", bucket_name, object_name)
         except Exception as exception:
-            # If the object was already uploaded by a previous retry, 412 is returned
-            status_code = getattr(exception, "code", None) or getattr(
-                exception, "status_code", None
-            )
-            if status_code == 412 or "PreconditionFailed" in type(exception).__name__:
+            if "PreconditionFailed" in type(exception).__name__ or "412" in str(exception):
                 logger.info(
-                    "Object gs://%s/%s already uploaded with generation match 0; continuing.",
+                    "Blob gs://%s/%s already exists; preserving existing object",
                     bucket_name,
                     object_name,
                 )
@@ -329,9 +346,10 @@ class ProposalAssetGenerator:
                 f"proposal-asset-{hashlib.sha256(key_source.encode('utf-8')).hexdigest()[:32]}"
             )
 
-        # Preflight verification against Enterprise Core with idempotency check
+        # Preflight verification & atomic reservation against Enterprise Core
+        prompt_summary = prompt.strip()
         preflight = await self._core_client.preflight_asset(
-            quote_id, idempotency_key=idempotency_key
+            quote_id, idempotency_key=idempotency_key, prompt_summary=prompt_summary
         )
         if preflight.already_registered and preflight.existing_asset is not None:
             logger.info(
@@ -340,6 +358,21 @@ class ProposalAssetGenerator:
                 idempotency_key,
             )
             return preflight.existing_asset
+
+        # If another concurrent process owns the pending reservation, wait for completion
+        if preflight.status == "PENDING" and not preflight.owner:
+            logger.info(
+                "Concurrent proposal asset generation in progress for key %s; waiting for result.",
+                idempotency_key,
+            )
+            for _ in range(10):
+                await asyncio.sleep(0.5)
+                poll = await self._core_client.preflight_asset(
+                    quote_id, idempotency_key=idempotency_key, prompt_summary=prompt_summary
+                )
+                if poll.already_registered and poll.existing_asset is not None:
+                    return poll.existing_asset
+            raise CoreToolUnavailableError("Concurrent proposal asset generation timed out")
 
         # Step 1: Generate the visual asset via process-level bounded executor
         loop = asyncio.get_running_loop()
@@ -372,7 +405,7 @@ class ProposalAssetGenerator:
         storage_uri = f"gs://{bucket}/{object_name}"
 
         # Step 3: Register the confirmed asset with Enterprise Core.
-        # Only compensate (delete blob) on definitive 4xx Core rejections.
+        # Only compensate (delete blob) on definitive 4xx Core rejections (except 409).
         try:
             return await self._core_client.register_asset(
                 quote_id=quote_id,
@@ -383,9 +416,18 @@ class ProposalAssetGenerator:
                 ai_label=generation.ai_label,
                 idempotency_key=idempotency_key,
             )
-        except CoreToolRejectedError:
-            # Definitive rejection (4xx): compensate
-            await asyncio.to_thread(self._delete_blob, bucket, object_name)
+        except CoreToolRejectedError as exc:
+            # Do NOT delete blob on 409 or conflict error
+            if "conflict" in str(exc).lower() or "409" in str(exc):
+                logger.warning(
+                    "Registration rejected with conflict for %s; preserving blob gs://%s/%s",
+                    idempotency_key,
+                    bucket,
+                    object_name,
+                )
+            else:
+                # Definitive rejection (400, 403, 404): compensate
+                await asyncio.to_thread(self._delete_blob, bucket, object_name)
             raise
         except (CoreToolUnavailableError, Exception) as exc:
             # Ambiguous / transient error: preserve blob for reconciliation/retry

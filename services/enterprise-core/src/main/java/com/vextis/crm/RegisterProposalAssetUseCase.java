@@ -26,11 +26,13 @@ public interface RegisterProposalAssetUseCase {
             String tenantPrefix,
             String correlationId,
             boolean authorized,
+            ProposalAssetDirectory.ReservationStatus status,
+            boolean owner,
             boolean alreadyRegistered,
             ProposalAssetDirectory.ProposalAssetView existingAsset
     ) {
         public PreflightResult(UUID quoteId, String tenantPrefix, String correlationId, boolean authorized) {
-            this(quoteId, tenantPrefix, correlationId, authorized, false, null);
+            this(quoteId, tenantPrefix, correlationId, authorized, ProposalAssetDirectory.ReservationStatus.RESERVED, true, false, null);
         }
     }
 
