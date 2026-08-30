@@ -213,27 +213,82 @@ class JdbcProposalAssetDirectoryTests {
 
         String fingerprint = JdbcProposalAssetDirectory.computeFingerprint("quote-001", "Chair visual");
         ProposalAssetDirectory.ReservationResult result = directory.reserve(
-                "demo-tenant", "quote-001", "idemp-res-1", fingerprint, "vextis_crm_agent");
+                "demo-tenant", "quote-001", "idemp-res-1", fingerprint);
 
         assertThat(result.status()).isEqualTo(ProposalAssetDirectory.ReservationStatus.RESERVED);
         assertThat(result.isOwner()).isTrue();
+        assertThat(result.reservationToken()).isNotBlank();
         assertThat(result.fingerprint()).isEqualTo(fingerprint);
     }
 
     @Test
-    void reserveReturnsPendingForConcurrentCaller() {
+    void reserveReturnsPendingForConcurrentCallerWhenLeaseActive() {
         when(jdbc.update(anyString(), anyMap())).thenReturn(0);
 
         String fingerprint = JdbcProposalAssetDirectory.computeFingerprint("quote-001", "Chair visual");
+        java.time.OffsetDateTime futureExpiry = java.time.OffsetDateTime.now().plusMinutes(5);
         when(jdbc.queryForList(anyString(), anyMap())).thenReturn(List.of(
-                Map.of("fingerprint", fingerprint, "status", "PENDING", "owner_agent_id", "vextis_other_agent")
+                Map.of("fingerprint", fingerprint, "status", "PENDING", "reservation_token", "token-orig", "expires_at", futureExpiry)
         ));
 
         ProposalAssetDirectory.ReservationResult result = directory.reserve(
-                "demo-tenant", "quote-001", "idemp-res-1", fingerprint, "vextis_crm_agent");
+                "demo-tenant", "quote-001", "idemp-res-1", fingerprint);
 
         assertThat(result.status()).isEqualTo(ProposalAssetDirectory.ReservationStatus.PENDING);
         assertThat(result.isOwner()).isFalse();
+        assertThat(result.reservationToken()).isNull();
+    }
+
+    @Test
+    void reserveAllowsTakeoverWhenPreviousOwnerLeaseExpired() {
+        when(jdbc.update(anyString(), anyMap()))
+                .thenReturn(0) // Initial insert fails (row exists)
+                .thenReturn(1); // Takeover update succeeds
+
+        String fingerprint = JdbcProposalAssetDirectory.computeFingerprint("quote-001", "Chair visual");
+        java.time.OffsetDateTime pastExpiry = java.time.OffsetDateTime.now().minusMinutes(5);
+        when(jdbc.queryForList(anyString(), anyMap())).thenReturn(List.of(
+                Map.of("fingerprint", fingerprint, "status", "PENDING", "reservation_token", "token-crashed-owner", "expires_at", pastExpiry)
+        ));
+
+        ProposalAssetDirectory.ReservationResult result = directory.reserve(
+                "demo-tenant", "quote-001", "idemp-res-1", fingerprint);
+
+        assertThat(result.status()).isEqualTo(ProposalAssetDirectory.ReservationStatus.RESERVED);
+        assertThat(result.isOwner()).isTrue();
+        assertThat(result.reservationToken()).isNotBlank();
+        assertThat(result.reservationToken()).isNotEqualTo("token-crashed-owner");
+    }
+
+    @Test
+    void registerAssetFailsWhenReservationTokenIsInvalid() {
+        java.time.OffsetDateTime futureExpiry = java.time.OffsetDateTime.now().plusMinutes(5);
+        String fingerprint = JdbcProposalAssetDirectory.computeFingerprint("quote-001", "Chair visual");
+        when(jdbc.queryForList(anyString(), anyMap())).thenReturn(List.of(
+                Map.of("fingerprint", fingerprint, "status", "PENDING", "reservation_token", "correct-token-123", "expires_at", futureExpiry)
+        ));
+
+        assertThatThrownBy(() -> directory.registerAsset(
+                new ProposalAssetDirectory.RegisterProposalAssetCommand(
+                        "demo-tenant",
+                        "quote-001",
+                        "gs://bucket/proposals/x/quote-001.png",
+                        42L,
+                        "image/png",
+                        "hash123",
+                        1024L,
+                        ProposalAssetDirectory.MediaType.IMAGE,
+                        "imagen-3.0-generate-002",
+                        "Chair visual",
+                        "AI-Generated",
+                        "AGENT",
+                        "vextis_crm_agent",
+                        "corr-001",
+                        "idemp-001",
+                        "wrong-token-999"
+                )
+        )).isInstanceOf(ProposalAssetConflictException.class)
+                .hasMessageContaining("Invalid or missing reservation token");
     }
 
     @Test
@@ -242,12 +297,12 @@ class JdbcProposalAssetDirectoryTests {
 
         String existingFingerprint = "fingerprint-original";
         when(jdbc.queryForList(anyString(), anyMap())).thenReturn(List.of(
-                Map.of("fingerprint", existingFingerprint, "status", "PENDING", "owner_agent_id", "vextis_other_agent")
+                Map.of("fingerprint", existingFingerprint, "status", "PENDING", "reservation_token", "token-orig", "expires_at", java.time.OffsetDateTime.now().plusMinutes(5))
         ));
 
         String newFingerprint = "fingerprint-different";
         assertThatThrownBy(() -> directory.reserve(
-                "demo-tenant", "quote-001", "idemp-res-1", newFingerprint, "vextis_crm_agent"))
+                "demo-tenant", "quote-001", "idemp-res-1", newFingerprint))
                 .isInstanceOf(ProposalAssetConflictException.class)
                 .hasMessageContaining("different payload fingerprint");
     }

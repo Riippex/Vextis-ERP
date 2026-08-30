@@ -118,12 +118,14 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
             String tenantId,
             String quoteId,
             String idempotencyKey,
-            String fingerprint,
-            String ownerAgentId
+            String fingerprint
     ) {
         UUID newReservationId = UUID.randomUUID();
+        String newReservationToken = UUID.randomUUID().toString();
         Instant now = clock.instant();
+        Instant expiresAt = now.plusSeconds(300);
         OffsetDateTime offsetNow = OffsetDateTime.ofInstant(now, java.time.ZoneOffset.UTC);
+        OffsetDateTime offsetExpiresAt = OffsetDateTime.ofInstant(expiresAt, java.time.ZoneOffset.UTC);
 
         Map<String, Object> params = new HashMap<>();
         params.put("id", newReservationId);
@@ -132,16 +134,17 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
         params.put("idempotencyKey", idempotencyKey);
         params.put("fingerprint", fingerprint);
         params.put("status", "PENDING");
-        params.put("ownerAgentId", ownerAgentId);
+        params.put("reservationToken", newReservationToken);
+        params.put("expiresAt", offsetExpiresAt);
         params.put("createdAt", offsetNow);
         params.put("updatedAt", offsetNow);
 
         int inserted = jdbc.update(
                 """
                 INSERT INTO proposal_asset_reservations (
-                    id, tenant_id, quote_id, idempotency_key, fingerprint, status, owner_agent_id, created_at, updated_at
+                    id, tenant_id, quote_id, idempotency_key, fingerprint, status, reservation_token, expires_at, created_at, updated_at
                 ) VALUES (
-                    :id, :tenantId, :quoteId, :idempotencyKey, :fingerprint, :status, :ownerAgentId, :createdAt, :updatedAt
+                    :id, :tenantId, :quoteId, :idempotencyKey, :fingerprint, :status, :reservationToken, :expiresAt, :createdAt, :updatedAt
                 )
                 ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
                 """,
@@ -149,13 +152,13 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
         );
 
         if (inserted > 0) {
-            return new ReservationResult(ReservationStatus.RESERVED, true, fingerprint, Optional.empty());
+            return new ReservationResult(ReservationStatus.RESERVED, true, newReservationToken, fingerprint, Optional.empty());
         }
 
         // Existing reservation found
         List<Map<String, Object>> rows = jdbc.queryForList(
                 """
-                SELECT fingerprint, status, owner_agent_id, asset_id
+                SELECT fingerprint, status, reservation_token, expires_at, asset_id
                 FROM proposal_asset_reservations
                 WHERE tenant_id = :tenantId AND idempotency_key = :idempotencyKey
                 """,
@@ -165,7 +168,7 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
         if (rows.isEmpty()) {
             Optional<ProposalAssetView> existingAsset = findByIdempotencyKey(tenantId, idempotencyKey);
             if (existingAsset.isPresent()) {
-                return new ReservationResult(ReservationStatus.COMPLETED, false, fingerprint, existingAsset);
+                return new ReservationResult(ReservationStatus.COMPLETED, false, null, fingerprint, existingAsset);
             }
             throw new IllegalStateException("Reservation row not found following conflict");
         }
@@ -173,7 +176,7 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
         Map<String, Object> row = rows.get(0);
         String existingFingerprint = (String) row.get("fingerprint");
         String existingStatus = (String) row.get("status");
-        String existingOwner = (String) row.get("owner_agent_id");
+        OffsetDateTime rowExpiresAt = (OffsetDateTime) row.get("expires_at");
         UUID existingAssetId = (UUID) row.get("asset_id");
 
         if (!Objects.equals(existingFingerprint, fingerprint)) {
@@ -186,11 +189,36 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
             Optional<ProposalAssetView> assetOpt = existingAssetId != null
                     ? findById(tenantId, existingAssetId)
                     : findByIdempotencyKey(tenantId, idempotencyKey);
-            return new ReservationResult(ReservationStatus.COMPLETED, false, fingerprint, assetOpt);
+            return new ReservationResult(ReservationStatus.COMPLETED, false, null, fingerprint, assetOpt);
         }
 
-        boolean isOwner = Objects.equals(existingOwner, ownerAgentId);
-        return new ReservationResult(ReservationStatus.PENDING, isOwner, fingerprint, Optional.empty());
+        // PENDING: check lease expiration for takeover
+        Instant rowExpiresInstant = rowExpiresAt != null ? rowExpiresAt.toInstant() : Instant.EPOCH;
+        if (rowExpiresInstant.isBefore(now)) {
+            String takeoverToken = UUID.randomUUID().toString();
+            OffsetDateTime newExpiresAt = OffsetDateTime.ofInstant(now.plusSeconds(300), java.time.ZoneOffset.UTC);
+            int updated = jdbc.update(
+                    """
+                    UPDATE proposal_asset_reservations
+                    SET reservation_token = :newToken, expires_at = :newExpiry, updated_at = :now
+                    WHERE tenant_id = :tenantId AND idempotency_key = :idempotencyKey
+                      AND status = 'PENDING' AND expires_at = :oldExpiry
+                    """,
+                    Map.of(
+                            "newToken", takeoverToken,
+                            "newExpiry", newExpiresAt,
+                            "now", offsetNow,
+                            "tenantId", tenantId,
+                            "idempotencyKey", idempotencyKey,
+                            "oldExpiry", rowExpiresAt
+                    )
+            );
+            if (updated > 0) {
+                return new ReservationResult(ReservationStatus.RESERVED, true, takeoverToken, fingerprint, Optional.empty());
+            }
+        }
+
+        return new ReservationResult(ReservationStatus.PENDING, false, null, fingerprint, Optional.empty());
     }
 
     @Override
@@ -205,18 +233,35 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
         // Validate any pre-existing reservation for this idempotency key
         List<Map<String, Object>> existingReservations = jdbc.queryForList(
                 """
-                SELECT fingerprint, status, owner_agent_id, asset_id
+                SELECT fingerprint, status, reservation_token, expires_at, asset_id
                 FROM proposal_asset_reservations
                 WHERE tenant_id = :tenantId AND idempotency_key = :idempotencyKey
                 """,
                 Map.of("tenantId", command.tenantId(), "idempotencyKey", command.idempotencyKey())
         );
         if (!existingReservations.isEmpty()) {
-            String existingFingerprint = (String) existingReservations.get(0).get("fingerprint");
+            Map<String, Object> resRow = existingReservations.get(0);
+            String existingFingerprint = (String) resRow.get("fingerprint");
+            String existingStatus = (String) resRow.get("status");
+            String existingToken = (String) resRow.get("reservation_token");
+            OffsetDateTime resExpiresAt = (OffsetDateTime) resRow.get("expires_at");
+
             if (!Objects.equals(existingFingerprint, fingerprint)) {
                 throw new ProposalAssetConflictException(
                         "Idempotency-Key was already reserved with a different payload fingerprint"
                 );
+            }
+            if ("PENDING".equals(existingStatus)) {
+                if (command.reservationToken() == null || !Objects.equals(existingToken, command.reservationToken())) {
+                    throw new ProposalAssetConflictException(
+                            "Invalid or missing reservation token for idempotency key"
+                    );
+                }
+                if (resExpiresAt != null && resExpiresAt.toInstant().isBefore(now)) {
+                    throw new ProposalAssetConflictException(
+                            "Reservation lease expired before asset could be registered"
+                    );
+                }
             }
         }
 
@@ -260,9 +305,9 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
             jdbc.update(
                     """
                     INSERT INTO proposal_asset_reservations (
-                        id, tenant_id, quote_id, idempotency_key, fingerprint, status, owner_agent_id, asset_id, created_at, updated_at
+                        id, tenant_id, quote_id, idempotency_key, fingerprint, status, reservation_token, expires_at, asset_id, created_at, updated_at
                     ) VALUES (
-                        :resId, :tenantId, :quoteId, :idempotencyKey, :fingerprint, 'COMPLETED', :actorId, :assetId, :createdAt, :createdAt
+                        :resId, :tenantId, :quoteId, :idempotencyKey, :fingerprint, 'COMPLETED', :token, :expiresAt, :assetId, :createdAt, :createdAt
                     )
                     ON CONFLICT (tenant_id, idempotency_key) DO UPDATE
                     SET status = 'COMPLETED', asset_id = :assetId, updated_at = :createdAt
@@ -273,7 +318,8 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
                             "quoteId", command.quoteId(),
                             "idempotencyKey", command.idempotencyKey(),
                             "fingerprint", fingerprint,
-                            "actorId", command.actorId(),
+                            "token", command.reservationToken() != null ? command.reservationToken() : "completed",
+                            "expiresAt", OffsetDateTime.ofInstant(now.plusSeconds(86400), java.time.ZoneOffset.UTC),
                             "assetId", newId,
                             "createdAt", offsetNow
                     )

@@ -17,7 +17,7 @@ public interface ProposalAssetDirectory {
 
     Optional<ProposalAssetView> findByIdempotencyKey(String tenantId, String idempotencyKey);
 
-    ReservationResult reserve(String tenantId, String quoteId, String idempotencyKey, String fingerprint, String ownerAgentId);
+    ReservationResult reserve(String tenantId, String quoteId, String idempotencyKey, String fingerprint);
 
     RegisterProposalAssetResult registerAsset(RegisterProposalAssetCommand command);
 
@@ -40,6 +40,7 @@ public interface ProposalAssetDirectory {
     record ReservationResult(
             ReservationStatus status,
             boolean isOwner,
+            String reservationToken,
             String fingerprint,
             Optional<ProposalAssetView> existingAsset
     ) {
@@ -66,8 +67,30 @@ public interface ProposalAssetDirectory {
             String actorType,
             String actorId,
             String correlationId,
-            String idempotencyKey
+            String idempotencyKey,
+            String reservationToken
     ) {
+        public RegisterProposalAssetCommand(
+                String tenantId,
+                String quoteId,
+                String storageUri,
+                Long storageGeneration,
+                String contentType,
+                String contentHash,
+                Long sizeBytes,
+                MediaType mediaType,
+                String modelId,
+                String promptSummary,
+                String aiLabel,
+                String actorType,
+                String actorId,
+                String correlationId,
+                String idempotencyKey
+        ) {
+            this(tenantId, quoteId, storageUri, storageGeneration, contentType, contentHash, sizeBytes,
+                    mediaType, modelId, promptSummary, aiLabel, actorType, actorId, correlationId, idempotencyKey, null);
+        }
+
         public RegisterProposalAssetCommand(
                 String tenantId,
                 String quoteId,
@@ -82,7 +105,7 @@ public interface ProposalAssetDirectory {
                 String idempotencyKey
         ) {
             this(tenantId, quoteId, storageUri, null, null, null, null,
-                    mediaType, modelId, promptSummary, aiLabel, actorType, actorId, correlationId, idempotencyKey);
+                    mediaType, modelId, promptSummary, aiLabel, actorType, actorId, correlationId, idempotencyKey, null);
         }
     }
 

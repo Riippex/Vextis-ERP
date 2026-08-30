@@ -29,7 +29,8 @@ CREATE TABLE IF NOT EXISTS proposal_asset_reservations (
     idempotency_key VARCHAR(200) NOT NULL,
     fingerprint VARCHAR(128) NOT NULL,
     status VARCHAR(20) NOT NULL, -- 'PENDING', 'COMPLETED'
-    owner_agent_id VARCHAR(150) NOT NULL,
+    reservation_token VARCHAR(100) NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL,
     asset_id UUID,
     created_at TIMESTAMPTZ NOT NULL,
     updated_at TIMESTAMPTZ NOT NULL,

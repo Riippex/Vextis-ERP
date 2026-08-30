@@ -9,7 +9,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field
 
 from vextis_agents.app.config import Settings
-from vextis_agents.crm.imagen import ImagenClient, ImagenGenerationResult
+from vextis_agents.crm.imagen import ImagenClient, ImagenGenerationResult, redact_prompt
 from vextis_agents.tools.core_api.planning import (
     CoreToolRejectedError,
     CoreToolUnavailableError,
@@ -98,6 +98,7 @@ class PreflightProposalAsset(BaseModel):
     correlation_id: str = Field(default="", alias="correlationId")
     status: str = Field(default="RESERVED")
     owner: bool = Field(default=True)
+    reservation_token: str | None = Field(default=None, alias="reservationToken")
     already_registered: bool = Field(default=False, alias="alreadyRegistered")
     existing_asset: RegisteredProposalAsset | None = Field(default=None, alias="existingAsset")
 
@@ -201,6 +202,7 @@ class EnterpriseCoreProposalAssetClient:
         prompt_summary: str,
         ai_label: str,
         idempotency_key: str,
+        reservation_token: str | None = None,
     ) -> RegisteredProposalAsset:
         headers = {
             "Authorization": f"Bearer {self._service_token}",
@@ -218,13 +220,15 @@ class EnterpriseCoreProposalAssetClient:
                     "Cloud Run identity token could not be obtained"
                 ) from exception
 
-        payload = {
+        payload: dict[str, object] = {
             "storageUri": storage_uri,
             "mediaType": media_type,
             "modelId": model_id,
             "promptSummary": prompt_summary,
             "aiLabel": ai_label,
         }
+        if reservation_token is not None:
+            payload["reservationToken"] = reservation_token
 
         try:
             async with httpx.AsyncClient(
@@ -337,19 +341,21 @@ class ProposalAssetGenerator:
         except (ValueError, TypeError, AttributeError) as exc:
             raise ValueError(f"Invalid quote_id '{quote_id}': must be a valid UUID") from exc
 
-        # Derive stable, deterministic idempotency key
+        # Single canonical/minimized prompt representation BEFORE preflight
+        canonical_prompt = redact_prompt(prompt).strip()
+
+        # Derive stable, deterministic idempotency key using canonical prompt
         if idempotency_key is None or not idempotency_key.strip():
             key_source = (
-                f"{self._tenant_id}:{quote_id}:{prompt.strip()}:{self._core_client.correlation_id}"
+                f"{self._tenant_id}:{quote_id}:{canonical_prompt}:{self._core_client.correlation_id}"
             )
             idempotency_key = (
                 f"proposal-asset-{hashlib.sha256(key_source.encode('utf-8')).hexdigest()[:32]}"
             )
 
-        # Preflight verification & atomic reservation against Enterprise Core
-        prompt_summary = prompt.strip()
+        # Preflight verification & atomic reservation against Enterprise Core with canonical prompt
         preflight = await self._core_client.preflight_asset(
-            quote_id, idempotency_key=idempotency_key, prompt_summary=prompt_summary
+            quote_id, idempotency_key=idempotency_key, prompt_summary=canonical_prompt
         )
         if preflight.already_registered and preflight.existing_asset is not None:
             logger.info(
@@ -368,18 +374,18 @@ class ProposalAssetGenerator:
             for _ in range(10):
                 await asyncio.sleep(0.5)
                 poll = await self._core_client.preflight_asset(
-                    quote_id, idempotency_key=idempotency_key, prompt_summary=prompt_summary
+                    quote_id, idempotency_key=idempotency_key, prompt_summary=canonical_prompt
                 )
                 if poll.already_registered and poll.existing_asset is not None:
                     return poll.existing_asset
             raise CoreToolUnavailableError("Concurrent proposal asset generation timed out")
 
-        # Step 1: Generate the visual asset via process-level bounded executor
+        # Step 1: Generate the visual asset via bounded executor using canonical prompt
         loop = asyncio.get_running_loop()
         try:
             generation: ImagenGenerationResult = await asyncio.wait_for(
                 loop.run_in_executor(
-                    _PROCESS_IMAGEN_EXECUTOR, self._imagen.generate_image, prompt
+                    _PROCESS_IMAGEN_EXECUTOR, self._imagen.generate_image, canonical_prompt
                 ),
                 timeout=self._generation_timeout_seconds,
             )
@@ -404,7 +410,7 @@ class ProposalAssetGenerator:
         await asyncio.to_thread(self._upload, bucket, object_name, generation)
         storage_uri = f"gs://{bucket}/{object_name}"
 
-        # Step 3: Register the confirmed asset with Enterprise Core.
+        # Step 3: Register confirmed asset with canonical prompt and reservation token
         # Only compensate (delete blob) on definitive 4xx Core rejections (except 409).
         try:
             return await self._core_client.register_asset(
@@ -412,9 +418,10 @@ class ProposalAssetGenerator:
                 storage_uri=storage_uri,
                 media_type="IMAGE",
                 model_id=generation.model_id,
-                prompt_summary=generation.prompt_summary,
+                prompt_summary=canonical_prompt,
                 ai_label=generation.ai_label,
                 idempotency_key=idempotency_key,
+                reservation_token=preflight.reservation_token,
             )
         except CoreToolRejectedError as exc:
             # Do NOT delete blob on 409 or conflict error

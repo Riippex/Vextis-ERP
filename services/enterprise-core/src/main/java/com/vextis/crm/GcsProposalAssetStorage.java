@@ -92,22 +92,33 @@ public class GcsProposalAssetStorage {
         }
 
         String contentType = blob.getContentType();
-        if (contentType != null && !contentType.isBlank()) {
-            String lower = contentType.toLowerCase();
-            if (mediaType == ProposalAssetDirectory.MediaType.IMAGE && !lower.startsWith("image/")) {
+        if (contentType == null || contentType.isBlank()) {
+            throw new IllegalArgumentException("Proposal asset is missing Content-Type");
+        }
+        String lower = contentType.toLowerCase().trim();
+        if (mediaType == ProposalAssetDirectory.MediaType.IMAGE) {
+            if (!lower.equals("image/png")) {
                 throw new IllegalArgumentException(
-                        "Proposal asset declared as IMAGE but Cloud Storage content type is '" + contentType + "'");
+                        "Proposal asset declared as IMAGE must have Content-Type 'image/png', got: " + contentType);
             }
-            if (mediaType == ProposalAssetDirectory.MediaType.VIDEO && !lower.startsWith("video/")) {
+        } else if (mediaType == ProposalAssetDirectory.MediaType.VIDEO) {
+            if (!lower.equals("video/mp4") && !lower.equals("video/webm")) {
                 throw new IllegalArgumentException(
-                        "Proposal asset declared as VIDEO but Cloud Storage content type is '" + contentType + "'");
+                        "Proposal asset declared as VIDEO must have Content-Type 'video/mp4' or 'video/webm', got: " + contentType);
             }
         }
 
         Long generation = blob.getGeneration();
+        if (generation == null) {
+            throw new IllegalArgumentException("Proposal asset is missing GCS generation metadata");
+        }
+
         String contentHash = blob.getMd5ToHexString() != null
                 ? blob.getMd5ToHexString()
                 : blob.getCrc32cToHexString();
+        if (contentHash == null || contentHash.isBlank()) {
+            throw new IllegalArgumentException("Proposal asset is missing GCS content hash");
+        }
 
         return new AssetObjectMetadata(generation, contentType, contentHash, size);
     }

@@ -69,8 +69,7 @@ public class ProposalAssetService implements RegisterProposalAssetUseCase {
                     command.tenantId(),
                     command.quoteId().toString(),
                     command.idempotencyKey(),
-                    fingerprint,
-                    command.agentId()
+                    fingerprint
             );
 
             if (reservation.status() == ProposalAssetDirectory.ReservationStatus.COMPLETED) {
@@ -81,6 +80,7 @@ public class ProposalAssetService implements RegisterProposalAssetUseCase {
                         true,
                         ProposalAssetDirectory.ReservationStatus.COMPLETED,
                         false,
+                        null,
                         true,
                         reservation.existingAsset().orElse(null)
                 );
@@ -93,6 +93,7 @@ public class ProposalAssetService implements RegisterProposalAssetUseCase {
                     true,
                     reservation.status(),
                     reservation.isOwner(),
+                    reservation.reservationToken(),
                     false,
                     null
             );
@@ -105,6 +106,7 @@ public class ProposalAssetService implements RegisterProposalAssetUseCase {
                 true,
                 ProposalAssetDirectory.ReservationStatus.RESERVED,
                 true,
+                null,
                 false,
                 null
         );
@@ -145,7 +147,8 @@ public class ProposalAssetService implements RegisterProposalAssetUseCase {
                         "AGENT",
                         command.agentId(),
                         authoritativeCorrelationId,
-                        command.idempotencyKey()
+                        command.idempotencyKey(),
+                        command.reservationToken()
                 )
         );
 

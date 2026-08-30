@@ -1,3 +1,4 @@
+import asyncio
 import sys
 import types
 from uuid import UUID
@@ -810,3 +811,249 @@ async def test_registration_409_conflict_does_not_delete_blob() -> None:
         )
 
     assert len(fake_storage.uploads) == 1
+
+
+@pytest.mark.asyncio
+async def test_prompt_with_full_pii_canonicalized_before_preflight_no_conflict() -> None:
+    settings = Settings(
+        enterprise_core_url="http://core.internal",
+        agent_tools_token=SecretStr("service-token-xyz"),
+        crm_agent_id="vextis_crm_agent",
+        imagen_mock_enabled=True,
+        gcs_proposal_assets_bucket="test-assets-bucket",
+    )
+
+    raw_pii_prompt = (
+        "Modern chair for customer Juan Perez email juan@acme.com phone +57 300 123 4567 "
+        "card 4111-2222-3333-4444 NIT 900123456-1"
+    )
+    expected_redacted = redact_prompt(raw_pii_prompt).strip()
+
+    preflight_prompt_received: list[str] = []
+    register_prompt_received: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        import json
+
+        if request.url.path.endswith("/preflight"):
+            body = json.loads(request.content.decode("utf-8")) if request.content else {}
+            preflight_prompt_received.append(body.get("promptSummary", ""))
+            return httpx.Response(
+                200,
+                json={
+                    "quoteId": TEST_QUOTE_ID,
+                    "authorized": True,
+                    "tenantPrefix": "proposals/deadbeef",
+                    "correlationId": "corr-456",
+                    "status": "RESERVED",
+                    "owner": True,
+                    "reservationToken": "tok-pii-123",
+                },
+            )
+        body = json.loads(request.content.decode("utf-8"))
+        register_prompt_received.append(body.get("promptSummary", ""))
+        return httpx.Response(
+            201,
+            json={
+                "id": "11223344-5566-7788-99aa-bbccddeeff00",
+                "quoteId": TEST_QUOTE_ID,
+                "storageUri": body["storageUri"],
+                "mediaType": "IMAGE",
+                "modelId": MOCK_MODEL_ID,
+                "promptSummary": body["promptSummary"],
+                "aiLabel": "AI-Generated Proposal Concept",
+                "createdAt": "2026-08-28T16:00:00Z",
+            },
+        )
+
+    core_client = EnterpriseCoreProposalAssetClient(
+        settings=settings,
+        tenant_id="demo-tenant",
+        correlation_id="corr-456",
+        transport=httpx.MockTransport(handler),
+    )
+    fake_storage = _FakeStorageClient()
+    generator = ProposalAssetGenerator(
+        settings=settings,
+        tenant_id="demo-tenant",
+        core_client=core_client,
+        storage_client=fake_storage,
+    )
+
+    result = await generator.generate_and_register(
+        quote_id=TEST_QUOTE_ID,
+        prompt=raw_pii_prompt,
+    )
+
+    assert result.prompt_summary == expected_redacted
+    assert preflight_prompt_received == [expected_redacted]
+    assert register_prompt_received == [expected_redacted]
+    assert len(fake_storage.uploads) == 1
+
+
+@pytest.mark.asyncio
+async def test_two_concurrent_requests_same_agent_id_generates_exactly_once() -> None:
+    settings = Settings(
+        enterprise_core_url="http://core.internal",
+        agent_tools_token=SecretStr("service-token-xyz"),
+        crm_agent_id="vextis_crm_agent",
+        imagen_mock_enabled=True,
+        gcs_proposal_assets_bucket="test-assets-bucket",
+    )
+
+    registered_asset_json: dict[str, object] | None = None
+    generation_calls = 0
+    preflight_calls = 0
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal registered_asset_json, preflight_calls
+        import json
+
+        if request.url.path.endswith("/preflight"):
+            if registered_asset_json is not None:
+                return httpx.Response(
+                    200,
+                    json={
+                        "quoteId": TEST_QUOTE_ID,
+                        "authorized": True,
+                        "tenantPrefix": "proposals/deadbeef",
+                        "correlationId": "corr-456",
+                        "status": "COMPLETED",
+                        "alreadyRegistered": True,
+                        "existingAsset": registered_asset_json,
+                    },
+                )
+            preflight_calls += 1
+            is_first = preflight_calls == 1
+            return httpx.Response(
+                200,
+                json={
+                    "quoteId": TEST_QUOTE_ID,
+                    "authorized": True,
+                    "tenantPrefix": "proposals/deadbeef",
+                    "correlationId": "corr-456",
+                    "status": "RESERVED" if is_first else "PENDING",
+                    "owner": is_first,
+                    "reservationToken": "tok-first" if is_first else None,
+                },
+            )
+        # Register call
+        body = json.loads(request.content.decode("utf-8"))
+        registered_asset_json = {
+            "id": "11223344-5566-7788-99aa-bbccddeeff00",
+            "quoteId": TEST_QUOTE_ID,
+            "storageUri": body["storageUri"],
+            "mediaType": "IMAGE",
+            "modelId": MOCK_MODEL_ID,
+            "promptSummary": body["promptSummary"],
+            "aiLabel": "AI-Generated Proposal Concept",
+            "createdAt": "2026-08-28T16:00:00Z",
+        }
+        return httpx.Response(201, json=registered_asset_json)
+
+    core_client = EnterpriseCoreProposalAssetClient(
+        settings=settings,
+        tenant_id="demo-tenant",
+        correlation_id="corr-456",
+        transport=httpx.MockTransport(handler),
+    )
+    fake_storage = _FakeStorageClient()
+
+    class CountingImagenClient(ImagenClient):
+        def generate_image(self, prompt: str) -> ImagenGenerationResult:
+            nonlocal generation_calls
+            generation_calls += 1
+            return super().generate_image(prompt)
+
+    generator1 = ProposalAssetGenerator(
+        settings=settings,
+        tenant_id="demo-tenant",
+        core_client=core_client,
+        imagen_client=CountingImagenClient(settings),
+        storage_client=fake_storage,
+    )
+    generator2 = ProposalAssetGenerator(
+        settings=settings,
+        tenant_id="demo-tenant",
+        core_client=core_client,
+        imagen_client=CountingImagenClient(settings),
+        storage_client=fake_storage,
+    )
+
+    res1, res2 = await asyncio.gather(
+        generator1.generate_and_register(TEST_QUOTE_ID, "Executive chair", "idemp-shared-key"),
+        generator2.generate_and_register(TEST_QUOTE_ID, "Executive chair", "idemp-shared-key"),
+    )
+
+    assert str(res1.id) == "11223344-5566-7788-99aa-bbccddeeff00"
+    assert str(res2.id) == "11223344-5566-7788-99aa-bbccddeeff00"
+    assert generation_calls == 1
+    assert len(fake_storage.uploads) == 1
+
+
+@pytest.mark.asyncio
+async def test_crashed_owner_permits_takeover_after_lease_expires() -> None:
+    settings = Settings(
+        enterprise_core_url="http://core.internal",
+        agent_tools_token=SecretStr("service-token-xyz"),
+        crm_agent_id="vextis_crm_agent",
+        imagen_mock_enabled=True,
+        gcs_proposal_assets_bucket="test-assets-bucket",
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        import json
+
+        if request.url.path.endswith("/preflight"):
+            # Core grants takeover after previous lease expired
+            return httpx.Response(
+                200,
+                json={
+                    "quoteId": TEST_QUOTE_ID,
+                    "authorized": True,
+                    "tenantPrefix": "proposals/deadbeef",
+                    "correlationId": "corr-456",
+                    "status": "RESERVED",
+                    "owner": True,
+                    "reservationToken": "tok-takeover-789",
+                },
+            )
+        body = json.loads(request.content.decode("utf-8"))
+        assert body.get("reservationToken") == "tok-takeover-789"
+        return httpx.Response(
+            201,
+            json={
+                "id": "11223344-5566-7788-99aa-bbccddeeff00",
+                "quoteId": TEST_QUOTE_ID,
+                "storageUri": body["storageUri"],
+                "mediaType": "IMAGE",
+                "modelId": MOCK_MODEL_ID,
+                "promptSummary": body["promptSummary"],
+                "aiLabel": "AI-Generated Proposal Concept",
+                "createdAt": "2026-08-28T16:00:00Z",
+            },
+        )
+
+    core_client = EnterpriseCoreProposalAssetClient(
+        settings=settings,
+        tenant_id="demo-tenant",
+        correlation_id="corr-456",
+        transport=httpx.MockTransport(handler),
+    )
+    fake_storage = _FakeStorageClient()
+    generator = ProposalAssetGenerator(
+        settings=settings,
+        tenant_id="demo-tenant",
+        core_client=core_client,
+        storage_client=fake_storage,
+    )
+
+    result = await generator.generate_and_register(
+        quote_id=TEST_QUOTE_ID,
+        prompt="Modern conference table",
+        idempotency_key="idemp-crashed-owner-recovery",
+    )
+
+    assert str(result.id) == "11223344-5566-7788-99aa-bbccddeeff00"
+    assert len(fake_storage.uploads) == 1
+

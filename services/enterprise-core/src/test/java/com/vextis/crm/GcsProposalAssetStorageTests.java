@@ -55,12 +55,32 @@ class GcsProposalAssetStorageTests {
         String storageUri = "gs://vextis-assets/" + prefix + "not-an-image.png";
         Blob blob = mock(Blob.class);
         when(blob.getSize()).thenReturn(2048L);
+        when(blob.getGeneration()).thenReturn(42L);
+        when(blob.getMd5ToHexString()).thenReturn("d41d8cd98f00b204e9800998ecf8427e");
         when(blob.getContentType()).thenReturn("video/mp4");
         when(storage.get(BlobId.of("vextis-assets", prefix + "not-an-image.png"))).thenReturn(blob);
 
         assertThatThrownBy(() -> assets.assertUploaded("demo-tenant", storageUri, ProposalAssetDirectory.MediaType.IMAGE))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("declared as IMAGE but Cloud Storage content type is 'video/mp4'");
+                .hasMessageContaining("must have Content-Type 'image/png'");
+    }
+
+    @Test
+    void rejectsMissingGenerationOrHash() {
+        Storage storage = mock(Storage.class);
+        GcsProposalAssetStorage assets = new GcsProposalAssetStorage(storage, "vextis-assets");
+        String prefix = GcsProposalAssetStorage.objectPrefix("demo-tenant");
+        String storageUri = "gs://vextis-assets/" + prefix + "missing-meta.png";
+        Blob blob = mock(Blob.class);
+        when(blob.getSize()).thenReturn(2048L);
+        when(blob.getGeneration()).thenReturn(null); // Missing generation
+        when(blob.getContentType()).thenReturn("image/png");
+        when(blob.getMd5ToHexString()).thenReturn(null);
+        when(storage.get(BlobId.of("vextis-assets", prefix + "missing-meta.png"))).thenReturn(blob);
+
+        assertThatThrownBy(() -> assets.assertUploaded("demo-tenant", storageUri, ProposalAssetDirectory.MediaType.IMAGE))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("missing GCS generation metadata");
     }
 
     @Test

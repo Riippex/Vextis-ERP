@@ -1039,6 +1039,9 @@ components:
           type: string
           minLength: 1
           maxLength: 100
+        reservationToken:
+          type: string
+          maxLength: 100
     PreflightProposalAssetRequest:
       type: object
       additionalProperties: false
@@ -1068,6 +1071,8 @@ components:
           enum: [RESERVED, PENDING, COMPLETED]
         owner:
           type: boolean
+        reservationToken:
+          type: string
         alreadyRegistered:
           type: boolean
         existingAsset:

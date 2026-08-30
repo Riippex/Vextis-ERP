@@ -71,6 +71,7 @@ class AgentProposalAssetController {
                     result.correlationId(),
                     result.status().name(),
                     result.owner(),
+                    result.reservationToken(),
                     result.alreadyRegistered(),
                     result.existingAsset() != null ? ProposalAssetResponse.from(result.existingAsset()) : null
             );
@@ -111,7 +112,8 @@ class AgentProposalAssetController {
                             mediaType,
                             request.modelId(),
                             request.promptSummary(),
-                            request.aiLabel()
+                            request.aiLabel(),
+                            request.reservationToken()
                     )
             );
             return ProposalAssetResponse.from(view);
@@ -138,6 +140,7 @@ class AgentProposalAssetController {
             String correlationId,
             String status,
             boolean owner,
+            String reservationToken,
             boolean alreadyRegistered,
             ProposalAssetResponse existingAsset
     ) {
@@ -148,7 +151,8 @@ class AgentProposalAssetController {
             @NotBlank @Pattern(regexp = "^(IMAGE|VIDEO)$") String mediaType,
             @NotBlank @Size(max = 150) String modelId,
             @NotBlank @Size(max = 500) String promptSummary,
-            @NotBlank @Size(max = 100) String aiLabel
+            @NotBlank @Size(max = 100) String aiLabel,
+            @Size(max = 100) String reservationToken
     ) {
     }
 
