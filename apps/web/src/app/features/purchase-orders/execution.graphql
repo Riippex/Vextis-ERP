@@ -70,6 +70,18 @@ query FindExecution($id: ID!) {
         lineSubtotal
       }
     }
+    proposalAssets {
+      id
+      quoteId
+      storageUri
+      imageUrl
+      mediaUrl
+      mediaType
+      modelId
+      promptSummary
+      aiLabel
+      createdAt
+    }
     auditTrail {
       id
       correlationId

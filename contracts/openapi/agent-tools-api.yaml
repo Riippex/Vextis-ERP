@@ -40,6 +40,97 @@ paths:
           description: Logical agent is inactive, belongs to another service, tenant, or tool policy
         "404":
           description: Customer was not found in the tenant
+  /crm/quotes/{quoteId}/assets/preflight:
+    post:
+      operationId: preflightProposalAsset
+      x-vextis-tool-policy: register_quote_asset
+      description: >-
+        Validates authorization, quote ownership, and correlation, and reserves an atomic
+        idempotency slot before generating or uploading an asset. Guarantees zero Vertex/Storage spend on invalid requests.
+      security:
+        - serviceBearer: []
+      parameters:
+        - name: quoteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PreflightProposalAssetRequest"
+      responses:
+        "200":
+          description: Preflight validation successful; generation is authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreflightProposalAssetResponse"
+        "400":
+          description: Invalid parameters or correlation mismatch
+        "401":
+          description: Missing or invalid service credential
+        "403":
+          description: Logical agent is inactive or not authorized for this tool
+        "404":
+          description: Quote or execution was not found for this tenant
+        "409":
+          description: Idempotency key conflict (existing reservation has different payload fingerprint)
+        "503":
+          description: Enterprise Core is temporarily unavailable
+  /crm/quotes/{quoteId}/assets:
+    post:
+      operationId: registerProposalAsset
+      x-vextis-tool-policy: register_quote_asset
+      description: >-
+        Registers a visual or media asset (e.g. Imagen proposal visual) generated for
+        a CRM quote or proposal. Cloud Storage stores the asset while Enterprise Core
+        records the relationship, provenance, and audit trail.
+      security:
+        - serviceBearer: []
+      parameters:
+        - name: quoteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterProposalAssetRequest"
+      responses:
+        "201":
+          description: Proposal asset registered, or original idempotent asset returned
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProposalAsset"
+        "400":
+          description: Invalid request payload or correlation mismatch
+        "401":
+          description: Missing or invalid service credential
+        "403":
+          description: Logical agent is inactive or not authorized for this tool
+        "404":
+          description: Quote or execution was not found for this tenant
+        "409":
+          description: Conflicting state or duplicate non-idempotent registration
+        "503":
+          description: Storage or Enterprise Core is temporarily unavailable
   /inventory/stock/{sku}:
     get:
       operationId: getStockBySku
@@ -921,3 +1012,98 @@ components:
         metadata:
           type: object
           additionalProperties: true
+    RegisterProposalAssetRequest:
+      type: object
+      additionalProperties: false
+      required: [storageUri, mediaType, modelId, promptSummary, aiLabel, reservationToken]
+      properties:
+        storageUri:
+          type: string
+          # Only a gs:// object inside the authorized proposal assets bucket
+          # and this tenant's own prefix is accepted; Enterprise Core
+          # confirms the object actually exists before registering it.
+          pattern: "^gs://.+"
+          maxLength: 1000
+        mediaType:
+          type: string
+          enum: [IMAGE, VIDEO]
+        modelId:
+          type: string
+          minLength: 1
+          maxLength: 150
+        promptSummary:
+          type: string
+          minLength: 1
+          maxLength: 500
+        aiLabel:
+          type: string
+          minLength: 1
+          maxLength: 100
+        reservationToken:
+          type: string
+          minLength: 1
+          maxLength: 100
+    PreflightProposalAssetRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        promptSummary:
+          type: string
+          maxLength: 500
+        fingerprint:
+          type: string
+          maxLength: 128
+    PreflightProposalAssetResponse:
+      type: object
+      additionalProperties: false
+      required: [quoteId, authorized, tenantPrefix, correlationId]
+      properties:
+        quoteId:
+          type: string
+          format: uuid
+        authorized:
+          type: boolean
+        tenantPrefix:
+          type: string
+        correlationId:
+          type: string
+        status:
+          type: string
+          enum: [RESERVED, PENDING, COMPLETED]
+        owner:
+          type: boolean
+        reservationToken:
+          type: string
+        alreadyRegistered:
+          type: boolean
+        existingAsset:
+          $ref: "#/components/schemas/ProposalAsset"
+    ProposalAsset:
+      type: object
+      additionalProperties: false
+      required: [id, quoteId, storageUri, mediaType, modelId, promptSummary, aiLabel, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        quoteId:
+          type: string
+          format: uuid
+        storageUri:
+          type: string
+          maxLength: 1000
+        mediaType:
+          type: string
+          enum: [IMAGE, VIDEO]
+        modelId:
+          type: string
+          maxLength: 150
+        promptSummary:
+          type: string
+          maxLength: 500
+        aiLabel:
+          type: string
+          maxLength: 100
+        createdAt:
+          type: string
+          format: date-time

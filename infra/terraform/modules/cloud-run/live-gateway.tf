@@ -125,6 +125,12 @@ resource "google_cloud_run_v2_service" "agent_runtime_live" {
         value = "false"
       }
       env {
+        # The Live gateway is read-only and cannot upload or register proposal assets.
+        # Disabling Imagen explicitly guarantees no paid Imagen calls can be triggered from voice sessions.
+        name  = "VEXTIS_IMAGEN_ENABLED"
+        value = "false"
+      }
+      env {
         name  = "VEXTIS_LIVE_MODEL"
         value = var.live_model
       }

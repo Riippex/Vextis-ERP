@@ -47,6 +47,11 @@ class Settings(BaseSettings):
     memory_bank_enabled: bool = False
     memory_bank_agent_engine_id: str | None = None
     memory_bank_location: str = "us-central1"
+    imagen_enabled: bool = True
+    imagen_model: str = "imagen-3.0-generate-002"
+    imagen_location: str = "us-central1"
+    imagen_mock_enabled: bool = False
+    gcs_proposal_assets_bucket: str = "vextis-proposal-assets"
     google_cloud_project: str | None = Field(default=None, validation_alias="GOOGLE_CLOUD_PROJECT")
     google_cloud_location: str = Field(
         default="us-central1",
