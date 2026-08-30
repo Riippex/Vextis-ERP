@@ -1,0 +1,51 @@
+<div class="workspace-skeleton" role="status" [attr.aria-label]="label()">
+  <span class="workspace-skeleton__announcement">{{ label() }}</span>
+
+  <section class="workspace-skeleton__metrics" aria-hidden="true">
+    <div class="workspace-skeleton__surface-heading">
+      <i class="skeleton skeleton--eyebrow"></i>
+      <i class="skeleton skeleton--heading"></i>
+    </div>
+    <div class="workspace-skeleton__metric-grid">
+      @for (item of (layout() === 'dashboard' ? [1, 2, 3, 4] : [1, 2, 3]); track item) {
+        <article class="workspace-skeleton__card">
+          <i class="skeleton skeleton--label"></i>
+          <i class="skeleton skeleton--value"></i>
+          <i class="skeleton skeleton--detail"></i>
+        </article>
+      }
+    </div>
+  </section>
+
+  @if (layout() === 'dashboard') {
+    <section class="workspace-skeleton__split" aria-hidden="true">
+      @for (item of [1, 2]; track item) {
+        <article class="workspace-skeleton__panel workspace-skeleton__chart">
+          <i class="skeleton skeleton--panel-title"></i>
+          <i class="skeleton skeleton--chart"></i>
+        </article>
+      }
+    </section>
+  } @else {
+    <section class="workspace-skeleton__panel workspace-skeleton__form" aria-hidden="true">
+      <i class="skeleton skeleton--eyebrow"></i>
+      <i class="skeleton skeleton--panel-title"></i>
+      <div class="workspace-skeleton__fields">
+        <i class="skeleton skeleton--field"></i>
+        <i class="skeleton skeleton--field"></i>
+        <i class="skeleton skeleton--button"></i>
+      </div>
+    </section>
+  }
+
+  <section class="workspace-skeleton__panel workspace-skeleton__list" aria-hidden="true">
+    <i class="skeleton skeleton--panel-title"></i>
+    @for (item of [1, 2, 3]; track item) {
+      <div class="workspace-skeleton__row">
+        <i class="skeleton skeleton--row-primary"></i>
+        <i class="skeleton skeleton--row-secondary"></i>
+        <i class="skeleton skeleton--pill"></i>
+      </div>
+    }
+  </section>
+</div>

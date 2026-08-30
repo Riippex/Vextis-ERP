@@ -13,6 +13,7 @@ import {
   type CreditStanding,
   UpsertCreditProfileGQL,
 } from '../../api/generated/graphql';
+import { WorkspaceSkeletonComponent } from '../../shared/loading/workspace-skeleton.component';
 import { MissionControlStore } from '../mission-control/mission-control.store';
 
 @Component({
@@ -26,6 +27,7 @@ import { MissionControlStore } from '../mission-control/mission-control.store';
     MatSelectModule,
     ReactiveFormsModule,
     RouterLink,
+    WorkspaceSkeletonComponent,
   ],
   templateUrl: './finance-billing.page.html',
   styleUrl: '../mission-control/workspace-page.scss',

@@ -37,7 +37,13 @@
           </button>
         }
       } @else if (loading()) {
-        <p>Loading workspace data…</p>
+        <div class="workspace-search__loading" role="status" aria-label="Loading search results">
+          @for (item of [1, 2, 3]; track item) {
+            <div class="workspace-search__loading-row" aria-hidden="true">
+              <i></i><span><i></i><i></i></span>
+            </div>
+          }
+        </div>
       } @else {
         <p>No customers, orders, SKUs, credit profiles, or invoices found.</p>
       }
