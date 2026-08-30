@@ -96,6 +96,7 @@ jobs:
         run: >-
           gcloud run deploy vextis-agent-runtime
           --image=us-central1-docker.pkg.dev/vextis-erp/vextis/agent-runtime:${DEPLOY_SHA}
+          --service-account=vextis-agent-hackathon@vextis-erp.iam.gserviceaccount.com
           --project=vextis-erp
           --region=us-central1
           --quiet
@@ -106,6 +107,7 @@ jobs:
         run: >-
           gcloud run deploy vextis-agent-runtime-live
           --image=us-central1-docker.pkg.dev/vextis-erp/vextis/agent-runtime:${DEPLOY_SHA}
+          --service-account=vextis-agent-live-hackathon@vextis-erp.iam.gserviceaccount.com
           --project=vextis-erp
           --region=us-central1
           --quiet

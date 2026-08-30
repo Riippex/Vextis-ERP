@@ -96,6 +96,7 @@ jobs:
         run: >-
           gcloud run deploy vextis-enterprise-core
           --image=us-central1-docker.pkg.dev/vextis-erp/vextis/enterprise-core:${DEPLOY_SHA}
+          --service-account=vextis-core-hackathon@vextis-erp.iam.gserviceaccount.com
           --project=vextis-erp
           --region=us-central1
           --quiet
@@ -106,6 +107,7 @@ jobs:
         run: >-
           gcloud run deploy vextis-enterprise-core-public
           --image=us-central1-docker.pkg.dev/vextis-erp/vextis/enterprise-core:${DEPLOY_SHA}
+          --service-account=vextis-core-public-hackathon@vextis-erp.iam.gserviceaccount.com
           --project=vextis-erp
           --region=us-central1
           --quiet
