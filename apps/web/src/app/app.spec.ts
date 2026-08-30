@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 
-import { App, isApplicationRoute, workspaceRouteContext } from './app';
+import { App, isApplicationRoute, sidebarToggleIcon, workspaceRouteContext } from './app';
 import { appConfig } from './app.config';
 
 describe('App', () => {
@@ -37,5 +37,10 @@ describe('App', () => {
     expect(workspaceRouteContext('/app/inventory').title).toBe('Inventory');
     expect(workspaceRouteContext('/app/finance').title).toBe('Finance & Billing');
     expect(workspaceRouteContext('/app/purchase-orders/new').title).toBe('Order intake');
+  });
+
+  it('shows the action the sidebar toggle will perform', () => {
+    expect(sidebarToggleIcon(false)).toBe('menu_open');
+    expect(sidebarToggleIcon(true)).toBe('menu');
   });
 });

@@ -183,39 +183,10 @@
 }
 
 .shell__search {
-  align-items: center;
-  background: var(--vxt-rail-bg-elevated);
-  border: 1px solid var(--vxt-rail-border);
-  border-radius: 999px;
-  display: flex;
   flex: 1 1 auto;
-  gap: 0.5rem;
   margin-left: 1.5rem;
   max-width: 24rem;
-  padding: 0.45rem 0.9rem;
-}
-
-.shell__search mat-icon {
-  color: var(--vxt-rail-text-muted);
-  flex: 0 0 1.1rem;
-  font-size: 1.1rem;
-  height: 1.1rem;
-  width: 1.1rem;
-}
-
-.shell__search input {
-  background: none;
-  border: none;
-  color: var(--vxt-rail-text);
-  flex: 1;
-  font: inherit;
-  font-size: 0.85rem;
-  outline: none;
   width: 100%;
-}
-
-.shell__search input::placeholder {
-  color: var(--vxt-rail-text-muted);
 }
 
 .shell__actions {

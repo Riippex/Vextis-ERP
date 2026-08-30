@@ -49,7 +49,7 @@
         [attr.aria-expanded]="!sidebarCollapsed()"
         (click)="toggleSidebar()"
       >
-        <mat-icon>{{ sidebarCollapsed() ? 'menu_open' : 'menu' }}</mat-icon>
+        <mat-icon>{{ sidebarToggleIcon(sidebarCollapsed()) }}</mat-icon>
       </button>
 
       <div class="shell__page-context">
@@ -57,15 +57,7 @@
         <span>{{ routeContext().subtitle }}</span>
       </div>
 
-      <label class="shell__search">
-        <mat-icon>search</mat-icon>
-        <input
-          type="search"
-          placeholder="Search customer, order, SKU…"
-          [value]="searchQuery()"
-          (input)="onSearchInput($event)"
-        />
-      </label>
+      <vxt-workspace-search class="shell__search" />
 
       <div class="shell__actions">
         <span class="shell__environment">Hackathon workspace</span>
