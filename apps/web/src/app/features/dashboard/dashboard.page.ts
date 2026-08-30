@@ -2,12 +2,12 @@ import { DatePipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
 
 import { WorkspaceSearchStore } from '../../core/search/workspace-search.store';
 import { DonutChartComponent, type DonutChartSlice } from '../../shared/charts/donut-chart.component';
 import { LineChartComponent, type LineChartPoint } from '../../shared/charts/line-chart.component';
+import { WorkspaceSkeletonComponent } from '../../shared/loading/workspace-skeleton.component';
 import { MissionControlStore } from '../mission-control/mission-control.store';
 
 const DEPARTMENT_LABELS: Record<string, string> = {
@@ -75,8 +75,8 @@ export function toDepartmentVolumeSlices(
     LineChartComponent,
     MatButtonModule,
     MatIconModule,
-    MatProgressSpinnerModule,
     RouterLink,
+    WorkspaceSkeletonComponent,
   ],
   templateUrl: './dashboard.page.html',
   styleUrls: ['./dashboard.page.scss', '../mission-control/workspace-page.scss'],
