@@ -1,0 +1,195 @@
+:host {
+  display: block;
+}
+
+.workspace-skeleton {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.workspace-skeleton__announcement {
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  padding: 0;
+  position: absolute;
+  width: 1px;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.workspace-skeleton__metrics,
+.workspace-skeleton__panel {
+  background: color-mix(in srgb, var(--vxt-surface) 94%, transparent);
+  border: 1px solid var(--vxt-border);
+  border-radius: var(--vxt-radius-lg);
+  box-shadow: 0 1rem 3rem color-mix(in srgb, #08080f 6%, transparent);
+}
+
+.workspace-skeleton__metrics {
+  display: grid;
+  gap: 1rem;
+  padding: clamp(1rem, 2.5vw, 1.5rem);
+}
+
+.workspace-skeleton__surface-heading,
+.workspace-skeleton__form {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.workspace-skeleton__metric-grid,
+.workspace-skeleton__split {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.workspace-skeleton__split {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.workspace-skeleton__card {
+  border: 1px solid var(--vxt-border);
+  border-radius: var(--vxt-radius-lg);
+  display: grid;
+  gap: 0.65rem;
+  padding: 1.2rem;
+}
+
+.workspace-skeleton__panel {
+  padding: 1.25rem;
+}
+
+.workspace-skeleton__chart {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.workspace-skeleton__fields {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: minmax(12rem, 1.4fr) minmax(10rem, 1fr) 8rem;
+  margin-top: 0.6rem;
+}
+
+.workspace-skeleton__list {
+  display: grid;
+  gap: 1rem;
+}
+
+.workspace-skeleton__row {
+  align-items: center;
+  border-top: 1px solid var(--vxt-border);
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(12rem, 1.5fr) minmax(8rem, 1fr) 5rem;
+  margin-inline: -1.25rem;
+  padding: 1rem 1.25rem 0;
+}
+
+.skeleton {
+  --skeleton-base: color-mix(in srgb, var(--vxt-text-secondary) 12%, var(--vxt-surface));
+  animation: skeleton-shimmer 1.45s ease-in-out infinite;
+  background:
+    linear-gradient(
+      90deg,
+      transparent 20%,
+      color-mix(in srgb, var(--vxt-surface) 75%, transparent) 50%,
+      transparent 80%
+    ),
+    var(--skeleton-base);
+  background-size: 220% 100%;
+  border-radius: 999px;
+  display: block;
+  height: 0.75rem;
+}
+
+.skeleton--eyebrow,
+.skeleton--label {
+  width: 6.5rem;
+}
+
+.skeleton--heading {
+  height: 1.2rem;
+  width: min(16rem, 65%);
+}
+
+.skeleton--value {
+  height: 2.4rem;
+  width: 4.5rem;
+}
+
+.skeleton--detail {
+  width: 75%;
+}
+
+.skeleton--panel-title {
+  height: 1rem;
+  width: 9rem;
+}
+
+.skeleton--chart {
+  border-radius: 1rem;
+  height: 12rem;
+  width: 100%;
+}
+
+.skeleton--field {
+  border-radius: 0.55rem;
+  height: 3.5rem;
+  width: 100%;
+}
+
+.skeleton--button {
+  height: 3.5rem;
+  width: 100%;
+}
+
+.skeleton--row-primary {
+  width: 70%;
+}
+
+.skeleton--row-secondary {
+  width: 60%;
+}
+
+.skeleton--pill {
+  height: 1.5rem;
+  width: 4.5rem;
+}
+
+@keyframes skeleton-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -20% 0;
+  }
+}
+
+@media (max-width: 62rem) {
+  .workspace-skeleton__metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .workspace-skeleton__fields {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 45rem) {
+  .workspace-skeleton__metric-grid,
+  .workspace-skeleton__split,
+  .workspace-skeleton__fields,
+  .workspace-skeleton__row {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}

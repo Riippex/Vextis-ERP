@@ -14,7 +14,7 @@
   </header>
 
   @if (store.loading() && !store.data()) {
-    <section class="panel state-panel"><mat-spinner diameter="28" /> Loading inventory…</section>
+    <vxt-workspace-skeleton label="Loading inventory" />
   } @else if (store.error()) {
     <section class="panel state-panel" role="alert"><mat-icon>cloud_off</mat-icon>{{ store.error() }}</section>
   } @else if (store.data(); as data) {

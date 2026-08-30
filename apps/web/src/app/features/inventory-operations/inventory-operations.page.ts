@@ -10,6 +10,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { RouterLink } from '@angular/router';
 
 import { SetStockAvailabilityGQL } from '../../api/generated/graphql';
+import { WorkspaceSkeletonComponent } from '../../shared/loading/workspace-skeleton.component';
 import { MissionControlStore } from '../mission-control/mission-control.store';
 
 @Component({
@@ -23,6 +24,7 @@ import { MissionControlStore } from '../mission-control/mission-control.store';
     MatProgressSpinnerModule,
     ReactiveFormsModule,
     RouterLink,
+    WorkspaceSkeletonComponent,
   ],
   templateUrl: './inventory-operations.page.html',
   styleUrl: '../mission-control/workspace-page.scss',
