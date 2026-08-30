@@ -1,5 +1,6 @@
 package com.vextis.crm;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -24,6 +25,7 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
     private final NamedParameterJdbcTemplate jdbc;
     private final java.time.Clock clock;
 
+    @Autowired
     JdbcProposalAssetDirectory(NamedParameterJdbcTemplate jdbc) {
         this(jdbc, java.time.Clock.systemUTC());
     }
