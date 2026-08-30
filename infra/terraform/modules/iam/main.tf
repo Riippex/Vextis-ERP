@@ -35,6 +35,17 @@ resource "google_service_account" "agent_runtime" {
   }
 }
 
+resource "google_service_account" "agent_runtime_live" {
+  project      = var.project_id
+  account_id   = "vextis-agent-live-${var.environment}"
+  display_name = "Vextis Agent Runtime Live (${var.environment})"
+  description  = "Runtime identity for the publicly reachable Live voice gateway."
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
 resource "google_service_account" "pubsub_push" {
   project      = var.project_id
   account_id   = "vextis-push-${var.environment}"
@@ -85,6 +96,17 @@ resource "google_project_iam_member" "agent_runtime_vertex_ai" {
   project = var.project_id
   role    = "roles/aiplatform.user"
   member  = "serviceAccount:${google_service_account.agent_runtime.email}"
+}
+
+# The Live gateway is the only publicly invokable Agent Runtime surface, so it
+# gets its own identity holding strictly what a voice session needs: Vertex AI
+# for the Live model, the agent-tools token to authenticate to Enterprise Core,
+# and invoker on Enterprise Core. It deliberately does not get the chat callback
+# token or storage access the private runtime holds.
+resource "google_project_iam_member" "agent_runtime_live_vertex_ai" {
+  project = var.project_id
+  role    = "roles/aiplatform.user"
+  member  = "serviceAccount:${google_service_account.agent_runtime_live.email}"
 }
 
 resource "google_project_iam_member" "cloud_build_log_writer" {
@@ -141,9 +163,44 @@ resource "google_service_account_iam_member" "cloud_build_can_use_agent_runtime"
   member             = "serviceAccount:${google_service_account.cloud_build.email}"
 }
 
+resource "google_service_account_iam_member" "cloud_build_can_use_agent_runtime_live" {
+  service_account_id = google_service_account.agent_runtime_live.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.cloud_build.email}"
+}
+
 resource "google_secret_manager_secret" "agent_tools_token" {
   project             = var.project_id
   secret_id           = var.agent_tools_secret_id
+  labels              = var.labels
+  deletion_protection = true
+
+  replication {
+    auto {}
+  }
+}
+
+# Demo seeding and the destructive tenant reset are administrative, so they do
+# not share the agent-tools credential: a compromised Agent Runtime must not be
+# able to purge the tenant.
+# The publicly reachable Live gateway authenticates to Enterprise Core with its
+# own credential. Enterprise Core resolves it to the service identity
+# live-gateway-agent, whose registry entries are read-only, so a leak of this
+# token cannot reserve stock, issue an invoice or record a plan.
+resource "google_secret_manager_secret" "live_gateway_token" {
+  project             = var.project_id
+  secret_id           = var.live_gateway_secret_id
+  labels              = var.labels
+  deletion_protection = true
+
+  replication {
+    auto {}
+  }
+}
+
+resource "google_secret_manager_secret" "demo_admin_token" {
+  project             = var.project_id
+  secret_id           = var.demo_admin_secret_id
   labels              = var.labels
   deletion_protection = true
 
@@ -189,6 +246,34 @@ resource "google_secret_manager_secret_iam_member" "agent_runtime_agent_tools_to
   secret_id = google_secret_manager_secret.agent_tools_token.secret_id
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.agent_runtime.email}"
+}
+
+# The Live gateway deliberately does not get agent_tools_token: that credential
+# carries the private runtime authority, and the gateway is the one surface an
+# unauthenticated caller can reach.
+resource "google_secret_manager_secret_iam_member" "agent_runtime_live_gateway_token" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.live_gateway_token.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.agent_runtime_live.email}"
+}
+
+# The private Enterprise Core has to recognise the gateway credential to resolve
+# it to a service identity.
+resource "google_secret_manager_secret_iam_member" "enterprise_core_live_gateway_token" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.live_gateway_token.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.enterprise_core.email}"
+}
+
+# Only the private Enterprise Core serves /internal/demo/**; the public one
+# denies /internal/** outright and has no reason to hold this credential.
+resource "google_secret_manager_secret_iam_member" "enterprise_core_demo_admin_token" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.demo_admin_token.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.enterprise_core.email}"
 }
 
 resource "google_secret_manager_secret_iam_member" "enterprise_core_public_callback_token" {

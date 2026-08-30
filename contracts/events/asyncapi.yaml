@@ -15,6 +15,10 @@ channels:
         $ref: "#/components/messages/WorkflowApprovalDecidedV1"
       inventoryReservationCreated:
         $ref: "#/components/messages/InventoryReservationCreatedV1"
+      billingInvoiceIssued:
+        $ref: "#/components/messages/BillingInvoiceIssuedV1"
+      quoteVisualGenerated:
+        $ref: "#/components/messages/QuoteVisualGeneratedV1"
 operations:
   receivePurchaseOrder:
     action: receive
@@ -40,6 +44,18 @@ operations:
       $ref: "#/channels/orderEvents"
     messages:
       - $ref: "#/channels/orderEvents/messages/inventoryReservationCreated"
+  publishBillingInvoiceIssued:
+    action: send
+    channel:
+      $ref: "#/channels/orderEvents"
+    messages:
+      - $ref: "#/channels/orderEvents/messages/billingInvoiceIssued"
+  publishQuoteVisualGenerated:
+    action: send
+    channel:
+      $ref: "#/channels/orderEvents"
+    messages:
+      - $ref: "#/channels/orderEvents/messages/quoteVisualGenerated"
 components:
   messages:
     PurchaseOrderReceivedV2:
@@ -62,3 +78,13 @@ components:
       title: Inventory reservation created (v1)
       payload:
         $ref: "./schemas/inventory-reservation-created.v1.json"
+    BillingInvoiceIssuedV1:
+      name: billing.invoice.issued
+      title: Billing invoice issued (v1)
+      payload:
+        $ref: "./schemas/billing-invoice-issued.v1.json"
+    QuoteVisualGeneratedV1:
+      name: quote.visual.generated
+      title: Quote visual generated (v1)
+      payload:
+        $ref: "./schemas/quote-visual-generated.v1.json"

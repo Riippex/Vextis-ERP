@@ -134,10 +134,29 @@
             @for (line of plan.orderLines; track line.sku) {
               <div>
                 <dt>{{ line.sku }}</dt>
-                <dd>{{ line.quantity }} units</dd>
+                <dd>
+                  {{ line.quantity }} units
+                  @if (line.unitPrice && plan.currency) { · {{ line.unitPrice }} {{ plan.currency }} each }
+                </dd>
               </div>
             }
           </dl>
+          @if (invoicePreview(plan); as preview) {
+            <dl class="extracted-facts" aria-label="Invoice approval preview">
+              <div>
+                <dt>Invoice subtotal</dt>
+                <dd>{{ preview.subtotal }} {{ plan.currency }}</dd>
+              </div>
+              <div>
+                <dt>Tax policy</dt>
+                <dd>19% · {{ preview.tax }} {{ plan.currency }}</dd>
+              </div>
+              <div>
+                <dt>Final amount for approval</dt>
+                <dd>{{ preview.total }} {{ plan.currency }}</dd>
+              </div>
+            </dl>
+          }
           <ol class="plan__steps">
             @for (step of plan.steps; track step.sequence) {
               <li>
@@ -229,6 +248,90 @@
           }
         </section>
       }
+
+      @if (currentReceipt.execution.invoice; as invoice) {
+        <section class="approval" aria-labelledby="invoice-title">
+          <div class="plan__heading">
+            <div>
+              <p class="evidence__eyebrow">Finance & Billing closure</p>
+              <h3 id="invoice-title">Invoice issued</h3>
+            </div>
+            <span class="status">{{ invoice.status }}</span>
+          </div>
+          <strong>{{ invoice.total }} {{ invoice.currency }}</strong>
+          <p>
+            Subtotal {{ invoice.subtotal }} + tax {{ invoice.tax }} ·
+            {{ invoice.paymentTermsDays }}-day terms
+          </p>
+          <small>
+            Invoice {{ invoice.id }} · correlation {{ invoice.correlationId }} ·
+            {{ invoice.issuedAt | date: 'medium' }}
+          </small>
+        </section>
+      }
+
+      <section class="proposal-assets" aria-labelledby="proposal-assets-title">
+        <div class="plan__heading">
+          <div>
+            <p class="evidence__eyebrow">Multimodal proposal asset</p>
+            <h3 id="proposal-assets-title">Generated proposal visual</h3>
+          </div>
+          <div class="proposal-assets__actions">
+            <button
+              mat-icon-button
+              type="button"
+              [disabled]="refreshingAssets()"
+              (click)="refreshProposalAssets()"
+              title="Refresh proposal assets"
+              aria-label="Refresh proposal assets"
+            >
+              <mat-icon [class.spin]="refreshingAssets()">refresh</mat-icon>
+            </button>
+            <span class="ai-badge">AI-GENERATED</span>
+          </div>
+        </div>
+        @if (currentReceipt.execution.proposalAssets && currentReceipt.execution.proposalAssets.length) {
+          @for (asset of currentReceipt.execution.proposalAssets; track asset.id) {
+            <div class="proposal-asset-card">
+              @if (asset.mediaType === 'VIDEO') {
+                @if (asset.mediaUrl) {
+                  <video
+                    class="proposal-asset-card__video"
+                    controls
+                    [src]="asset.mediaUrl"
+                    [attr.aria-label]="asset.aiLabel"
+                  ></video>
+                } @else {
+                  <div class="proposal-asset-card__image proposal-asset-card__image--unavailable">
+                    Video unavailable
+                  </div>
+                }
+              } @else {
+                @if (asset.imageUrl) {
+                  <img
+                    class="proposal-asset-card__image"
+                    [src]="asset.imageUrl"
+                    [alt]="asset.aiLabel"
+                  />
+                } @else {
+                  <div class="proposal-asset-card__image proposal-asset-card__image--unavailable">
+                    Image unavailable
+                  </div>
+                }
+              }
+              <div class="proposal-asset-card__info">
+                <strong>{{ asset.aiLabel }}</strong>
+                <p>{{ asset.promptSummary }}</p>
+                <small>Model: {{ asset.modelId }} · Media: {{ asset.mediaType }}</small>
+              </div>
+            </div>
+          }
+        } @else {
+          <p class="proposal-assets__empty">
+            No proposal visual assets generated yet. Click refresh to check for new assets.
+          </p>
+        }
+      </section>
 
       <h3>Execution timeline</h3>
       <ol class="timeline">

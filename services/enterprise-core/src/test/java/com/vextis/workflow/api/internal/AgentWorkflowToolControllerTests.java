@@ -1,5 +1,6 @@
 package com.vextis.workflow.api.internal;
 
+import com.vextis.shared.ConfiguredServiceCallerIdentities;
 import com.vextis.agentregistry.AgentDirectory;
 import com.vextis.workflow.application.PlanningContext;
 import com.vextis.workflow.application.EvaluateReadinessUseCase;
@@ -41,7 +42,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AgentWorkflowToolController.class)
-@Import(AgentToolAuthorizer.class)
+@Import({AgentToolAuthorizer.class, ConfiguredServiceCallerIdentities.class})
 class AgentWorkflowToolControllerTests {
 
     private static final UUID EXECUTION_ID = UUID.fromString("8d3f290d-1322-44a2-8bd7-3b325f170e07");

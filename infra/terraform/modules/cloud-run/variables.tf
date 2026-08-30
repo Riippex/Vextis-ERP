@@ -33,6 +33,11 @@ variable "agent_runtime_service_account_email" {
   type        = string
 }
 
+variable "agent_runtime_live_service_account_email" {
+  description = "Runtime identity for the publicly reachable Live voice gateway."
+  type        = string
+}
+
 variable "pubsub_push_service_account_email" {
   description = "OIDC identity used by authenticated Pub/Sub push delivery."
   type        = string
@@ -58,6 +63,16 @@ variable "agent_tools_secret_id" {
   type        = string
 }
 
+variable "live_gateway_secret_id" {
+  description = "Secret Manager identifier for the public Live gateway service credential."
+  type        = string
+}
+
+variable "demo_admin_secret_id" {
+  description = "Secret Manager identifier for the demo seeding and reset credential."
+  type        = string
+}
+
 variable "core_callback_secret_id" {
   description = "Secret Manager identifier for the Ask Vextis chat callback token."
   type        = string
@@ -76,6 +91,12 @@ variable "gemini_model" {
 variable "live_model" {
   description = "Vertex AI Gemini Live-capable model used for Ask Vextis voice sessions."
   type        = string
+}
+
+variable "live_max_session_seconds" {
+  description = "Ceiling on one Live voice session, applied on top of the expiry Enterprise Core issues."
+  type        = number
+  default     = 900
 }
 
 variable "memory_bank_agent_engine_id" {

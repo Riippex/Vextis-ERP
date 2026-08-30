@@ -13,6 +13,11 @@ output "agent_runtime_email" {
   value       = google_service_account.agent_runtime.email
 }
 
+output "agent_runtime_live_email" {
+  description = "Service identity for the public Live voice gateway."
+  value       = google_service_account.agent_runtime_live.email
+}
+
 output "pubsub_push_email" {
   description = "OIDC identity for authenticated Pub/Sub push delivery."
   value       = google_service_account.pubsub_push.email
@@ -26,6 +31,16 @@ output "cloud_build_email" {
 output "agent_tools_secret_id" {
   description = "Secret Manager identifier for the internal Agent Tools token."
   value       = google_secret_manager_secret.agent_tools_token.secret_id
+}
+
+output "live_gateway_secret_id" {
+  description = "Secret Manager identifier for the public Live gateway credential."
+  value       = google_secret_manager_secret.live_gateway_token.secret_id
+}
+
+output "demo_admin_secret_id" {
+  description = "Secret Manager identifier for the demo administration credential."
+  value       = google_secret_manager_secret.demo_admin_token.secret_id
 }
 
 output "core_callback_secret_id" {

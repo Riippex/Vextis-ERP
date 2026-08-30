@@ -1,3 +1,4 @@
+from decimal import Decimal
 from enum import StrEnum
 from typing import Annotated, Protocol
 
@@ -24,6 +25,7 @@ class ExtractedOrderLine(BaseModel):
 
     sku: Annotated[str, Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9._-]+$")]
     quantity: Annotated[int, Field(ge=1, le=1_000_000)]
+    unit_price: Annotated[Decimal | None, Field(gt=0, max_digits=19, decimal_places=2)] = None
 
 
 class GeneratedPlan(BaseModel):
@@ -33,6 +35,7 @@ class GeneratedPlan(BaseModel):
     steps: Annotated[list[GeneratedPlanStep], Field(min_length=1, max_length=5)]
     order_lines: Annotated[list[ExtractedOrderLine], Field(min_length=1, max_length=20)]
     requested_payment_terms_days: Annotated[int, Field(ge=0, le=365)]
+    currency: Annotated[str | None, Field(pattern=r"^[A-Z]{3}$")] = None
 
     @model_validator(mode="after")
     def ensure_contiguous_sequence(self) -> "GeneratedPlan":
@@ -41,6 +44,9 @@ class GeneratedPlan(BaseModel):
         normalized_skus = [line.sku.upper() for line in self.order_lines]
         if len(set(normalized_skus)) != len(normalized_skus):
             raise ValueError("Extracted order line SKUs must be unique")
+        has_prices = [line.unit_price is not None for line in self.order_lines]
+        if any(has_prices) != all(has_prices) or (all(has_prices) != (self.currency is not None)):
+            raise ValueError("Plan pricing requires every unit price and one currency together")
         return self
 
 

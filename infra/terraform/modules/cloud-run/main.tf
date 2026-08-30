@@ -64,6 +64,29 @@ resource "google_cloud_run_v2_service" "enterprise_core" {
         }
       }
       env {
+        # Recognises the public Live gateway credential and resolves it to the
+        # read-only live-gateway-agent service identity.
+        name = "VEXTIS_LIVE_GATEWAY_TOKEN"
+        value_source {
+          secret_key_ref {
+            secret  = var.live_gateway_secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
+        # Administrative credential for /internal/demo/**, deliberately not the
+        # agent-tools token: the demo reset is destructive and Agent Runtime has
+        # no business triggering it.
+        name = "VEXTIS_DEMO_ADMIN_TOKEN"
+        value_source {
+          secret_key_ref {
+            secret  = var.demo_admin_secret_id
+            version = "latest"
+          }
+        }
+      }
+      env {
         name  = "GOOGLE_CLOUD_PROJECT"
         value = var.project_id
       }
@@ -74,6 +97,13 @@ resource "google_cloud_run_v2_service" "enterprise_core" {
       env {
         name  = "VEXTIS_PUBSUB_TOPIC_ID"
         value = var.pubsub_topic_id
+      }
+      env {
+        # Lets this (private) Core confirm a proposal asset Agent Runtime
+        # claims to have registered was actually written to the shared
+        # assets bucket, under this tenant's own prefix, before persisting it.
+        name  = "VEXTIS_CRM_PROPOSAL_ASSETS_BUCKET_NAME"
+        value = var.assets_bucket_name
       }
       env {
         name  = "GRAPHQL_GRAPHIQL_ENABLED"
@@ -181,6 +211,14 @@ resource "google_cloud_run_v2_service" "enterprise_core_public" {
         value = var.enterprise_core_public_service_account_email
       }
       env {
+        # Same bucket as VEXTIS_DOCUMENTS_BUCKET; lets this (public) Core sign
+        # short-lived HTTPS URLs for proposal asset images the Angular UI can
+        # actually render, since gs:// is not browser-loadable and the
+        # bucket is not public.
+        name  = "VEXTIS_CRM_PROPOSAL_ASSETS_BUCKET_NAME"
+        value = var.assets_bucket_name
+      }
+      env {
         name  = "VEXTIS_PUBSUB_ENABLED"
         value = "true"
       }
@@ -202,8 +240,10 @@ resource "google_cloud_run_v2_service" "enterprise_core_public" {
         }
       }
       env {
+        # The browser-facing WebSocket lives on the separate Live gateway, the
+        # only Agent Runtime surface with a public invoker binding.
         name  = "VEXTIS_AGENT_RUNTIME_PUBLIC_WS_URL"
-        value = replace(google_cloud_run_v2_service.agent_runtime.uri, "https://", "wss://")
+        value = replace(google_cloud_run_v2_service.agent_runtime_live.uri, "https://", "wss://")
       }
       env {
         name  = "GRAPHQL_GRAPHIQL_ENABLED"
@@ -252,10 +292,10 @@ resource "google_cloud_run_v2_service" "agent_runtime" {
 
   template {
     service_account = var.agent_runtime_service_account_email
-    # 1800s (Cloud Run's max is 3600s), not the default 300s: a Live voice
-    # session's WebSocket is one long-lived request, unlike the short
-    # request/response tool calls this timeout used to only need to cover.
-    timeout                          = "1800s"
+    # Back to a request/response timeout: the long-lived Live WebSocket now
+    # runs on vextis-agent-runtime-live, and this service only handles Pub/Sub
+    # push deliveries and internal chat calls.
+    timeout                          = "300s"
     max_instance_request_concurrency = 20
 
     scaling {
@@ -310,6 +350,15 @@ resource "google_cloud_run_v2_service" "agent_runtime" {
         value = "true"
       }
       env {
+        # Same physical bucket as VEXTIS_DOCUMENTS_BUCKET / the storage
+        # module's assets bucket. Agent Runtime already holds
+        # roles/storage.objectUser on it, and this is where the CRM
+        # specialist's generate_proposal_asset tool uploads generated images
+        # before registering them with Enterprise Core.
+        name  = "VEXTIS_GCS_PROPOSAL_ASSETS_BUCKET"
+        value = var.assets_bucket_name
+      }
+      env {
         name  = "VEXTIS_MEMORY_BANK_ENABLED"
         value = var.memory_bank_agent_engine_id == "" ? "false" : "true"
       }
@@ -327,12 +376,12 @@ resource "google_cloud_run_v2_service" "agent_runtime" {
         }
       }
       env {
-        # Not yet reachable by a browser: no allUsers invoker binding exists
-        # on this service until the Phase 5 public-exposure change is
-        # separately reviewed and applied. Mounting the route now only
-        # allows already-IAM-authorized private callers to test it.
+        # Live is served exclusively by vextis-agent-runtime-live. This
+        # service stays private (Pub/Sub push and the internal chat callback
+        # only), so mounting the WebSocket route here would only add an
+        # unreachable surface.
         name  = "VEXTIS_LIVE_ENABLED"
-        value = "true"
+        value = "false"
       }
       env {
         name  = "VEXTIS_LIVE_MODEL"

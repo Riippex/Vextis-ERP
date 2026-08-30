@@ -23,8 +23,55 @@
     </button>
   </header>
 
+  @if (liveStore.isLiveActive()) {
+    <div class="ask-vextis-live-banner" [class.ask-vextis-live-banner--speaking]="liveStore.status() === 'SPEAKING'" [class.ask-vextis-live-banner--muted]="liveStore.isMuted()">
+      <div class="ask-vextis-live-banner__header">
+        <div class="ask-vextis-live-banner__indicator">
+          <span class="live-pulse-dot"></span>
+          <strong class="live-status-label">
+            @switch (liveStore.status()) {
+              @case ('CONNECTING') { Connecting Live... }
+              @case ('LISTENING') { Live · Listening }
+              @case ('SPEAKING') { Live · Speaking }
+              @case ('MUTED') { Live · Muted }
+              @default { Live Session }
+            }
+          </strong>
+        </div>
+        <div class="ask-vextis-live-banner__actions">
+          <button
+            mat-icon-button
+            type="button"
+            [attr.aria-label]="liveStore.isMuted() ? 'Unmute microphone' : 'Mute microphone'"
+            [title]="liveStore.isMuted() ? 'Unmute microphone' : 'Mute microphone'"
+            (click)="toggleMute()"
+          >
+            <mat-icon>{{ liveStore.isMuted() ? 'mic_off' : 'mic' }}</mat-icon>
+          </button>
+          <button
+            mat-icon-button
+            type="button"
+            class="end-live-btn"
+            aria-label="End live voice session"
+            title="End live voice session"
+            (click)="toggleLive()"
+          >
+            <mat-icon>call_end</mat-icon>
+          </button>
+        </div>
+      </div>
+      @if (liveStore.liveTranscript(); as transcript) {
+        <p class="ask-vextis-live-banner__transcript">{{ transcript }}</p>
+      }
+      <div class="ask-vextis-live-banner__consent">
+        <mat-icon>lock</mat-icon>
+        <span>Real-time voice stream via Gemini Live. Audio is not retained.</span>
+      </div>
+    </div>
+  }
+
   <div class="ask-vextis-panel__messages" #messageList>
-    @if (store.messages().length === 0) {
+    @if (store.messages().length === 0 && !liveStore.isLiveActive()) {
       <div class="ask-vextis-panel__empty">
         <mat-icon>forum</mat-icon>
         <p>Ask about an order, a customer, or inventory — Vextis' agents answer with live data.</p>
@@ -63,7 +110,7 @@
         </div>
       }
     }
-    @if (store.error(); as error) {
+    @if (store.error() || liveStore.error(); as error) {
       <p class="ask-vextis-panel__error">{{ error }}</p>
     }
   </div>
@@ -72,20 +119,12 @@
     <button
       mat-icon-button
       type="button"
-      disabled
-      aria-label="Voice input (coming soon)"
-      title="Voice input — coming soon"
+      [class.live-active-btn]="liveStore.isLiveActive()"
+      [attr.aria-label]="liveStore.isLiveActive() ? 'End live conversation' : 'Start live conversation'"
+      [title]="liveStore.isLiveActive() ? 'End live conversation' : 'Start live voice conversation'"
+      (click)="toggleLive()"
     >
-      <mat-icon>mic</mat-icon>
-    </button>
-    <button
-      mat-icon-button
-      type="button"
-      disabled
-      aria-label="Live conversation (coming soon)"
-      title="Live conversation — coming soon"
-    >
-      <mat-icon>graphic_eq</mat-icon>
+      <mat-icon>{{ liveStore.isLiveActive() ? 'graphic_eq' : 'graphic_eq' }}</mat-icon>
     </button>
     <textarea
       rows="1"

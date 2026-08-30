@@ -1,14 +1,24 @@
 import { TestBed } from '@angular/core/testing';
 import { of } from 'rxjs';
-import { AskVextisConversationGQL, AskVextisGQL } from '../../api/generated/graphql';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  AskVextisConversationGQL,
+  AskVextisGQL,
+  CloseLiveSessionGQL,
+  CreateLiveSessionGQL,
+} from '../../api/generated/graphql';
 import { AskVextisChatStore } from './ask-vextis-chat.store';
+import { AskVextisLiveStore } from './ask-vextis-live.store';
 import { AskVextisPanelComponent } from './ask-vextis-panel.component';
+import { LiveAudioService } from './live-audio.service';
 
 describe('AskVextisPanelComponent', () => {
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [AskVextisPanelComponent],
       providers: [
+        AskVextisChatStore,
+        AskVextisLiveStore,
         {
           provide: AskVextisGQL,
           useValue: {
@@ -43,6 +53,33 @@ describe('AskVextisPanelComponent', () => {
           },
         },
         { provide: AskVextisConversationGQL, useValue: { fetch: vi.fn() } },
+        {
+          provide: CreateLiveSessionGQL,
+          useValue: {
+            mutate: vi.fn().mockReturnValue(
+              of({
+                data: {
+                  createLiveSession: {
+                    id: 'sess-1',
+                    websocketUrl: 'wss://agent.vextis.local/v1/live/sess-1',
+                    sessionToken: 'token-1',
+                    expiresAt: '2026-08-27T22:00:00Z',
+                  },
+                },
+              }),
+            ),
+          },
+        },
+        { provide: CloseLiveSessionGQL, useValue: { mutate: vi.fn().mockReturnValue(of({ data: { closeLiveSession: true } })) } },
+        {
+          provide: LiveAudioService,
+          useValue: {
+            startRecording: vi.fn().mockResolvedValue(undefined),
+            stopRecording: vi.fn(),
+            playAudioChunk: vi.fn(),
+            pcmChunks$: { subscribe: vi.fn().mockReturnValue({ unsubscribe: vi.fn() }) },
+          },
+        },
       ],
     });
   });

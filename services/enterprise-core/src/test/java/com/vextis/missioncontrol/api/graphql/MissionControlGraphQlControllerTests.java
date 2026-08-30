@@ -2,6 +2,7 @@ package com.vextis.missioncontrol.api.graphql;
 
 import com.vextis.agentregistry.AgentDirectory;
 import com.vextis.billing.CreditPortfolio;
+import com.vextis.billing.InvoiceDirectory;
 import com.vextis.conversation.ConversationActivityOverview;
 import com.vextis.crm.CustomerDirectory;
 import com.vextis.inventory.ReservationDirectory;
@@ -50,6 +51,9 @@ class MissionControlGraphQlControllerTests {
     @MockitoBean
     private CreditPortfolio credit;
 
+    @MockitoBean
+    private InvoiceDirectory invoices;
+
     @Test
     @WithMockUser(username = "firebase-user-123")
     void returnsExecutionVolumeGroupedByDepartment() {
@@ -60,6 +64,7 @@ class MissionControlGraphQlControllerTests {
         when(stock.findAll(eq("demo-tenant"))).thenReturn(List.of());
         when(reservations.findAll(eq("demo-tenant"))).thenReturn(List.of());
         when(credit.findAll(eq("demo-tenant"))).thenReturn(List.of());
+        when(invoices.findRecent(eq("demo-tenant"), eq(100))).thenReturn(List.of());
         when(executions.volumeByDepartment(eq("demo-tenant"))).thenReturn(List.of(
                 new ExecutionOverview.DepartmentVolume("CRM_SALES", 3),
                 new ExecutionOverview.DepartmentVolume("INVENTORY_OPERATIONS", 1)

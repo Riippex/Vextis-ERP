@@ -1,8 +1,11 @@
 type Query {
   health: Health!
   execution(id: ID!): Execution
+  invoice(id: ID!): Invoice
   missionControl: MissionControl!
   askVextisConversation(id: ID!): AskVextisConversation
+  knowledgeDocuments: [KnowledgeDocumentView!]!
+  proposalAssets(quoteId: ID, limit: Int = 20): [ProposalAsset!]!
 }
 
 type MissionControl {
@@ -13,6 +16,7 @@ type MissionControl {
   stockItems: [StockItemOverview!]!
   stockReservations: [StockReservationOverview!]!
   creditProfiles: [CreditProfileOverview!]!
+  invoices: [Invoice!]!
   executionVolumeByDepartment: [DepartmentExecutionVolume!]!
 }
 
@@ -208,7 +212,36 @@ type Execution {
   plan: ExecutionPlan
   readiness: ExecutionReadiness
   approval: WorkflowApproval
+  invoice: Invoice
+  proposalAssets: [ProposalAsset!]!
   auditTrail: [ExecutionAuditEntry!]!
+}
+
+type Invoice {
+  id: ID!
+  orderId: ID!
+  executionId: ID!
+  customerName: String!
+  currency: String!
+  subtotal: String!
+  tax: String!
+  total: String!
+  status: InvoiceStatus!
+  paymentTermsDays: Int!
+  issuedAt: String!
+  correlationId: String!
+  lines: [InvoiceLine!]!
+}
+
+type InvoiceLine {
+  sku: String!
+  quantity: Int!
+  unitPrice: String!
+  lineSubtotal: String!
+}
+
+enum InvoiceStatus {
+  ISSUED
 }
 
 type ExecutionAuditEntry {
@@ -299,11 +332,13 @@ type ExecutionPlan {
   steps: [ExecutionPlanStep!]!
   orderLines: [ExtractedOrderLine!]!
   requestedPaymentTermsDays: Int!
+  currency: String
 }
 
 type ExtractedOrderLine {
   sku: String!
   quantity: Int!
+  unitPrice: String
 }
 
 type ExecutionReadiness {
@@ -349,6 +384,7 @@ enum TimelineEntryType {
   APPROVAL_REQUESTED
   APPROVAL_DECIDED
   COMPLETED
+  INVOICE_ISSUED
   FAILED
 }
 
@@ -390,4 +426,42 @@ type LiveSession {
   websocketUrl: String!
   sessionToken: String!
   expiresAt: String!
+}
+
+type KnowledgeDocumentView {
+  id: ID!
+  documentUri: String!
+  fileName: String!
+  contentType: String!
+  contentHash: String!
+  """
+  Provider, model and dimension the chunks of this indexation were embedded
+  with. The same document may appear once per embedding space.
+  """
+  embeddingSpace: String!
+  version: Int!
+  status: String!
+  chunkCount: Int!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type ProposalAsset {
+  id: ID!
+  quoteId: ID!
+  storageUri: String!
+  "Short-lived signed HTTPS URL to render the image; null if it could not be signed."
+  imageUrl: String
+  "Short-lived signed HTTPS URL for media playback; null if it could not be signed."
+  mediaUrl: String
+  mediaType: ProposalMediaType!
+  modelId: String!
+  promptSummary: String!
+  aiLabel: String!
+  createdAt: String!
+}
+
+enum ProposalMediaType {
+  IMAGE
+  VIDEO
 }

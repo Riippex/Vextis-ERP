@@ -8,6 +8,8 @@ from vextis_agents.app.config import Settings
 from vextis_agents.app.main import create_app
 from vextis_agents.tools.core_api.planning import (
     CoreToolUnavailableError,
+    InvoiceLineResult,
+    InvoiceResult,
     PlanningResult,
     ReservationResult,
 )
@@ -39,6 +41,7 @@ class PlanningToolStub:
         self.readiness_calls = 0
         self.approval_calls = 0
         self.reservations: list[tuple[str, int]] = []
+        self.invoice_calls = 0
 
     async def start_planning(self, event: PurchaseOrderReceivedV2) -> PlanningContext:
         self.event = event
@@ -105,6 +108,31 @@ class PlanningToolStub:
             quantity=quantity,
             status="RESERVED",
             createdAt="2026-08-24T20:00:01Z",
+        )
+
+    async def issue_invoice(self, event: WorkflowApprovalDecidedV1) -> InvoiceResult:
+        self.invoice_calls += 1
+        return InvoiceResult(
+            id="3e2fb128-12e8-48fa-acdd-4748e00657ef",
+            orderId=str(event.payload.order_id),
+            executionId=str(event.payload.execution_id),
+            customerName="Acme Colombia",
+            subtotal="1000.00",
+            tax="190.00",
+            total="1190.00",
+            currency="COP",
+            status="ISSUED",
+            paymentTermsDays=30,
+            issuedAt="2026-08-27T18:00:00Z",
+            correlationId=event.correlation_id,
+            lines=[
+                InvoiceLineResult(
+                    sku="VXT-CHAIR-01",
+                    quantity=10,
+                    unitPrice="100.00",
+                    lineSubtotal="1000.00",
+                )
+            ],
         )
 
 
@@ -295,6 +323,7 @@ def test_approved_workflow_reserves_each_exact_order_line() -> None:
 
     assert response.status_code == 204
     assert tool.reservations == [("VXT-CHAIR-01", 10)]
+    assert tool.invoice_calls == 1
 
 
 def test_rejected_workflow_never_reserves_stock() -> None:
@@ -311,3 +340,4 @@ def test_rejected_workflow_never_reserves_stock() -> None:
 
     assert response.status_code == 204
     assert tool.reservations == []
+    assert tool.invoice_calls == 0

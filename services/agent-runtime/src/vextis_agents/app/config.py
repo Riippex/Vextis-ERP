@@ -24,11 +24,34 @@ class Settings(BaseSettings):
     live_enabled: bool = False
     live_model: str | None = None
     live_location: str = "us-central1"
+    # Unauthenticated-connection guards for the publicly reachable Live socket.
+    live_auth_timeout_seconds: float = 5.0
+    live_max_audio_frame_bytes: int = 65536
+    live_max_text_frame_bytes: int = 4096
+    # Ceiling applied on top of the expiresAt Enterprise Core returns, so a
+    # misconfigured or long-lived credential still cannot hold the single
+    # Agent Runtime instance indefinitely.
+    live_max_session_seconds: int = 900
     gemini_model: str | None = None
     gemini_location: str = "us"
+    # Documents and queries must share one embedding space; these settings
+    # define it for this process. The mock is opt-in, never a fallback.
+    rag_embedding_model: str = "text-embedding-004"
+    rag_embedding_dimension: int = 768
+    rag_embedding_location: str = "us-central1"
+    rag_mock_embeddings_enabled: bool = False
+    # A 0.0 floor returns the nearest chunks however unrelated they are, which
+    # reads downstream as grounded evidence. Enterprise Core enforces its own
+    # floor as well.
+    rag_min_similarity: float = 0.55
     memory_bank_enabled: bool = False
     memory_bank_agent_engine_id: str | None = None
     memory_bank_location: str = "us-central1"
+    imagen_enabled: bool = True
+    imagen_model: str = "imagen-3.0-generate-002"
+    imagen_location: str = "us-central1"
+    imagen_mock_enabled: bool = False
+    gcs_proposal_assets_bucket: str = "vextis-proposal-assets"
     google_cloud_project: str | None = Field(default=None, validation_alias="GOOGLE_CLOUD_PROJECT")
     google_cloud_location: str = Field(
         default="us-central1",

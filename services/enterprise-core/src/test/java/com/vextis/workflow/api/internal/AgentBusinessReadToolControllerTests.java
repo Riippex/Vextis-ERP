@@ -1,5 +1,6 @@
 package com.vextis.workflow.api.internal;
 
+import com.vextis.shared.ConfiguredServiceCallerIdentities;
 import com.vextis.agentregistry.AgentDirectory;
 import com.vextis.billing.CreditLookup;
 import com.vextis.crm.CustomerLookup;
@@ -24,7 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AgentBusinessReadToolController.class)
-@Import(AgentToolAuthorizer.class)
+@Import({AgentToolAuthorizer.class, ConfiguredServiceCallerIdentities.class})
 class AgentBusinessReadToolControllerTests {
 
     private static final UUID CUSTOMER_ID = UUID.fromString("09ec135d-9688-47de-ac71-5b8420b97488");

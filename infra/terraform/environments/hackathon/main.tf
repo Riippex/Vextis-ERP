@@ -86,6 +86,8 @@ module "iam" {
   cloud_sql_instance_name     = module.cloud_sql.instance_name
   database_password_secret_id = module.cloud_sql.password_secret_id
   agent_tools_secret_id       = "vextis-agent-tools-token"
+  demo_admin_secret_id        = "vextis-demo-admin-token"
+  live_gateway_secret_id      = "vextis-live-gateway-token"
   core_callback_secret_id     = "vextis-core-callback-token"
   labels                      = local.labels
 }
@@ -110,15 +112,19 @@ module "cloud_run" {
   enterprise_core_service_account_email        = module.iam.enterprise_core_email
   enterprise_core_public_service_account_email = module.iam.enterprise_core_public_email
   agent_runtime_service_account_email          = module.iam.agent_runtime_email
+  agent_runtime_live_service_account_email     = module.iam.agent_runtime_live_email
   pubsub_push_service_account_email            = module.iam.pubsub_push_email
   cloud_sql_connection_name                    = module.cloud_sql.connection_name
   database_name                                = module.cloud_sql.database_name
   database_password_secret_id                  = module.cloud_sql.password_secret_id
   agent_tools_secret_id                        = module.iam.agent_tools_secret_id
+  demo_admin_secret_id                         = module.iam.demo_admin_secret_id
+  live_gateway_secret_id                       = module.iam.live_gateway_secret_id
   core_callback_secret_id                      = module.iam.core_callback_secret_id
   pubsub_topic_id                              = "order-events"
   gemini_model                                 = var.gemini_model
   live_model                                   = var.live_model
+  live_max_session_seconds                     = var.live_max_session_seconds
   memory_bank_agent_engine_id                  = var.memory_bank_agent_engine_id
   assets_bucket_name                           = local.assets_bucket_name
   labels                                       = local.labels

@@ -494,6 +494,112 @@ h1 {
   width: 3rem;
 }
 
+.proposal-assets {
+  background: color-mix(in srgb, var(--vxt-brand-violet) 4%, var(--vxt-surface));
+  border: 1px solid color-mix(in srgb, var(--vxt-brand-violet) 20%, var(--vxt-border));
+  border-radius: 0.75rem;
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+}
+
+.proposal-assets__actions {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.proposal-assets__actions button {
+  height: 2rem;
+  width: 2rem;
+}
+
+.proposal-assets__actions button mat-icon {
+  font-size: 1.25rem;
+  height: 1.25rem;
+  width: 1.25rem;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.ai-badge {
+  background: color-mix(in srgb, var(--vxt-brand-violet) 18%, transparent);
+  border: 1px solid color-mix(in srgb, var(--vxt-brand-violet) 40%, transparent);
+  border-radius: 999px;
+  color: var(--vxt-brand-violet);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 0.2rem 0.6rem;
+  text-transform: uppercase;
+}
+
+.proposal-asset-card {
+  background: var(--vxt-surface);
+  border: 1px solid var(--vxt-border);
+  border-radius: 0.6rem;
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  padding: 1rem;
+}
+
+.proposal-asset-card__image,
+.proposal-asset-card__video {
+  border-radius: 0.4rem;
+  flex-shrink: 0;
+  height: 6rem;
+  object-fit: cover;
+  width: 6rem;
+}
+
+.proposal-asset-card__image--unavailable {
+  align-items: center;
+  background: color-mix(in srgb, var(--vxt-text-tertiary, var(--vxt-text-secondary)) 12%, var(--vxt-surface));
+  color: var(--vxt-text-tertiary, var(--vxt-text-secondary));
+  display: flex;
+  font-size: 0.7rem;
+  justify-content: center;
+  text-align: center;
+}
+
+.proposal-asset-card__info {
+  min-width: 0;
+}
+
+.proposal-asset-card__info strong {
+  color: var(--vxt-text-primary);
+  display: block;
+  font-size: 0.95rem;
+}
+
+.proposal-asset-card__info p {
+  color: var(--vxt-text-secondary);
+  font-size: 0.85rem;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.proposal-asset-card__info small {
+  color: var(--vxt-text-tertiary, var(--vxt-text-secondary));
+  display: block;
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+
+.proposal-assets__empty {
+  color: var(--vxt-text-secondary);
+  font-size: 0.85rem;
+  margin: 0.75rem 0 0;
+}
+
+
 @media (max-width: 56rem) {
   .workspace {
     grid-template-columns: 1fr;

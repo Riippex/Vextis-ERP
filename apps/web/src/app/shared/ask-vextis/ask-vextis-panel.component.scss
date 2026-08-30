@@ -63,6 +63,114 @@
   font-size: 0.72rem;
 }
 
+.ask-vextis-live-banner {
+  background: color-mix(in srgb, var(--vxt-brand-violet) 10%, var(--vxt-surface));
+  border-bottom: 1px solid color-mix(in srgb, var(--vxt-brand-violet) 25%, transparent);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1.1rem;
+  transition: background-color 200ms ease;
+}
+
+.ask-vextis-live-banner--speaking {
+  background: color-mix(in srgb, var(--vxt-brand-blue) 12%, var(--vxt-surface));
+  border-bottom-color: color-mix(in srgb, var(--vxt-brand-blue) 30%, transparent);
+}
+
+.ask-vextis-live-banner--muted {
+  background: color-mix(in srgb, var(--vxt-status-critical) 8%, var(--vxt-surface));
+}
+
+.ask-vextis-live-banner__header {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.ask-vextis-live-banner__indicator {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.live-pulse-dot {
+  animation: pulse-ring 1.6s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
+  background-color: var(--vxt-brand-violet);
+  border-radius: 50%;
+  display: inline-block;
+  height: 0.6rem;
+  width: 0.6rem;
+}
+
+.ask-vextis-live-banner--speaking .live-pulse-dot {
+  background-color: var(--vxt-brand-blue);
+  animation-duration: 1s;
+}
+
+.ask-vextis-live-banner--muted .live-pulse-dot {
+  animation: none;
+  background-color: var(--vxt-status-critical);
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--vxt-brand-violet) 60%, transparent);
+    transform: scale(0.95);
+  }
+  70% {
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--vxt-brand-violet) 0%, transparent);
+    transform: scale(1.15);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--vxt-brand-violet) 0%, transparent);
+    transform: scale(0.95);
+  }
+}
+
+.live-status-label {
+  color: var(--vxt-text-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.ask-vextis-live-banner__actions {
+  align-items: center;
+  display: flex;
+  gap: 0.25rem;
+}
+
+.ask-vextis-live-banner__actions button {
+  height: 2rem;
+  width: 2rem;
+}
+
+.end-live-btn {
+  color: var(--vxt-status-critical);
+}
+
+.ask-vextis-live-banner__transcript {
+  color: var(--vxt-text-primary);
+  font-size: 0.82rem;
+  font-style: italic;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.ask-vextis-live-banner__consent {
+  align-items: center;
+  color: var(--vxt-text-secondary);
+  display: flex;
+  font-size: 0.68rem;
+  gap: 0.35rem;
+}
+
+.ask-vextis-live-banner__consent mat-icon {
+  font-size: 0.8rem;
+  height: 0.8rem;
+  width: 0.8rem;
+}
+
 .ask-vextis-panel__messages {
   display: flex;
   flex: 1;
@@ -195,6 +303,11 @@
 
 .ask-vextis-panel__composer textarea::placeholder {
   color: var(--vxt-muted);
+}
+
+.live-active-btn {
+  color: var(--vxt-brand-violet);
+  animation: pulse-ring 1.6s cubic-bezier(0.215, 0.61, 0.355, 1) infinite;
 }
 
 @media (max-width: 30rem) {

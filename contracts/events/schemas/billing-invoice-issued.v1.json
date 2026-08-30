@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vextis.dev/schemas/events/billing-invoice-issued.v1.json",
+  "title": "BillingInvoiceIssuedV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["event_id", "event_type", "event_version", "occurred_at", "producer", "tenant_id", "correlation_id", "causation_id", "actor", "payload"],
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_type": { "const": "billing.invoice.issued" },
+    "event_version": { "const": 1 },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "producer": { "const": "enterprise-core" },
+    "tenant_id": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "correlation_id": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "causation_id": { "type": "string", "format": "uuid" },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "const": "AGENT" },
+        "id": { "type": "string", "minLength": 1, "maxLength": 150 }
+      }
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["invoice_id", "order_id", "execution_id", "currency", "subtotal", "tax", "total", "status"],
+      "properties": {
+        "invoice_id": { "type": "string", "format": "uuid" },
+        "order_id": { "type": "string", "format": "uuid" },
+        "execution_id": { "type": "string", "format": "uuid" },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "subtotal": { "type": "string", "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]{2})$" },
+        "tax": { "type": "string", "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]{2})$" },
+        "total": { "type": "string", "pattern": "^(0|[1-9][0-9]*)(\\.[0-9]{2})$" },
+        "status": { "const": "ISSUED" }
+      }
+    }
+  }
+}

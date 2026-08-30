@@ -39,6 +39,17 @@ variable "live_model" {
   default     = "gemini-live-2.5-flash-native-audio"
 }
 
+variable "live_max_session_seconds" {
+  description = <<-EOT
+    Ceiling on a single Ask Vextis voice session, in seconds. Enterprise Core
+    already issues a 5 minute credential; this is the deployment side of the
+    same bound, so a long-lived or misconfigured credential still cannot hold
+    the Live gateway instance and burn Vertex AI Live minutes indefinitely.
+  EOT
+  type        = number
+  default     = 900
+}
+
 variable "memory_bank_agent_engine_id" {
   description = "Existing Vertex AI Agent Engine id used by Memory Bank; empty disables the feature."
   type        = string

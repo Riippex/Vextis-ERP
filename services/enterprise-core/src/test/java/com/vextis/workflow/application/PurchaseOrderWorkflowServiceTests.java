@@ -1,6 +1,8 @@
 package com.vextis.workflow.application;
 
 import com.vextis.billing.CreditLookup;
+import com.vextis.billing.Invoice;
+import com.vextis.billing.InvoiceIssuer;
 import com.vextis.crm.CustomerLookup;
 import com.vextis.inventory.StockLookup;
 import com.vextis.inventory.ReservationDirectory;
@@ -23,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -38,6 +41,7 @@ class PurchaseOrderWorkflowServiceTests {
     private final StockReservation reservations = org.mockito.Mockito.mock(StockReservation.class);
     private final ReservationDirectory reservationDirectory =
             org.mockito.Mockito.mock(ReservationDirectory.class);
+    private final InvoiceIssuer invoices = org.mockito.Mockito.mock(InvoiceIssuer.class);
     private final PurchaseOrderDocumentStorage documents =
             org.mockito.Mockito.mock(PurchaseOrderDocumentStorage.class);
     private final PurchaseOrderWorkflowService service = new PurchaseOrderWorkflowService(
@@ -49,7 +53,8 @@ class PurchaseOrderWorkflowServiceTests {
             (tenant, customerId) -> Optional.of(new CreditLookup.CreditSnapshot(
                     CreditLookup.CreditStanding.GOOD, 30)),
             reservations,
-            reservationDirectory
+            reservationDirectory,
+            invoices
     );
     private final ReceivePurchaseOrderUseCase intake =
             new PurchaseOrderDocumentService(documents, service);
@@ -179,7 +184,8 @@ class PurchaseOrderWorkflowServiceTests {
                 "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"), planning.execution().id(),
                 planning.execution().correlationId(), "gemini-3.5-flash", "Validate readiness.",
                 List.of(new WorkflowPlanStep(1, PlanningDepartment.CRM_SALES, "Validate.", false)),
-                List.of(new ExtractedOrderLine("VXT-CHAIR-01", 10)), 30, eventId + ":record-plan"));
+                List.of(new ExtractedOrderLine("VXT-CHAIR-01", 10, new BigDecimal("100.00"))),
+                30, "COP", eventId + ":record-plan"));
 
         EvaluateReadinessCommand command = new EvaluateReadinessCommand(
                 "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"), received.execution().id(),
@@ -195,6 +201,38 @@ class PurchaseOrderWorkflowServiceTests {
     }
 
     @Test
+    void refusesApprovalBeforeEveryOrderLineHasInvoicePricing() {
+        PurchaseOrderReceipt received = intake.receive(command("receive-po-001"));
+        UUID eventId = UUID.fromString("8b962f0a-1850-4fcc-a6f5-97e45c67a16e");
+        PlanningContext planning = service.startPlanning(new StartPlanningCommand(
+                "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"), received.execution().id(),
+                eventId, received.execution().correlationId(), received.purchaseOrder().documentUri(), eventId.toString()));
+        service.recordPlan(new RecordPlanCommand(
+                "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"), planning.execution().id(),
+                planning.execution().correlationId(), "gemini-3.5-flash", "Validate readiness.",
+                List.of(new WorkflowPlanStep(1, PlanningDepartment.FINANCE_BILLING, "Validate.", true)),
+                List.of(new ExtractedOrderLine("VXT-CHAIR-01", 10)),
+                30, eventId + ":record-plan"));
+        WorkflowExecution evaluated = service.evaluateReadiness(new EvaluateReadinessCommand(
+                "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"), received.execution().id(),
+                received.execution().correlationId(), eventId + ":evaluate-readiness"));
+
+        assertThat(evaluated.readiness().checks())
+                .filteredOn(check -> check.department() == PlanningDepartment.FINANCE_BILLING)
+                .singleElement()
+                .satisfies(check -> {
+                    assertThat(check.status()).isEqualTo(com.vextis.workflow.domain.ReadinessStatus.REVIEW_REQUIRED);
+                    assertThat(check.detail()).contains("unit price");
+                });
+        assertThatThrownBy(() -> service.requestApproval(new RequestApprovalCommand(
+                "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"), received.execution().id(),
+                received.execution().correlationId(), "Proceed.", eventId + ":request-approval")))
+                .isInstanceOf(WorkflowConflictException.class)
+                .hasMessageContaining("unit price");
+        org.mockito.Mockito.verifyNoInteractions(reservations);
+    }
+
+    @Test
     void requestsAndDecidesHumanApprovalWithDurableIdentity() {
         PurchaseOrderReceipt received = intake.receive(command("receive-po-001"));
         UUID eventId = UUID.fromString("8b962f0a-1850-4fcc-a6f5-97e45c67a16e");
@@ -205,7 +243,8 @@ class PurchaseOrderWorkflowServiceTests {
                 "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"), planning.execution().id(),
                 planning.execution().correlationId(), "gemini-3.5-flash", "Validate readiness.",
                 List.of(new WorkflowPlanStep(1, PlanningDepartment.FINANCE_BILLING, "Validate.", true)),
-                List.of(new ExtractedOrderLine("VXT-CHAIR-01", 10)), 30, eventId + ":record-plan"));
+                List.of(new ExtractedOrderLine("VXT-CHAIR-01", 10, new BigDecimal("100.00"))),
+                30, "COP", eventId + ":record-plan"));
         service.evaluateReadiness(new EvaluateReadinessCommand(
                 "demo-tenant", new Actor(Actor.Type.AGENT, "coordinator-agent"), received.execution().id(),
                 received.execution().correlationId(), eventId + ":evaluate-readiness"));
@@ -243,6 +282,23 @@ class PurchaseOrderWorkflowServiceTests {
         assertThat(repository.receipt.execution().state()).isEqualTo(ExecutionState.COMPLETED);
         assertThat(repository.receipt.execution().timeline().getLast().title()).isEqualTo("Workflow completed");
         assertThat(repository.completionSaveCount).isEqualTo(1);
+
+        Invoice issued = new Invoice(
+                UUID.fromString("3e2fb128-12e8-48fa-acdd-4748e00657ef"), received.purchaseOrder().id(),
+                received.execution().id(), "Acme Colombia", "COP", new BigDecimal("1000.00"),
+                new BigDecimal("190.00"), new BigDecimal("1190.00"), Invoice.Status.ISSUED, 30, NOW,
+                received.execution().correlationId(), List.of(new Invoice.Line(
+                "VXT-CHAIR-01", 10, new BigDecimal("100.00"), new BigDecimal("1000.00"))));
+        org.mockito.Mockito.when(invoices.issue(org.mockito.ArgumentMatchers.any())).thenReturn(issued);
+
+        Invoice result = service.issueInvoice(new IssueApprovedInvoiceCommand(
+                "demo-tenant", new Actor(Actor.Type.AGENT, "vextis_billing_agent"),
+                received.purchaseOrder().id(), received.execution().id(), received.execution().correlationId(),
+                eventId + ":issue-invoice"));
+
+        assertThat(result).isEqualTo(issued);
+        assertThat(repository.receipt.execution().timeline().getLast().type())
+                .isEqualTo(com.vextis.workflow.domain.TimelineEntryType.INVOICE_ISSUED);
         org.mockito.Mockito.verify(reservations).reserve(org.mockito.ArgumentMatchers.argThat(command ->
                 command.orderId().equals(received.purchaseOrder().id())
                         && command.quantity() == 10
@@ -477,6 +533,11 @@ class PurchaseOrderWorkflowServiceTests {
         ) {
             receipt = new PurchaseOrderReceipt(receipt.purchaseOrder(), updated);
             completionSaveCount++;
+        }
+
+        @Override
+        public void saveInvoiceIssued(WorkflowExecution previous, WorkflowExecution updated) {
+            receipt = new PurchaseOrderReceipt(receipt.purchaseOrder(), updated);
         }
     }
 }

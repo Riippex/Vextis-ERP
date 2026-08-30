@@ -42,6 +42,10 @@ export type AuditResult =
   | 'FAILED'
   | 'SUCCEEDED';
 
+export type CreateLiveSessionInput = {
+  conversationId: string | number;
+};
+
 export type CreditStanding =
   | 'BLOCKED'
   | 'GOOD'
@@ -63,6 +67,9 @@ export type ExecutionState =
   | 'RUNNING'
   | 'WAITING_APPROVAL';
 
+export type InvoiceStatus =
+  | 'ISSUED';
+
 export type PlanningDepartment =
   | 'CRM_SALES'
   | 'FINANCE_BILLING'
@@ -73,6 +80,10 @@ export type PreparePurchaseOrderUploadInput = {
   fileName: string;
   sizeBytes: number;
 };
+
+export type ProposalMediaType =
+  | 'IMAGE'
+  | 'VIDEO';
 
 export type ReadinessStatus =
   | 'READY'
@@ -103,6 +114,7 @@ export type TimelineEntryType =
   | 'APPROVAL_REQUESTED'
   | 'COMPLETED'
   | 'FAILED'
+  | 'INVOICE_ISSUED'
   | 'RECEIVED'
   | 'STATUS_CHANGED';
 
@@ -147,21 +159,21 @@ export type SetStockAvailabilityMutation = { setStockAvailability: { sku: string
 export type MissionControlQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type MissionControlQuery = { missionControl: { agents: Array<{ agentId: string, version: string, displayName: string, department: string, purpose: string, framework: string, modelId: string, promptVersion: string, serviceIdentity: string, status: AgentRegistryStatus, capabilities: Array<string>, allowedTools: Array<string> }>, recentAgentActivities: Array<{ conversationId: string, messageId: string, agentId: string, agentVersion: string, displayName: string, modelId: string, promptVersion: string, tools: Array<string>, occurredAt: string }>, executions: Array<{ id: string, purchaseOrderNumber: string, customerName: string, state: ExecutionState, correlationId: string, updatedAt: string }>, customers: Array<{ id: string, legalName: string, active: boolean }>, stockItems: Array<{ sku: string, availableQuantity: number }>, stockReservations: Array<{ id: string, orderId: string, sku: string, quantity: number, status: StockReservationStatus, createdAt: string }>, creditProfiles: Array<{ customerId: string, customerName: string, standing: CreditStanding, maxPaymentTermsDays: number }>, executionVolumeByDepartment: Array<{ department: PlanningDepartment, count: number }> } };
+export type MissionControlQuery = { missionControl: { agents: Array<{ agentId: string, version: string, displayName: string, department: string, purpose: string, framework: string, modelId: string, promptVersion: string, serviceIdentity: string, status: AgentRegistryStatus, capabilities: Array<string>, allowedTools: Array<string> }>, recentAgentActivities: Array<{ conversationId: string, messageId: string, agentId: string, agentVersion: string, displayName: string, modelId: string, promptVersion: string, tools: Array<string>, occurredAt: string }>, executions: Array<{ id: string, purchaseOrderNumber: string, customerName: string, state: ExecutionState, correlationId: string, updatedAt: string }>, customers: Array<{ id: string, legalName: string, active: boolean }>, stockItems: Array<{ sku: string, availableQuantity: number }>, stockReservations: Array<{ id: string, orderId: string, sku: string, quantity: number, status: StockReservationStatus, createdAt: string }>, creditProfiles: Array<{ customerId: string, customerName: string, standing: CreditStanding, maxPaymentTermsDays: number }>, invoices: Array<{ id: string, orderId: string, executionId: string, customerName: string, currency: string, subtotal: string, tax: string, total: string, status: InvoiceStatus, paymentTermsDays: number, issuedAt: string, correlationId: string, lines: Array<{ sku: string, quantity: number, unitPrice: string, lineSubtotal: string }> }>, executionVolumeByDepartment: Array<{ department: PlanningDepartment, count: number }> } };
 
 export type DecideApprovalMutationVariables = Exact<{
   input: DecideApprovalInput;
 }>;
 
 
-export type DecideApprovalMutation = { decideApproval: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, orderLines: Array<{ sku: string, quantity: number }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null, approval: { id: string, recommendation: string, status: ApprovalStatus, requestedBy: string, requestedAt: string, expiresAt: string, decidedBy: string | null, decidedAt: string | null, reason: string | null } | null, auditTrail: Array<{ id: string, correlationId: string, actorType: AuditActorType, actorId: string, action: string, toolName: string | null, resourceType: string, resourceId: string, result: AuditResult, occurredAt: string, approvedAgent: { agentId: string, version: string, displayName: string, modelId: string, promptVersion: string, serviceIdentity: string } | null }> } };
+export type DecideApprovalMutation = { decideApproval: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, currency: string | null, orderLines: Array<{ sku: string, quantity: number, unitPrice: string | null }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null, approval: { id: string, recommendation: string, status: ApprovalStatus, requestedBy: string, requestedAt: string, expiresAt: string, decidedBy: string | null, decidedAt: string | null, reason: string | null } | null, invoice: { id: string, orderId: string, executionId: string, customerName: string, currency: string, subtotal: string, tax: string, total: string, status: InvoiceStatus, paymentTermsDays: number, issuedAt: string, correlationId: string, lines: Array<{ sku: string, quantity: number, unitPrice: string, lineSubtotal: string }> } | null, proposalAssets: Array<{ id: string, quoteId: string, storageUri: string, imageUrl: string | null, mediaUrl: string | null, mediaType: ProposalMediaType, modelId: string, promptSummary: string, aiLabel: string, createdAt: string }>, auditTrail: Array<{ id: string, correlationId: string, actorType: AuditActorType, actorId: string, action: string, toolName: string | null, resourceType: string, resourceId: string, result: AuditResult, occurredAt: string, approvedAgent: { agentId: string, version: string, displayName: string, modelId: string, promptVersion: string, serviceIdentity: string } | null }> } };
 
 export type FindExecutionQueryVariables = Exact<{
   id: string | number;
 }>;
 
 
-export type FindExecutionQuery = { execution: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, orderLines: Array<{ sku: string, quantity: number }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null, approval: { id: string, recommendation: string, status: ApprovalStatus, requestedBy: string, requestedAt: string, expiresAt: string, decidedBy: string | null, decidedAt: string | null, reason: string | null } | null, auditTrail: Array<{ id: string, correlationId: string, actorType: AuditActorType, actorId: string, action: string, toolName: string | null, resourceType: string, resourceId: string, result: AuditResult, occurredAt: string, approvedAgent: { agentId: string, version: string, displayName: string, modelId: string, promptVersion: string, serviceIdentity: string } | null }> } | null };
+export type FindExecutionQuery = { execution: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, currency: string | null, orderLines: Array<{ sku: string, quantity: number, unitPrice: string | null }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null, approval: { id: string, recommendation: string, status: ApprovalStatus, requestedBy: string, requestedAt: string, expiresAt: string, decidedBy: string | null, decidedAt: string | null, reason: string | null } | null, invoice: { id: string, orderId: string, executionId: string, customerName: string, currency: string, subtotal: string, tax: string, total: string, status: InvoiceStatus, paymentTermsDays: number, issuedAt: string, correlationId: string, lines: Array<{ sku: string, quantity: number, unitPrice: string, lineSubtotal: string }> } | null, proposalAssets: Array<{ id: string, quoteId: string, storageUri: string, imageUrl: string | null, mediaUrl: string | null, mediaType: ProposalMediaType, modelId: string, promptSummary: string, aiLabel: string, createdAt: string }>, auditTrail: Array<{ id: string, correlationId: string, actorType: AuditActorType, actorId: string, action: string, toolName: string | null, resourceType: string, resourceId: string, result: AuditResult, occurredAt: string, approvedAgent: { agentId: string, version: string, displayName: string, modelId: string, promptVersion: string, serviceIdentity: string } | null }> } | null };
 
 export type PreparePurchaseOrderUploadMutationVariables = Exact<{
   input: PreparePurchaseOrderUploadInput;
@@ -175,7 +187,7 @@ export type ReceivePurchaseOrderMutationVariables = Exact<{
 }>;
 
 
-export type ReceivePurchaseOrderMutation = { receivePurchaseOrder: { purchaseOrder: { id: string, purchaseOrderNumber: string, customerName: string, documentUri: string, receivedAt: string }, execution: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, orderLines: Array<{ sku: string, quantity: number }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null, approval: { id: string, recommendation: string, status: ApprovalStatus, requestedBy: string, requestedAt: string, expiresAt: string, decidedBy: string | null, decidedAt: string | null, reason: string | null } | null, auditTrail: Array<{ id: string, correlationId: string, actorType: AuditActorType, actorId: string, action: string, toolName: string | null, resourceType: string, resourceId: string, result: AuditResult, occurredAt: string, approvedAgent: { agentId: string, version: string, displayName: string, modelId: string, promptVersion: string, serviceIdentity: string } | null }> } } };
+export type ReceivePurchaseOrderMutation = { receivePurchaseOrder: { purchaseOrder: { id: string, purchaseOrderNumber: string, customerName: string, documentUri: string, receivedAt: string }, execution: { id: string, goal: string, state: ExecutionState, correlationId: string, createdAt: string, updatedAt: string, timeline: Array<{ sequence: number, type: TimelineEntryType, title: string, detail: string, occurredAt: string }>, plan: { summary: string, modelId: string, generatedAt: string, requestedPaymentTermsDays: number, currency: string | null, orderLines: Array<{ sku: string, quantity: number, unitPrice: string | null }>, steps: Array<{ sequence: number, department: PlanningDepartment, objective: string, requiresApproval: boolean }> } | null, readiness: { evaluatedAt: string, checks: Array<{ department: PlanningDepartment, status: ReadinessStatus, detail: string }> } | null, approval: { id: string, recommendation: string, status: ApprovalStatus, requestedBy: string, requestedAt: string, expiresAt: string, decidedBy: string | null, decidedAt: string | null, reason: string | null } | null, invoice: { id: string, orderId: string, executionId: string, customerName: string, currency: string, subtotal: string, tax: string, total: string, status: InvoiceStatus, paymentTermsDays: number, issuedAt: string, correlationId: string, lines: Array<{ sku: string, quantity: number, unitPrice: string, lineSubtotal: string }> } | null, proposalAssets: Array<{ id: string, quoteId: string, storageUri: string, imageUrl: string | null, mediaUrl: string | null, mediaType: ProposalMediaType, modelId: string, promptSummary: string, aiLabel: string, createdAt: string }>, auditTrail: Array<{ id: string, correlationId: string, actorType: AuditActorType, actorId: string, action: string, toolName: string | null, resourceType: string, resourceId: string, result: AuditResult, occurredAt: string, approvedAgent: { agentId: string, version: string, displayName: string, modelId: string, promptVersion: string, serviceIdentity: string } | null }> } } };
 
 export type AskVextisMutationVariables = Exact<{
   input: AskVextisMessageInput;
@@ -190,6 +202,20 @@ export type AskVextisConversationQueryVariables = Exact<{
 
 
 export type AskVextisConversationQuery = { askVextisConversation: { id: string, messages: Array<{ id: string, sender: AskVextisMessageSender, content: string, kind: AskVextisMessageKind, createdAt: string, agentActivities: Array<{ agentId: string, agentVersion: string, displayName: string, modelId: string, promptVersion: string, tools: Array<string> }>, memoryEvidence: { provider: string, available: boolean, contextCount: number, preferenceStored: boolean } | null }> } | null };
+
+export type CreateLiveSessionMutationVariables = Exact<{
+  input: CreateLiveSessionInput;
+}>;
+
+
+export type CreateLiveSessionMutation = { createLiveSession: { id: string, websocketUrl: string, sessionToken: string, expiresAt: string } };
+
+export type CloseLiveSessionMutationVariables = Exact<{
+  id: string | number;
+}>;
+
+
+export type CloseLiveSessionMutation = { closeLiveSession: boolean };
 
 export const HealthDocument = gql`
     query Health {
@@ -328,6 +354,26 @@ export const MissionControlDocument = gql`
       standing
       maxPaymentTermsDays
     }
+    invoices {
+      id
+      orderId
+      executionId
+      customerName
+      currency
+      subtotal
+      tax
+      total
+      status
+      paymentTermsDays
+      issuedAt
+      correlationId
+      lines {
+        sku
+        quantity
+        unitPrice
+        lineSubtotal
+      }
+    }
     executionVolumeByDepartment {
       department
       count
@@ -370,7 +416,9 @@ export const DecideApprovalDocument = gql`
       orderLines {
         sku
         quantity
+        unitPrice
       }
+      currency
       steps {
         sequence
         department
@@ -396,6 +444,38 @@ export const DecideApprovalDocument = gql`
       decidedBy
       decidedAt
       reason
+    }
+    invoice {
+      id
+      orderId
+      executionId
+      customerName
+      currency
+      subtotal
+      tax
+      total
+      status
+      paymentTermsDays
+      issuedAt
+      correlationId
+      lines {
+        sku
+        quantity
+        unitPrice
+        lineSubtotal
+      }
+    }
+    proposalAssets {
+      id
+      quoteId
+      storageUri
+      imageUrl
+      mediaUrl
+      mediaType
+      modelId
+      promptSummary
+      aiLabel
+      createdAt
     }
     auditTrail {
       id
@@ -455,7 +535,9 @@ export const FindExecutionDocument = gql`
       orderLines {
         sku
         quantity
+        unitPrice
       }
+      currency
       steps {
         sequence
         department
@@ -481,6 +563,38 @@ export const FindExecutionDocument = gql`
       decidedBy
       decidedAt
       reason
+    }
+    invoice {
+      id
+      orderId
+      executionId
+      customerName
+      currency
+      subtotal
+      tax
+      total
+      status
+      paymentTermsDays
+      issuedAt
+      correlationId
+      lines {
+        sku
+        quantity
+        unitPrice
+        lineSubtotal
+      }
+    }
+    proposalAssets {
+      id
+      quoteId
+      storageUri
+      imageUrl
+      mediaUrl
+      mediaType
+      modelId
+      promptSummary
+      aiLabel
+      createdAt
     }
     auditTrail {
       id
@@ -572,7 +686,9 @@ export const ReceivePurchaseOrderDocument = gql`
         orderLines {
           sku
           quantity
+          unitPrice
         }
+        currency
         steps {
           sequence
           department
@@ -598,6 +714,38 @@ export const ReceivePurchaseOrderDocument = gql`
         decidedBy
         decidedAt
         reason
+      }
+      invoice {
+        id
+        orderId
+        executionId
+        customerName
+        currency
+        subtotal
+        tax
+        total
+        status
+        paymentTermsDays
+        issuedAt
+        correlationId
+        lines {
+          sku
+          quantity
+          unitPrice
+          lineSubtotal
+        }
+      }
+      proposalAssets {
+        id
+        quoteId
+        storageUri
+        imageUrl
+        mediaUrl
+        mediaType
+        modelId
+        promptSummary
+        aiLabel
+        createdAt
       }
       auditTrail {
         id
@@ -703,6 +851,43 @@ export const AskVextisConversationDocument = gql`
   })
   export class AskVextisConversationGQL extends Apollo.Query<AskVextisConversationQuery, AskVextisConversationQueryVariables> {
     document = AskVextisConversationDocument;
+
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const CreateLiveSessionDocument = gql`
+    mutation CreateLiveSession($input: CreateLiveSessionInput!) {
+  createLiveSession(input: $input) {
+    id
+    websocketUrl
+    sessionToken
+    expiresAt
+  }
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class CreateLiveSessionGQL extends Apollo.Mutation<CreateLiveSessionMutation, CreateLiveSessionMutationVariables> {
+    document = CreateLiveSessionDocument;
+
+    constructor(apollo: Apollo.Apollo) {
+      super(apollo);
+    }
+  }
+export const CloseLiveSessionDocument = gql`
+    mutation CloseLiveSession($id: ID!) {
+  closeLiveSession(id: $id)
+}
+    `;
+
+  @Injectable({
+    providedIn: 'root'
+  })
+  export class CloseLiveSessionGQL extends Apollo.Mutation<CloseLiveSessionMutation, CloseLiveSessionMutationVariables> {
+    document = CloseLiveSessionDocument;
 
     constructor(apollo: Apollo.Apollo) {
       super(apollo);

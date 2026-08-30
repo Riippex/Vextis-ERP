@@ -10,8 +10,16 @@ public record WorkflowPlan(
         Instant generatedAt,
         List<WorkflowPlanStep> steps,
         List<ExtractedOrderLine> orderLines,
-        int requestedPaymentTermsDays
+        int requestedPaymentTermsDays,
+        String currency
 ) {
+
+    public WorkflowPlan(
+            String summary, String modelId, Instant generatedAt, List<WorkflowPlanStep> steps,
+            List<ExtractedOrderLine> orderLines, int requestedPaymentTermsDays
+    ) {
+        this(summary, modelId, generatedAt, steps, orderLines, requestedPaymentTermsDays, null);
+    }
 
     public WorkflowPlan {
         if (summary == null || summary.isBlank() || summary.length() > 500) {
@@ -41,6 +49,17 @@ public record WorkflowPlan(
         }
         if (requestedPaymentTermsDays < 0 || requestedPaymentTermsDays > 365) {
             throw new IllegalArgumentException("Requested payment terms must be between 0 and 365 days");
+        }
+        if (currency != null) {
+            currency = currency.trim().toUpperCase();
+            if (!currency.matches("[A-Z]{3}")) {
+                throw new IllegalArgumentException("Plan currency must be an ISO 4217 code");
+            }
+        }
+        boolean hasAnyPrice = orderLines.stream().anyMatch(line -> line.unitPrice() != null);
+        boolean hasEveryPrice = orderLines.stream().allMatch(line -> line.unitPrice() != null);
+        if (hasAnyPrice != hasEveryPrice || (hasEveryPrice && currency == null) || (!hasEveryPrice && currency != null)) {
+            throw new IllegalArgumentException("Plan pricing requires every unit price and one currency together");
         }
     }
 }
