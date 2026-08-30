@@ -125,4 +125,32 @@ describe('AskVextisPanelComponent', () => {
 
     expect(store.open()).toBe(false);
   });
+
+  it('renders Markdown while keeping model-supplied HTML and URLs inert', () => {
+    const fixture = TestBed.createComponent(AskVextisPanelComponent);
+    const store = TestBed.inject(AskVextisChatStore);
+    store.messages.set([
+      {
+        id: 'assistant-markdown',
+        sender: 'ASSISTANT',
+        content:
+          '**Inventory:**\n- `VXT-CHAIR-01`: 40 units\n\n<script>alert(1)</script>\n[unsafe](javascript:alert(2))\n![tracker](https://example.com/pixel.gif)',
+        kind: 'TEXT',
+        createdAt: '2026-08-30T12:00:00Z',
+        agentActivities: [],
+        memoryEvidence: null,
+      },
+    ]);
+    store.openPanel();
+    fixture.detectChanges();
+
+    const message = fixture.nativeElement.querySelector('.vxt-markdown') as HTMLElement;
+    const unsafeLink = message.querySelector('a');
+
+    expect(message.querySelector('strong')?.textContent).toBe('Inventory:');
+    expect(message.querySelector('li code')?.textContent).toBe('VXT-CHAIR-01');
+    expect(message.querySelector('script')).toBeNull();
+    expect(message.querySelector('img')).toBeNull();
+    expect(unsafeLink?.getAttribute('href') ?? '').not.toMatch(/^javascript:/i);
+  });
 });

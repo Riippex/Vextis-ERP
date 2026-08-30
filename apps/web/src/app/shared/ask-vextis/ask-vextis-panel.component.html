@@ -79,7 +79,7 @@
     } @else {
       @for (message of store.messages(); track message.id) {
         <div class="ask-vextis-message" [class.ask-vextis-message--user]="message.sender === 'USER'">
-          <p>{{ message.content }}</p>
+          <div class="vxt-markdown" [innerHTML]="message.content | vxtSafeMarkdown"></div>
           @if (message.sender === 'ASSISTANT' && message.agentActivities.length) {
             <div class="ask-vextis-message__evidence" aria-label="Agent activity used for this answer">
               @for (activity of message.agentActivities; track activity.agentId + activity.agentVersion) {

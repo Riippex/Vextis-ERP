@@ -54,6 +54,13 @@ footer {
   width: 2rem;
 }
 
+.brand__mark img {
+  display: block;
+  height: 100%;
+  object-fit: contain;
+  width: 100%;
+}
+
 .nav__links,
 .stack div {
   align-items: center;
