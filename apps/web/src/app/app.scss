@@ -53,6 +53,13 @@
   width: 2rem;
 }
 
+.brand__mark img {
+  display: block;
+  height: 1.625rem;
+  object-fit: contain;
+  width: 1.625rem;
+}
+
 .brand__word {
   background: var(--vxt-brand-gradient);
   background-clip: text;

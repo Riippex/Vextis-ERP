@@ -33,3 +33,68 @@ body {
 * {
   box-sizing: border-box;
 }
+
+.vxt-markdown {
+  color: var(--vxt-text-primary);
+  font-size: 0.86rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.vxt-markdown > :first-child {
+  margin-top: 0;
+}
+
+.vxt-markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.vxt-markdown p,
+.vxt-markdown ul,
+.vxt-markdown ol,
+.vxt-markdown blockquote,
+.vxt-markdown pre {
+  margin-block: 0.45rem;
+}
+
+.vxt-markdown ul,
+.vxt-markdown ol {
+  padding-left: 1.25rem;
+}
+
+.vxt-markdown code {
+  background: color-mix(in srgb, var(--vxt-text-primary) 8%, transparent);
+  border-radius: 0.3rem;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.82em;
+  padding: 0.12rem 0.28rem;
+}
+
+.vxt-markdown pre {
+  background: color-mix(in srgb, var(--vxt-text-primary) 8%, var(--vxt-surface));
+  border: 1px solid var(--vxt-border);
+  border-radius: 0.5rem;
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 0.65rem;
+}
+
+.vxt-markdown pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.vxt-markdown blockquote {
+  border-left: 3px solid var(--vxt-brand-violet);
+  color: var(--vxt-text-secondary);
+  padding-left: 0.7rem;
+}
+
+.vxt-markdown a {
+  color: var(--vxt-brand-blue);
+}
+
+.vxt-markdown__image-alt {
+  color: var(--vxt-text-secondary);
+  font-style: italic;
+}
