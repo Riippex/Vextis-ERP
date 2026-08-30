@@ -5,6 +5,7 @@ type Query {
   missionControl: MissionControl!
   askVextisConversation(id: ID!): AskVextisConversation
   knowledgeDocuments: [KnowledgeDocumentView!]!
+  proposalAssets(quoteId: ID, limit: Int = 20): [ProposalAsset!]!
 }
 
 type MissionControl {
@@ -212,6 +213,7 @@ type Execution {
   readiness: ExecutionReadiness
   approval: WorkflowApproval
   invoice: Invoice
+  proposalAssets: [ProposalAsset!]!
   auditTrail: [ExecutionAuditEntry!]!
 }
 
@@ -432,9 +434,34 @@ type KnowledgeDocumentView {
   fileName: String!
   contentType: String!
   contentHash: String!
+  """
+  Provider, model and dimension the chunks of this indexation were embedded
+  with. The same document may appear once per embedding space.
+  """
+  embeddingSpace: String!
   version: Int!
   status: String!
   chunkCount: Int!
   createdAt: String!
   updatedAt: String!
+}
+
+type ProposalAsset {
+  id: ID!
+  quoteId: ID!
+  storageUri: String!
+  "Short-lived signed HTTPS URL to render the image; null if it could not be signed."
+  imageUrl: String
+  "Short-lived signed HTTPS URL for media playback; null if it could not be signed."
+  mediaUrl: String
+  mediaType: ProposalMediaType!
+  modelId: String!
+  promptSummary: String!
+  aiLabel: String!
+  createdAt: String!
+}
+
+enum ProposalMediaType {
+  IMAGE
+  VIDEO
 }

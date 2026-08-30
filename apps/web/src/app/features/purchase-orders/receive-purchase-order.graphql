@@ -78,6 +78,18 @@ mutation ReceivePurchaseOrder($input: ReceivePurchaseOrderInput!) {
           lineSubtotal
         }
       }
+      proposalAssets {
+        id
+        quoteId
+        storageUri
+        imageUrl
+        mediaUrl
+        mediaType
+        modelId
+        promptSummary
+        aiLabel
+        createdAt
+      }
       auditTrail {
         id
         correlationId

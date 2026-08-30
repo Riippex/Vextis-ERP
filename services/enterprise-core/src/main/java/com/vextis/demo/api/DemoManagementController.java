@@ -17,25 +17,38 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.Map;
 
+/**
+ * Demo administration: seeding and the destructive tenant reset.
+ *
+ * <p>These are not agent tools. They used to accept the shared
+ * {@code vextis.agent-tools.service-token}, which meant the credential Agent
+ * Runtime carries for business reads could purge a tenant, and they accepted
+ * whatever {@code tenantId} the body carried, so that purge was not even
+ * confined to the demo tenant. Both are closed here: a separate administrative
+ * credential, and the configured demo tenant as the only permitted target.
+ */
 @RestController
 @RequestMapping("/internal/demo")
 public class DemoManagementController {
 
     private final DemoSeedingService demoSeedingService;
     private final DemoResetService demoResetService;
-    private final String serviceToken;
-    private final String defaultTenantId;
+    private final String adminToken;
+    private final String demoTenantId;
+    private final boolean localExposure;
 
     public DemoManagementController(
             DemoSeedingService demoSeedingService,
             DemoResetService demoResetService,
-            @Value("${vextis.agent-tools.service-token:}") String serviceToken,
-            @Value("${vextis.demo.tenant-id:demo-tenant}") String defaultTenantId
+            @Value("${vextis.demo.admin-token:}") String adminToken,
+            @Value("${vextis.demo.tenant-id:demo-tenant}") String demoTenantId,
+            @Value("${vextis.exposure:INTERNAL}") String exposure
     ) {
         this.demoSeedingService = demoSeedingService;
         this.demoResetService = demoResetService;
-        this.serviceToken = serviceToken;
-        this.defaultTenantId = defaultTenantId;
+        this.adminToken = adminToken;
+        this.demoTenantId = demoTenantId;
+        this.localExposure = "LOCAL".equalsIgnoreCase(exposure);
     }
 
     public record SeedDemoRequest(String tenantId, String actorId) {
@@ -82,10 +95,11 @@ public class DemoManagementController {
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @RequestBody(required = false) SeedDemoRequest request
     ) {
-        authorizeServiceToken(authorization);
+        authorizeAdministrator(authorization);
+        String tenantId = requireDemoTenant(request);
 
         DemoSeedingService.SeedResult result =
-                demoSeedingService.seedDemoData(tenantIdOf(request), actorIdOf(request));
+                demoSeedingService.seedDemoData(tenantId, actorIdOf(request));
 
         return ResponseEntity.ok(SeedDemoResponse.from("SEEDED", result));
     }
@@ -95,10 +109,11 @@ public class DemoManagementController {
             @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization,
             @RequestBody(required = false) SeedDemoRequest request
     ) {
-        authorizeServiceToken(authorization);
+        authorizeAdministrator(authorization);
+        String tenantId = requireDemoTenant(request);
 
         DemoResetService.ResetResult result =
-                demoResetService.resetDemoData(tenantIdOf(request), actorIdOf(request));
+                demoResetService.resetDemoData(tenantId, actorIdOf(request));
         DemoSeedingService.SeedResult seed = result.seed();
 
         return ResponseEntity.ok(new ResetDemoResponse(
@@ -113,25 +128,46 @@ public class DemoManagementController {
         ));
     }
 
-    private String tenantIdOf(SeedDemoRequest request) {
-        return (request != null && request.tenantId() != null) ? request.tenantId() : defaultTenantId;
+    /**
+     * Only the configured demo tenant may be seeded or purged. Redirecting a
+     * foreign tenant to the demo one silently would be worse than refusing:
+     * the caller asked to destroy something else.
+     */
+    private String requireDemoTenant(SeedDemoRequest request) {
+        if (request == null || request.tenantId() == null || request.tenantId().isBlank()) {
+            return demoTenantId;
+        }
+        String requested = request.tenantId().trim();
+        if (!demoTenantId.equals(requested)) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "Demo administration is limited to the configured demo tenant");
+        }
+        return requested;
     }
 
     private String actorIdOf(SeedDemoRequest request) {
         return (request != null && request.actorId() != null) ? request.actorId() : "demo-admin";
     }
 
-    private void authorizeServiceToken(String authorization) {
-        if (serviceToken.isBlank()) {
-            return; // In local development without configured token, allow seeding for developer convenience
+    private void authorizeAdministrator(String authorization) {
+        if (adminToken.isBlank()) {
+            if (localExposure) {
+                // A developer running the stack locally has no secret manager.
+                return;
+            }
+            // Fail closed. Skipping the check when unconfigured left seeding and
+            // the destructive reset open to anyone who could reach the service.
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE,
+                    "Demo administration is disabled until VEXTIS_DEMO_ADMIN_TOKEN is configured");
         }
         if (authorization == null || !authorization.startsWith("Bearer ")) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing service credential");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing administrative credential");
         }
         byte[] presented = authorization.substring("Bearer ".length()).getBytes(StandardCharsets.UTF_8);
-        byte[] expected = serviceToken.getBytes(StandardCharsets.UTF_8);
+        byte[] expected = adminToken.getBytes(StandardCharsets.UTF_8);
         if (!MessageDigest.isEqual(presented, expected)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid service credential");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid administrative credential");
         }
     }
 }

@@ -1,5 +1,6 @@
 package com.vextis.workflow.api.internal;
 
+import com.vextis.shared.ConfiguredServiceCallerIdentities;
 import com.vextis.agentregistry.AgentDirectory;
 import com.vextis.billing.Invoice;
 import com.vextis.workflow.application.IssueApprovedInvoiceCommand;
@@ -28,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AgentBillingToolController.class)
-@Import(AgentToolAuthorizer.class)
+@Import({AgentToolAuthorizer.class, ConfiguredServiceCallerIdentities.class})
 class AgentBillingToolControllerTests {
     private static final UUID ORDER_ID = UUID.fromString("77cc63cc-3c91-4d80-a918-605b7f231cf8");
     private static final UUID EXECUTION_ID = UUID.fromString("8d3f290d-1322-44a2-8bd7-3b325f170e07");

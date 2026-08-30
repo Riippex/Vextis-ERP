@@ -88,14 +88,36 @@ back to `index.html`.
 
 ## Smoke test
 
-`tools/smoke-test.ps1` checks Agent Runtime health, the Enterprise Core GraphQL
-endpoint, demo seeding and the deterministic demo reset. It exits non-zero when
-any check fails, so it can gate a deployment. An unreachable service is a
-failure; the only way to get a zero exit from a deployment that is not answering
-is to pass `-Offline` deliberately.
+`tools/smoke-test.ps1` checks Agent Runtime health, Enterprise Core, demo
+seeding and the deterministic demo reset. It exits non-zero when any check
+fails, so it can gate a deployment. An unreachable service is a failure; the
+only way to get a zero exit from a deployment that is not answering is to pass
+`-Offline` deliberately.
 
-`tools/smoke-test.tests.ps1` pins that exit-code contract against stub services
-and runs in CI as the **Smoke Test Contract** job. It needs no deployment.
+### Exposures
+
+Enterprise Core runs behind two security postures and the script checks each for
+what that posture is supposed to do:
+
+| Exposure | Service | `/graphql` | `/internal/**` |
+| --- | --- | --- | --- |
+| `INTERNAL` | `vextis-enterprise-core` | denied (403) | reachable |
+| `PUBLIC` | `vextis-enterprise-core-public` | Firebase-authenticated | denied (403) |
+| `LOCAL` | `tools/dev.ps1` | permitted | permitted |
+
+Passing `-PublicCoreUrl` switches the script into GCP mode. It then probes the
+private Core only where the private Core answers (`/actuator/health` and
+`/internal/demo/**`), and asserts the boundary on the public one: an anonymous
+`/graphql` must return `401` and `/internal/**` must return `403`. A public
+service that answers either is a failure, not a pass.
+
+Without `-PublicCoreUrl` the script assumes a single `LOCAL` service and probes
+`/graphql` on `-CoreUrl` directly.
+
+`tools/smoke-test.tests.ps1` pins that behaviour against stub services and runs
+in CI as the **Smoke Test Contract** job. It needs no deployment.
+
+### Running it
 
 Local, against `tools/dev.ps1`:
 
@@ -103,25 +125,27 @@ Local, against `tools/dev.ps1`:
 ./tools/smoke-test.ps1
 ```
 
-Against the hackathon deployment. The private Enterprise Core requires a Cloud
-Run IAM identity token, which the script sends as `X-Serverless-Authorization`
-so `Authorization` stays available for the agent-tools service token. The caller
-needs `roles/run.invoker` on the service being checked:
+Against the hackathon deployment. The private services need a Cloud Run IAM
+identity token, which the script sends as `X-Serverless-Authorization` so
+`Authorization` stays available for the demo administration credential. The
+caller needs `roles/run.invoker` on each private service being checked:
 
 ```powershell
-$core  = gcloud run services describe vextis-enterprise-core `
+$core = gcloud run services describe vextis-enterprise-core `
+    --project=vextis-erp --region=us-central1 --format='value(status.url)'
+$public = gcloud run services describe vextis-enterprise-core-public `
     --project=vextis-erp --region=us-central1 --format='value(status.url)'
 $agent = gcloud run services describe vextis-agent-runtime `
     --project=vextis-erp --region=us-central1 --format='value(status.url)'
 
-./tools/smoke-test.ps1 -CoreUrl $core -AgentRuntimeUrl $agent `
+./tools/smoke-test.ps1 -CoreUrl $core -PublicCoreUrl $public -AgentRuntimeUrl $agent `
     -UseGcloudIdentityToken `
-    -ServiceToken (gcloud secrets versions access latest --secret=vextis-agent-tools-token)
+    -AdminToken (gcloud secrets versions access latest --secret=vextis-demo-admin-token)
 ```
 
-The public Enterprise Core (`vextis-enterprise-core-public`) is not a smoke-test
-target: it is Firebase-authenticated, and its `/internal/**` paths must stay
-`403`, which the recovery checks below cover separately.
+`-AdminToken` is `vextis-demo-admin-token`, not the agent-tools token. Demo
+seeding and the destructive reset have their own credential precisely so the
+token Agent Runtime carries cannot purge a tenant.
 
 Run it with `-SkipDemoReset` against any environment whose data must survive:
 reset purges the tenant.

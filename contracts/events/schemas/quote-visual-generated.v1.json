@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vextis.dev/schemas/events/quote-visual-generated.v1.json",
+  "title": "QuoteVisualGeneratedV1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "event_type",
+    "event_version",
+    "occurred_at",
+    "producer",
+    "tenant_id",
+    "correlation_id",
+    "causation_id",
+    "actor",
+    "payload"
+  ],
+  "properties": {
+    "event_id": { "type": "string", "format": "uuid" },
+    "event_type": { "const": "quote.visual.generated" },
+    "event_version": { "const": 1 },
+    "occurred_at": { "type": "string", "format": "date-time" },
+    "producer": { "const": "enterprise-core" },
+    "tenant_id": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "correlation_id": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "causation_id": { "type": "string", "format": "uuid" },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "id"],
+      "properties": {
+        "type": { "const": "AGENT" },
+        "id": { "type": "string", "minLength": 1, "maxLength": 150 }
+      }
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "asset_id",
+        "quote_id",
+        "storage_uri",
+        "storage_generation",
+        "media_type",
+        "model_id",
+        "prompt_summary",
+        "ai_label",
+        "agent_id",
+        "correlation_id",
+        "created_at"
+      ],
+      "properties": {
+        "asset_id": { "type": "string", "format": "uuid" },
+        "quote_id": { "type": "string", "format": "uuid" },
+        "storage_uri": { "type": "string", "pattern": "^gs://[a-z0-9_.-]+/.+$" },
+        "storage_generation": { "type": "integer", "minimum": 0 },
+        "media_type": { "enum": ["IMAGE", "VIDEO"] },
+        "model_id": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "prompt_summary": { "type": "string", "minLength": 1, "maxLength": 2000 },
+        "ai_label": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "agent_id": { "type": "string", "minLength": 1, "maxLength": 150 },
+        "correlation_id": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "created_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

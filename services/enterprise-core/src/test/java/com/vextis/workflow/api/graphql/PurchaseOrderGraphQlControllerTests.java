@@ -3,6 +3,8 @@ package com.vextis.workflow.api.graphql;
 import com.vextis.agentregistry.AgentDirectory;
 import com.vextis.audit.AuditTrail;
 import com.vextis.billing.InvoiceDirectory;
+import com.vextis.crm.ProposalAssetDirectory;
+import com.vextis.crm.GcsProposalAssetImageUrlSigner;
 import com.vextis.workflow.application.FindExecutionUseCase;
 import com.vextis.workflow.application.ReceivePurchaseOrderCommand;
 import com.vextis.workflow.application.ReceivePurchaseOrderUseCase;
@@ -71,6 +73,12 @@ class PurchaseOrderGraphQlControllerTests {
 
     @MockitoBean
     private InvoiceDirectory invoices;
+
+    @MockitoBean
+    private ProposalAssetDirectory proposalAssets;
+
+    @MockitoBean
+    private GcsProposalAssetImageUrlSigner proposalAssetImageUrls;
 
     @MockitoBean
     private CurrentActorProvider currentActor;
@@ -219,6 +227,91 @@ class PurchaseOrderGraphQlControllerTests {
                 .path("execution.auditTrail[0].approvedAgent.modelId")
                 .entity(String.class)
                 .isEqualTo("gemini-3.5-flash");
+    }
+
+    @Test
+    void executionExposesProposalAssetsWithASignedImageUrl() {
+        when(findExecution.findById(eq("demo-tenant"), eq(EXECUTION_ID)))
+                .thenReturn(Optional.of(runningExecution()));
+        String storageUri = "gs://vextis-assets/proposals/abc123/quote-001.png";
+        when(proposalAssets.findByQuoteId("demo-tenant", EXECUTION_ID.toString())).thenReturn(List.of(
+                new ProposalAssetDirectory.ProposalAssetView(
+                        UUID.fromString("11223344-5566-7788-99aa-bbccddeeff00"),
+                        EXECUTION_ID.toString(),
+                        storageUri,
+                        ProposalAssetDirectory.MediaType.IMAGE,
+                        "imagen-3.0-generate-002",
+                        "3D render of ergonomic office chair",
+                        "AI-Generated Proposal Concept",
+                        "AGENT",
+                        "vextis_crm_agent",
+                        "corr-001",
+                        NOW)));
+        when(proposalAssetImageUrls.signedImageUrl(eq(storageUri), any()))
+                .thenReturn(Optional.of("https://storage.googleapis.com/signed-proposal-image"));
+
+        graphQlTester.document("""
+                        query FindExecution($id: ID!) {
+                          execution(id: $id) {
+                            proposalAssets {
+                              storageUri
+                              imageUrl
+                              mediaType
+                              aiLabel
+                            }
+                          }
+                        }
+                        """)
+                .variable("id", EXECUTION_ID.toString())
+                .execute()
+                .path("execution.proposalAssets[0].storageUri")
+                .entity(String.class)
+                .isEqualTo(storageUri)
+                .path("execution.proposalAssets[0].imageUrl")
+                .entity(String.class)
+                .isEqualTo("https://storage.googleapis.com/signed-proposal-image")
+                .path("execution.proposalAssets[0].mediaType")
+                .entity(String.class)
+                .isEqualTo("IMAGE");
+    }
+
+    @Test
+    void proposalAssetsQueryRespectsLimitAndSuppressesImageUrlForVideo() {
+        String videoUri = "gs://vextis-assets/proposals/abc123/demo.mp4";
+        when(proposalAssets.findByQuoteId(eq("demo-tenant"), eq("quote-001"), eq(5))).thenReturn(List.of(
+                new ProposalAssetDirectory.ProposalAssetView(
+                        UUID.fromString("22334455-6677-8899-aabb-ccddeeff0011"),
+                        "quote-001",
+                        videoUri,
+                        ProposalAssetDirectory.MediaType.VIDEO,
+                        "veo-2.0",
+                        "Demo walkaround video",
+                        "AI-Generated Concept Video",
+                        "AGENT",
+                        "vextis_crm_agent",
+                        "corr-002",
+                        NOW)));
+
+        graphQlTester.document("""
+                        query GetAssets($quoteId: ID, $limit: Int) {
+                          proposalAssets(quoteId: $quoteId, limit: $limit) {
+                            storageUri
+                            imageUrl
+                            mediaType
+                          }
+                        }
+                        """)
+                .variable("quoteId", "quote-001")
+                .variable("limit", 5)
+                .execute()
+                .path("proposalAssets[0].storageUri")
+                .entity(String.class)
+                .isEqualTo(videoUri)
+                .path("proposalAssets[0].imageUrl")
+                .valueIsNull()
+                .path("proposalAssets[0].mediaType")
+                .entity(String.class)
+                .isEqualTo("VIDEO");
     }
 
     private PurchaseOrderReceipt receipt() {

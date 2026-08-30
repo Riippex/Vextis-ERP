@@ -38,7 +38,7 @@ class AgentToolPermissionMigrationTests {
     @Test
     void crmAgentKeepsCustomerLookupAndKnowledgeTools() {
         assertThat(allowedToolsByAgent.get("vextis_crm_agent"))
-                .containsExactlyInAnyOrder("lookup_customer", "search_knowledge_base");
+                .containsExactlyInAnyOrder("lookup_customer", "register_quote_asset", "search_knowledge_base");
     }
 
     @Test
@@ -56,6 +56,43 @@ class AgentToolPermissionMigrationTests {
     }
 
     @Test
+    void theLiveGatewayIdentityHoldsOnlyReadTools() {
+        // Separating the public gateway credential is only worth something if
+        // the identity it resolves to can do less. Anything that mutates
+        // business state must stay with coordinator-agent.
+        List<String> mutatingTools = List.of(
+                "start_execution_planning",
+                "record_execution_plan",
+                "evaluate_order_readiness",
+                "request_workflow_approval",
+                "reserve_stock",
+                "create_invoice",
+                "ingest_knowledge_document");
+
+        assertThat(activeRegistrations("live-gateway-agent"))
+                .isNotEmpty()
+                .allSatisfy(registration -> assertThat(registration.allowedTools())
+                        .as("tools granted to %s", registration.agentId())
+                        .doesNotContainAnyElementsOf(mutatingTools));
+    }
+
+    @Test
+    void everyLiveAgentIsBoundToTheLiveGatewayIdentity() {
+        assertThat(AgentRegistryMigrationReplay.replay())
+                .filteredOn(registration -> registration.agentId().startsWith("vextis_live_"))
+                .isNotEmpty()
+                .allSatisfy(registration -> assertThat(registration.serviceIdentity())
+                        .isEqualTo("live-gateway-agent"));
+    }
+
+    @Test
+    void thePrivateRuntimeIdentityKeepsTheMutatingTools() {
+        assertThat(activeRegistrations("coordinator-agent"))
+                .flatExtracting(AgentRegistryMigrationReplay.Registration::allowedTools)
+                .contains("reserve_stock", "create_invoice", "record_execution_plan");
+    }
+
+    @Test
     void onlyOneActiveVersionExistsPerAgent() {
         List<AgentRegistryMigrationReplay.Registration> active =
                 AgentRegistryMigrationReplay.replay().stream()
@@ -66,5 +103,13 @@ class AgentToolPermissionMigrationTests {
         assertThat(active)
                 .extracting(AgentRegistryMigrationReplay.Registration::agentId)
                 .doesNotHaveDuplicates();
+    }
+
+    private static List<AgentRegistryMigrationReplay.Registration> activeRegistrations(String serviceIdentity) {
+        return AgentRegistryMigrationReplay.replay().stream()
+                .filter(row -> DEMO_TENANT.equals(row.tenantId()))
+                .filter(row -> "ACTIVE".equals(row.status()))
+                .filter(row -> serviceIdentity.equals(row.serviceIdentity()))
+                .toList();
     }
 }

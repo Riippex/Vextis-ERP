@@ -55,6 +55,7 @@ export class ReceivePurchaseOrderPage {
   protected readonly submitting = signal(false);
   protected readonly monitoring = signal(false);
   protected readonly deciding = signal(false);
+  protected readonly refreshingAssets = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly receipt = signal<PurchaseOrderReceipt | null>(null);
   protected readonly selectedFile = signal<File | null>(null);
@@ -287,6 +288,31 @@ export class ReceivePurchaseOrderPage {
     this.receipt.update((current) =>
       current ? { ...current, execution } : current,
     );
+  }
+
+  protected refreshProposalAssets(): void {
+    const executionId = this.receipt()?.execution?.id;
+    if (!executionId || this.refreshingAssets()) {
+      return;
+    }
+    this.refreshingAssets.set(true);
+    this.findExecution
+      .fetch({
+        variables: { id: executionId },
+        fetchPolicy: 'network-only',
+      })
+      .pipe(take(1), takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: ({ data }) => {
+          this.refreshingAssets.set(false);
+          if (data?.execution) {
+            this.updateExecution(data.execution);
+          }
+        },
+        error: () => {
+          this.refreshingAssets.set(false);
+        },
+      });
   }
 
   protected invoicePreview(plan: NonNullable<Execution['plan']>): {

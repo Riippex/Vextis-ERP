@@ -16,9 +16,7 @@ public interface RagDocumentRepository {
 
     Optional<RagDocument> findById(String tenantId, UUID documentId);
 
-    Optional<RagDocument> findByUri(String tenantId, String documentUri);
-
-    Optional<RagDocument> findByHash(String tenantId, String contentHash);
+    Optional<RagDocument> findByUri(String tenantId, String documentUri, String embeddingSpace);
 
     List<RagDocument> listAll(String tenantId);
 

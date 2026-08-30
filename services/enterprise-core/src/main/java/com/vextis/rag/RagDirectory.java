@@ -19,12 +19,21 @@ public interface RagDirectory {
             double minScore
     );
 
+    /**
+     * Indexes a document into one embedding space.
+     *
+     * <p>The space is part of the identity of an indexation, not a property of
+     * the payload: the same document indexed by two embedders is two
+     * indexations, and re-ingesting under a new space must produce a new one
+     * rather than matching the old content hash and doing nothing.
+     */
     RagDocument ingestDocument(
             String tenantId,
             String documentUri,
             String fileName,
             String contentType,
             String contentHash,
+            String embeddingSpace,
             List<RagChunkInput> chunks
     );
 
@@ -32,5 +41,5 @@ public interface RagDirectory {
 
     Optional<RagDocument> findById(String tenantId, UUID documentId);
 
-    Optional<RagDocument> findByUri(String tenantId, String documentUri);
+    Optional<RagDocument> findByUri(String tenantId, String documentUri, String embeddingSpace);
 }

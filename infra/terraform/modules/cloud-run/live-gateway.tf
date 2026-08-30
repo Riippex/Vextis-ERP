@@ -70,13 +70,41 @@ resource "google_cloud_run_v2_service" "agent_runtime_live" {
         value = google_cloud_run_v2_service.enterprise_core.uri
       }
       env {
+        # The gateway credential, not the private runtime one. Enterprise Core
+        # resolves it to live-gateway-agent, whose registry entries grant reads
+        # only, so this token cannot mutate business state even if it leaks.
         name = "VEXTIS_AGENT_TOOLS_TOKEN"
         value_source {
           secret_key_ref {
-            secret  = var.agent_tools_secret_id
+            secret  = var.live_gateway_secret_id
             version = "latest"
           }
         }
+      }
+      env {
+        # Service identity this gateway declares when validating a Live session;
+        # it has to match the identity Enterprise Core resolves the credential to.
+        name  = "VEXTIS_COORDINATOR_AGENT_ID"
+        value = "live-gateway-agent"
+      }
+      # Logical registry agents bound to live-gateway-agent. Their allowlists
+      # cover lookup_customer, get_stock, get_credit and search_knowledge_base
+      # and nothing else.
+      env {
+        name  = "VEXTIS_COORDINATOR_LOGICAL_AGENT_ID"
+        value = "vextis_live_coordinator"
+      }
+      env {
+        name  = "VEXTIS_CRM_AGENT_ID"
+        value = "vextis_live_crm_agent"
+      }
+      env {
+        name  = "VEXTIS_INVENTORY_AGENT_ID"
+        value = "vextis_live_inventory_agent"
+      }
+      env {
+        name  = "VEXTIS_BILLING_AGENT_ID"
+        value = "vextis_live_billing_agent"
       }
       env {
         name  = "VEXTIS_LIVE_ENABLED"
@@ -94,6 +122,12 @@ resource "google_cloud_run_v2_service" "agent_runtime_live" {
       }
       env {
         name  = "VEXTIS_MEMORY_BANK_ENABLED"
+        value = "false"
+      }
+      env {
+        # The Live gateway is read-only and cannot upload or register proposal assets.
+        # Disabling Imagen explicitly guarantees no paid Imagen calls can be triggered from voice sessions.
+        name  = "VEXTIS_IMAGEN_ENABLED"
         value = "false"
       }
       env {

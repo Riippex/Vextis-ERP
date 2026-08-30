@@ -10,6 +10,10 @@ from vextis_agents.agents.billing import build_billing_agent
 from vextis_agents.agents.crm import build_crm_agent
 from vextis_agents.agents.inventory import build_inventory_agent
 from vextis_agents.app.config import Settings
+from vextis_agents.crm.asset_generator import (
+    EnterpriseCoreProposalAssetClient,
+    ProposalAssetGenerator,
+)
 from vextis_agents.gemini import build_gemini_model
 from vextis_agents.rag.embedding import EmbeddingConfigurationError
 from vextis_agents.rag.retriever import KnowledgeRetriever
@@ -31,6 +35,8 @@ def build_coordinator(
     correlation_id: str | None = None,
     core_reads: BusinessReadTool | None = None,
     knowledge_retriever: KnowledgeRetriever | None = None,
+    asset_generator: ProposalAssetGenerator | None = None,
+    enable_imagen: bool | None = None,
 ) -> LlmAgent:
     """
     Build the fleet coordinator only after an explicit model has been
@@ -48,6 +54,27 @@ def build_coordinator(
     )
     if tenant_id is not None and core_reads is None:
         core_reads = EnterpriseCoreBusinessReadClient(settings, tenant_id, correlation_id)
+
+    enable_imagen_effective = (
+        enable_imagen if enable_imagen is not None else settings.imagen_enabled
+    )
+    if (
+        tenant_id is not None
+        and asset_generator is None
+        and settings.agent_tools_token
+        and enable_imagen_effective
+    ):
+        try:
+            core_client = EnterpriseCoreProposalAssetClient(settings, tenant_id, correlation_id)
+            asset_generator = ProposalAssetGenerator(settings, tenant_id, core_client)
+        except ValueError:
+            # No agent-tools credential configured; leaving the tool off is
+            # the honest outcome rather than mounting a tool that would fail
+            # on its first call.
+            logger.warning(
+                "generate_proposal_asset is unavailable: no agent-tools credential configured"
+            )
+            asset_generator = None
 
     if tenant_id is not None and knowledge_retriever is None and settings.agent_tools_token:
         try:
@@ -86,7 +113,7 @@ def build_coordinator(
         ),
         tools=coordinator_tools,
         sub_agents=[
-            build_crm_agent(resolved_model, core_reads),
+            build_crm_agent(resolved_model, core_reads, asset_generator),
             build_inventory_agent(resolved_model, core_reads),
             build_billing_agent(resolved_model, core_reads),
         ],

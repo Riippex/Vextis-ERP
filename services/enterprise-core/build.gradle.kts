@@ -50,6 +50,13 @@ dependencies {
     testImplementation("org.springframework.graphql:spring-graphql-test")
     testImplementation("org.springframework.modulith:spring-modulith-starter-test")
     testImplementation("com.tngtech.archunit:archunit-junit5:1.4.1")
+    // Testcontainers 2.x prefixes every module artifact with
+    // "testcontainers-" (org.testcontainers:postgresql became
+    // org.testcontainers:testcontainers-postgresql). Version comes from the
+    // spring-boot-dependencies platform above, so it moves in lockstep with
+    // the rest of the stack.
+    testImplementation("org.testcontainers:testcontainers-junit-jupiter")
+    testImplementation("org.testcontainers:testcontainers-postgresql")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 

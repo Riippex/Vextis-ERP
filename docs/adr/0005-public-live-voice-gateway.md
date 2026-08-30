@@ -43,10 +43,18 @@ only.
   `VEXTIS_MEMORY_BANK_ENABLED` all false. `create_app` mounts routers behind
   those flags, so the public surface is `/health` plus `/v1/live/{session_id}`
   and nothing else.
-- **Its own identity.** `vextis-agent-live-hackathon` holds exactly
-  `roles/aiplatform.user`, accessor on the agent-tools token, and invoker on the
-  private Enterprise Core. It does not get the chat callback token or the
-  storage grants the private runtime identity holds.
+- **Its own identity and its own credential.** `vextis-agent-live-hackathon`
+  holds `roles/aiplatform.user`, invoker on the private Enterprise Core, and
+  accessor on `vextis-live-gateway-token` — not on the agent-tools token, and
+  not on the chat callback token or the storage grants the private runtime
+  identity holds. Enterprise Core resolves that credential to the service
+  identity `live-gateway-agent`, and V20 binds four read-only registry entries
+  to it: a voice session can look up a customer, check stock, check credit
+  standing and search the knowledge base, and nothing else. Reserving stock,
+  issuing an invoice, recording a plan and writing to the knowledge base stay
+  with `coordinator-agent`, whose credential exists only on the private runtime.
+  Separating the credential without narrowing what it can do would have been a
+  different string with identical authority.
 - **The private service stays private.** `vextis-agent-runtime` keeps Pub/Sub
   push and the internal chat endpoint, now with `VEXTIS_LIVE_ENABLED=false` and
   its request timeout back to 300s.
@@ -112,11 +120,13 @@ refused rather than treated as unbounded.
   `max_instance_count = 2`, four sessions per instance, and the session ceiling.
   `cpu_idle = false` means a held connection is billed for allocated CPU, which
   is what makes the session ceiling a cost control and not just a hygiene one.
-- Vertex AI Gemini Live minutes are now reachable by anyone who can obtain a
-  session token, so the Firebase-authenticated `createLiveSession` mutation on
-  Enterprise Core is the effective rate limiter for model spend. It currently
-  applies no per-user quota; that is the next control to add if voice is ever
-  exposed beyond a demo audience.
+- Vertex AI Gemini Live minutes are reachable by anyone who can obtain a session
+  token, so the Firebase-authenticated `createLiveSession` mutation on Enterprise
+  Core is the rate limiter for model spend. It caps creations per actor in a
+  rolling window (`vextis.live.max-sessions-per-actor`, 5 per hour by default)
+  and counts creations rather than open sockets, so closing a session early does
+  not refund the minutes it already cost. Core is the only place this can be
+  enforced: the gateway sees a session token, not who asked for it.
 - The delivery workflow deploys both `vextis-agent-runtime` and
   `vextis-agent-runtime-live` from the same image tag, so they cannot drift.
 - Rolling the exposure back is a single Terraform change: the service carries no

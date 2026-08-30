@@ -49,6 +49,7 @@ public interface AuditTrail {
     }
 
     enum AgentDecisionResult {
-        DENIED
+        DENIED,
+        SUCCEEDED
     }
 }

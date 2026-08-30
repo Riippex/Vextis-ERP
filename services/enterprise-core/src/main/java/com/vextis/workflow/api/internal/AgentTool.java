@@ -10,6 +10,7 @@ enum AgentTool {
     REQUEST_WORKFLOW_APPROVAL("request_workflow_approval"),
     RESERVE_STOCK("reserve_stock"),
     CREATE_INVOICE("create_invoice"),
+    REGISTER_QUOTE_ASSET("register_quote_asset"),
     SEARCH_KNOWLEDGE_BASE("search_knowledge_base"),
     INGEST_KNOWLEDGE_DOCUMENT("ingest_knowledge_document");
 

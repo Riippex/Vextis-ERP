@@ -10,6 +10,7 @@ public record RagDocument(
         String fileName,
         String contentType,
         String contentHash,
+        String embeddingSpace,
         int version,
         Status status,
         int chunkCount,
@@ -34,6 +35,9 @@ public record RagDocument(
         }
         if (contentHash == null || contentHash.isBlank()) {
             throw new IllegalArgumentException("contentHash must not be blank");
+        }
+        if (embeddingSpace == null || embeddingSpace.isBlank()) {
+            throw new IllegalArgumentException("embeddingSpace must not be blank");
         }
         if (version < 1) {
             throw new IllegalArgumentException("version must be at least 1");
