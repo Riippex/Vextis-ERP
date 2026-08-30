@@ -30,7 +30,7 @@
 
 ## Slide 3: The Vextis Solution
 
-### Dual-Authority Architecture: Intelligence Governed by Transactional Truth
+### Dual-Runtime Architecture: Intelligence Governed by Transactional Truth
 
 ```text
 +-------------------------------------------------------------------------+

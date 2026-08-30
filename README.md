@@ -14,7 +14,8 @@
 ## 🌐 Live Deployed Application
 
 - **Hosted URL:** [https://vextis-erp.web.app](https://vextis-erp.web.app) (Deployed on Firebase Hosting)
-- **Default Tenant:** `demo-tenant` (Pre-seeded with customer `Acme Colombia`, credit limits, inventory catalog, and knowledge documents)
+- **Default Tenant:** `demo-tenant` (Pre-seeded with customer `Acme Colombia`, credit limits, and inventory catalog)
+- **Judge Access:** Self-service registration is disabled for enterprise platform security. Dedicated evaluation credentials are provided privately in the *Testing Instructions / Access Instructions* field of the official Devpost submission.
 
 ### Live Access & Evaluation Walkthrough
 1. **Mission Control (`/app`):** Inspect the 4 registered specialist agents (`vextis_coordinator`, `vextis_crm_agent`, `vextis_inventory_agent`, `vextis_billing_agent`), their active models (`gemini-3.5-flash`), allowed tool scopes, and operational status.

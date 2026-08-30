@@ -58,10 +58,8 @@ pnpm-debug.log*
 # Java / Gradle
 # -----------------------------------------------------------------------------
 target/
-bin/
 build/
 bin/
-**/bin/
 /services/enterprise-core/build-*/
 .gradle/
 .gradle-user-home/

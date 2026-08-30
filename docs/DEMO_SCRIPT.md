@@ -16,7 +16,7 @@
 [0:35 - 1:45] Part 2: Autonomous Order-to-Cash Execution (/app/purchase-orders/new) & Policy Guardrails
 [1:45 - 2:30] Part 3: Human-in-the-Loop Approval, Invoice Issuance & Proposal Assets
 [2:30 - 3:20] Part 4: Ask Vextis (Widget) — Live Gemini Audio & Grounded pgvector RAG
-[3:20 - 3:45] Part 5: Dual-Authority Architecture, Audit Trail & Cloud Infrastructure
+[3:20 - 3:45] Part 5: Dual-Runtime Architecture, Audit Trail & Cloud Infrastructure
 ```
 
 ---
@@ -127,9 +127,11 @@
 
 ## Demo Preparation & Recovery Checklist
 
-1. **Deterministic Database Seeding**:
-   - Run `./tools/seed-demo.ps1` (or `powershell ./infra/seed.ps1`) to populate `demo-tenant` with customers, inventory catalog (40 units of `VXT-CHAIR-01`), credit profiles, and knowledge documents (`commercial_policy.pdf`).
+1. **Deterministic Local/Demo Database Seeding**:
+   - Run `./tools/seed-demo.ps1` (or `powershell ./infra/seed.ps1`) to populate `demo-tenant` with customers, inventory catalog (40 units of `VXT-CHAIR-01`), credit profiles, and local knowledge documents (`commercial_policy.pdf`). In production, document ingestion is performed through the governed ingestion API using real Vertex AI embeddings without mock embeddings.
 2. **Demo Purchase Order File**:
    - Generate sample PDF with `uv run infra/seed/generate_demo_purchase_order.py` (creates `output/pdf/vextis-demo-purchase-order.pdf` with 10 units at COP 100 each, subtotal COP 1,000 + IVA COP 190 = COP 1,190).
-3. **Offline Mock Fallback (if external Vertex latency occurs during rehearsal)**:
-   - Set `VEXTIS_RAG_MOCK_EMBEDDINGS_ENABLED=true` / `VEXTIS_IMAGEN_MOCK_ENABLED=true` for deterministic sub-second responses.
+3. **Judge Evaluation Access**:
+   - Authentication is required to enter the application; judge credentials are provided securely in the private testing instructions on Devpost.
+4. **Offline Mock Fallback (if external Vertex latency occurs during rehearsal)**:
+   - Set `VEXTIS_RAG_MOCK_EMBEDDINGS_ENABLED=true` / `VEXTIS_IMAGEN_MOCK_ENABLED=true` for deterministic sub-second local test responses.

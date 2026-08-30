@@ -15,10 +15,10 @@
 **Vextis ERP — The Governed Multi-Agent Enterprise Operating System**
 
 ### Elevator Pitch (English)
-> *Vextis transforms unstructured business documents and voice requests into auditable, end-to-end operations across Sales, Inventory, and Billing through a governed fleet of Gemini-powered agents, backed by a Java dual-authority architecture on Google Cloud.*
+> *Vextis transforms unstructured business documents and voice requests into auditable, end-to-end operations across Sales, Inventory, and Billing through a governed fleet of Gemini-powered agents, backed by a dual-runtime architecture with Java as the transactional authority on Google Cloud.*
 
 ### Elevator Pitch (Spanish)
-> *Vextis convierte documentos comerciales no estructurados y solicitudes por voz en operaciones empresariales completas y auditables en Ventas, Inventario y Facturación mediante una flota gobernada de agentes Gemini, respaldada por una arquitectura de doble autoridad en Google Cloud.*
+> *Vextis convierte documentos comerciales no estructurados y solicitudes por voz en operaciones empresariales completas y auditables en Ventas, Inventario y Facturación mediante una flota gobernada de agentes Gemini, respaldada por una arquitectura de doble entorno con Java como autoridad transaccional en Google Cloud.*
 
 ---
 
@@ -54,7 +54,7 @@ Vextis delivers a governed multi-agent enterprise architecture under **The Forti
 
 ## 4. How We Built It
 
-Vextis is built on an enterprise **Dual-Authority Monorepo Architecture**:
+Vextis is built on an enterprise **Dual-Runtime Architecture with Java as the Transactional Authority**:
 
 ```text
 +-------------------------------------------------------------------------+
@@ -102,6 +102,8 @@ Vextis is built on an enterprise **Dual-Authority Monorepo Architecture**:
 ## 5. Live Application Access & Testing Guide
 
 Judges can evaluate the deployed system live at **[https://vextis-erp.web.app](https://vextis-erp.web.app)**:
+
+> **Evaluation Account Access:** Self-service registration is intentionally disabled for enterprise platform security. Dedicated evaluation credentials (email and password) are provided privately in the *Testing Instructions / Access Instructions* field of the official Devpost submission (never committed to the public repository).
 
 1. **Mission Control (`/app`):**
    - Review registered agents (`vextis_coordinator`, `vextis_crm_agent`, `vextis_inventory_agent`, `vextis_billing_agent`), their active models (`gemini-3.5-flash`), allowed tool scopes, and operational status.
