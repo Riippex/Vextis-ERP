@@ -2,7 +2,7 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Annotated, Protocol
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class PlanningDepartment(StrEnum):
@@ -25,7 +25,18 @@ class ExtractedOrderLine(BaseModel):
 
     sku: Annotated[str, Field(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9._-]+$")]
     quantity: Annotated[int, Field(ge=1, le=1_000_000)]
-    unit_price: Annotated[Decimal | None, Field(gt=0, max_digits=19, decimal_places=2)] = None
+    unit_price: Annotated[Decimal | None, Field(max_digits=19, decimal_places=2)] = None
+
+    @field_validator("unit_price")
+    @classmethod
+    def ensure_positive_unit_price(cls, value: Decimal | None) -> Decimal | None:
+        # Google GenAI's structured-output schema rejects the JSON Schema
+        # `exclusiveMinimum` emitted by Field(gt=0). Keep the invariant in
+        # runtime validation so model output still cannot contain zero or a
+        # negative price.
+        if value is not None and value <= 0:
+            raise ValueError("Unit price must be greater than zero")
+        return value
 
 
 class GeneratedPlan(BaseModel):
