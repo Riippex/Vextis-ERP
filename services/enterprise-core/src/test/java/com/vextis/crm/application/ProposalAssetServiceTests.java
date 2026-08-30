@@ -1,6 +1,5 @@
 package com.vextis.crm.application;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vextis.audit.AuditTrail;
 import com.vextis.crm.GcsProposalAssetStorage;
 import com.vextis.crm.ProposalAssetDirectory;
@@ -9,6 +8,7 @@ import com.vextis.crm.RegisterProposalAssetUseCase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Clock;
 import java.time.Instant;
