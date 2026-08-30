@@ -1,7 +1,5 @@
 package com.vextis.crm.application;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vextis.audit.AuditTrail;
 import com.vextis.crm.GcsProposalAssetStorage;
 import com.vextis.crm.ProposalAssetDirectory;
@@ -12,6 +10,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -140,7 +140,7 @@ class QuoteVisualGeneratedEventSchemaTests {
 
         // 3. Verify no extra top-level fields (additionalProperties: false)
         JsonNode topLevelProperties = schemaNode.get("properties");
-        Iterator<String> eventFieldNames = eventNode.fieldNames();
+        Iterator<String> eventFieldNames = eventNode.propertyNames().iterator();
         while (eventFieldNames.hasNext()) {
             String fieldName = eventFieldNames.next();
             assertThat(topLevelProperties.has(fieldName))
@@ -174,7 +174,7 @@ class QuoteVisualGeneratedEventSchemaTests {
 
         // 6. Verify no extra payload fields (additionalProperties: false)
         JsonNode payloadProperties = payloadSchema.get("properties");
-        Iterator<String> payloadFieldNames = payloadNode.fieldNames();
+        Iterator<String> payloadFieldNames = payloadNode.propertyNames().iterator();
         while (payloadFieldNames.hasNext()) {
             String fieldName = payloadFieldNames.next();
             assertThat(payloadProperties.has(fieldName))

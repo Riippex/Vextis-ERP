@@ -1,6 +1,5 @@
 package com.vextis.crm;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.auth.ServiceAccountSigner;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
@@ -10,6 +9,7 @@ import com.vextis.audit.AuditTrail;
 import com.vextis.crm.application.ProposalAssetService;
 import org.junit.jupiter.api.Test;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import tools.jackson.databind.ObjectMapper;
 
 import java.net.URI;
 import java.net.URL;

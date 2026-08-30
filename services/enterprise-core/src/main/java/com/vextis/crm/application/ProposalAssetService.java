@@ -1,7 +1,5 @@
 package com.vextis.crm.application;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vextis.audit.AuditTrail;
 import com.vextis.crm.GcsProposalAssetStorage;
 import com.vextis.crm.ProposalAssetDirectory;
@@ -11,6 +9,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import java.sql.Types;
 import java.time.Clock;
@@ -219,7 +219,7 @@ public class ProposalAssetService implements RegisterProposalAssetUseCase {
                                 .addValue("payload", envelopeJson)
                                 .addValue("occurredAt", now, Types.TIMESTAMP_WITH_TIMEZONE)
                 );
-            } catch (JsonProcessingException exception) {
+            } catch (JacksonException exception) {
                 throw new IllegalStateException("Failed to serialize outbox event payload", exception);
             }
         }
