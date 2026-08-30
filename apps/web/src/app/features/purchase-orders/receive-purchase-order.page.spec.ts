@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { HttpClient } from '@angular/common/http';
 import { provideRouter } from '@angular/router';
 import { of } from 'rxjs';
@@ -291,6 +291,153 @@ describe('ReceivePurchaseOrderPage', () => {
     expect(proposalImage.tagName).toBe('IMG');
     expect(proposalImage.src).toBe('https://storage.googleapis.com/signed-proposal-image');
     expect(proposalImage.alt).toBe('AI-Generated Proposal Concept');
+  });
+
+  it('renders empty proposal assets section when 0 assets and transitions 0->1 on refresh', async () => {
+    const fixture = TestBed.createComponent(ReceivePurchaseOrderPage);
+    fixture.detectChanges();
+
+    // Prepare upload & submit purchase order to get receipt with 0 proposal assets
+    prepareMutate.mockReturnValue(
+      of({
+        data: {
+          preparePurchaseOrderUpload: {
+            uploadUrl: 'https://storage.googleapis.com/signed-upload-empty',
+            documentUri: 'gs://vextis-bucket/po-empty.pdf',
+            expiresAt: '2026-08-21T03:40:00Z',
+            formFields: [{ name: 'Content-Type', value: 'application/pdf' }],
+          },
+        },
+      }),
+    );
+    upload.mockReturnValue(of(''));
+    receiveMutate.mockReturnValue(
+      of({
+        data: {
+          receivePurchaseOrder: {
+            purchaseOrder: {
+              id: '8d3f290d-1322-44a2-8bd7-3b325f170e07',
+              purchaseOrderNumber: 'PO-2026-EMPTY',
+              customerName: 'Acme Logistics',
+              documentUri: 'gs://vextis-bucket/po-empty.pdf',
+              receivedAt: '2026-08-21T03:30:00Z',
+            },
+            execution: {
+              id: '8d3f290d-1322-44a2-8bd7-3b325f170e07',
+              goal: 'Process PO-2026-EMPTY',
+              state: 'RUNNING',
+              correlationId: 'corr-empty',
+              createdAt: '2026-08-21T03:30:01Z',
+              updatedAt: '2026-08-21T03:30:02Z',
+              timeline: [],
+              plan: null,
+              readiness: null,
+              approval: null,
+              invoice: null,
+              proposalAssets: [],
+              auditTrail: [],
+            },
+          },
+        },
+      }),
+    );
+
+    const emptyExecution = {
+      id: '8d3f290d-1322-44a2-8bd7-3b325f170e07',
+      goal: 'Process PO-2026-EMPTY',
+      state: 'RUNNING',
+      correlationId: 'corr-empty',
+      createdAt: '2026-08-21T03:30:01Z',
+      updatedAt: '2026-08-21T03:30:02Z',
+      timeline: [],
+      plan: null,
+      readiness: null,
+      approval: null,
+      invoice: null,
+      proposalAssets: [],
+      auditTrail: [],
+    };
+
+    fetch.mockReturnValueOnce(
+      of({
+        data: {
+          execution: emptyExecution,
+        },
+      }),
+    );
+
+    const fileInput = fixture.nativeElement.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    Object.defineProperty(fileInput, 'files', {
+      configurable: true,
+      value: [new File(['purchase order'], 'customer-order.pdf', { type: 'application/pdf' })],
+    });
+    fileInput.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    const submit = fixture.nativeElement.querySelector(
+      'button[type="submit"]',
+    ) as HTMLButtonElement;
+    submit.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    fixture.detectChanges();
+
+    // Verify empty state is displayed with refresh button
+    expect(fixture.nativeElement.textContent).toContain('Multimodal proposal asset');
+    expect(fixture.nativeElement.textContent).toContain('No proposal visual assets generated yet');
+
+    const refreshButton = fixture.nativeElement.querySelector(
+      'button[title="Refresh proposal assets"]',
+    ) as HTMLButtonElement;
+    expect(refreshButton).toBeTruthy();
+
+    // Now mock fetch to return 1 proposal asset on refresh click
+    fetch.mockReturnValueOnce(
+      of({
+        data: {
+          execution: {
+            id: '8d3f290d-1322-44a2-8bd7-3b325f170e07',
+            goal: 'Process PO-2026-EMPTY',
+            state: 'RUNNING',
+            correlationId: 'corr-empty',
+            createdAt: '2026-08-21T03:30:01Z',
+            updatedAt: '2026-08-21T03:30:03Z',
+            timeline: [],
+            plan: null,
+            readiness: null,
+            approval: null,
+            invoice: null,
+            proposalAssets: [
+              {
+                id: 'asset-video-001',
+                quoteId: '8d3f290d-1322-44a2-8bd7-3b325f170e07',
+                storageUri: 'gs://vextis-bucket/proposals/x/demo.mp4',
+                imageUrl: 'https://storage.googleapis.com/signed-proposal-video.mp4',
+                mediaType: 'VIDEO',
+                modelId: 'veo-2.0-generate-001',
+                promptSummary: '3D animated rotation of product',
+                aiLabel: 'AI-Generated Product Video',
+                createdAt: '2026-08-21T03:30:05Z',
+              },
+            ],
+            auditTrail: [],
+          },
+        },
+      }),
+    );
+
+    refreshButton.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    fixture.detectChanges();
+
+    // Verify 0 -> 1 transition: video card is rendered
+    expect(fixture.nativeElement.textContent).toContain('AI-Generated Product Video');
+    const videoElement = fixture.nativeElement.querySelector(
+      'video.proposal-asset-card__video',
+    ) as HTMLVideoElement;
+    expect(videoElement).toBeTruthy();
+    expect(videoElement.src).toBe('https://storage.googleapis.com/signed-proposal-video.mp4');
   });
 
   it('rejects unsupported files before requesting an upload policy', () => {

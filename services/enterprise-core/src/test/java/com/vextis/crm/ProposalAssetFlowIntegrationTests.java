@@ -127,7 +127,7 @@ class ProposalAssetFlowIntegrationTests {
                 INSERT INTO outbox_events
                     (event_id, event_type, event_version, aggregate_type, aggregate_id, tenant_id,
                      correlation_id, causation_id, payload, occurred_at)
-                VALUES (:eventId, 'quote.visual.generated.v1', 1, 'PROPOSAL_ASSET',
+                VALUES (:eventId, 'quote.visual.generated', 1, 'PROPOSAL_ASSET',
                         :aggregateId, :tenantId, :correlationId, :causationId, CAST(:payload AS JSONB), :occurredAt)
                 ON CONFLICT (event_id) DO NOTHING
                 """), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class));

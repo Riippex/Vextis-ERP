@@ -17,6 +17,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -60,7 +61,20 @@ public class ProposalAssetService implements RegisterProposalAssetUseCase {
         }
 
         String tenantPrefix = GcsProposalAssetStorage.objectPrefix(command.tenantId());
-        return new PreflightResult(command.quoteId(), tenantPrefix, quote.correlationId(), true);
+
+        if (command.idempotencyKey() != null && !command.idempotencyKey().isBlank()) {
+            Optional<ProposalAssetDirectory.ProposalAssetView> existing = proposalAssets.findByIdempotencyKey(
+                    command.tenantId(), command.idempotencyKey());
+            if (existing.isPresent()) {
+                ProposalAssetDirectory.ProposalAssetView view = existing.get();
+                if (view.quoteId().equals(command.quoteId().toString())
+                        && (command.promptSummary() == null || view.promptSummary().equals(command.promptSummary()))) {
+                    return new PreflightResult(command.quoteId(), tenantPrefix, quote.correlationId(), true, true, view);
+                }
+            }
+        }
+
+        return new PreflightResult(command.quoteId(), tenantPrefix, quote.correlationId(), true, false, null);
     }
 
     @Override
@@ -82,7 +96,7 @@ public class ProposalAssetService implements RegisterProposalAssetUseCase {
         String authoritativeCorrelationId = quote.correlationId();
 
         // Register asset (idempotent)
-        ProposalAssetDirectory.ProposalAssetView asset = proposalAssets.registerAsset(
+        ProposalAssetDirectory.RegisterProposalAssetResult result = proposalAssets.registerAsset(
                 new ProposalAssetDirectory.RegisterProposalAssetCommand(
                         command.tenantId(),
                         command.quoteId().toString(),
@@ -102,71 +116,76 @@ public class ProposalAssetService implements RegisterProposalAssetUseCase {
                 )
         );
 
-        Instant now = clock.instant();
+        ProposalAssetDirectory.ProposalAssetView asset = result.view();
 
-        // 1. Audit trail record
-        audit.recordAgentDecision(new AuditTrail.AgentDecision(
-                command.tenantId(),
-                authoritativeCorrelationId,
-                command.agentId(),
-                "crm.proposal-asset.registered",
-                "PROPOSAL_ASSET",
-                asset.id(),
-                AuditTrail.AgentDecisionResult.SUCCEEDED,
-                now
-        ));
+        // Only record audit trail and outbox event when the asset is newly CREATED, never on replayed idempotent registrations
+        if (result.created()) {
+            Instant now = clock.instant();
 
-        // 2. Outbox event: quote.visual.generated.v1
-        UUID eventId = UUID.randomUUID();
-        Map<String, Object> payload = Map.ofEntries(
-                Map.entry("assetId", asset.id().toString()),
-                Map.entry("quoteId", asset.quoteId()),
-                Map.entry("storageUri", asset.storageUri()),
-                Map.entry("storageGeneration", asset.storageGeneration() != null ? asset.storageGeneration() : 0L),
-                Map.entry("mediaType", asset.mediaType().name()),
-                Map.entry("modelId", asset.modelId()),
-                Map.entry("promptSummary", asset.promptSummary()),
-                Map.entry("aiLabel", asset.aiLabel()),
-                Map.entry("agentId", command.agentId()),
-                Map.entry("correlationId", authoritativeCorrelationId),
-                Map.entry("createdAt", asset.createdAt().toString())
-        );
+            // 1. Audit trail record
+            audit.recordAgentDecision(new AuditTrail.AgentDecision(
+                    command.tenantId(),
+                    authoritativeCorrelationId,
+                    command.agentId(),
+                    "crm.proposal-asset.registered",
+                    "PROPOSAL_ASSET",
+                    asset.id(),
+                    AuditTrail.AgentDecisionResult.SUCCEEDED,
+                    now
+            ));
 
-        Map<String, Object> envelope = Map.of(
-                "event_id", eventId.toString(),
-                "event_type", "quote.visual.generated.v1",
-                "event_version", 1,
-                "occurred_at", now.toString(),
-                "producer", "enterprise-core",
-                "tenant_id", command.tenantId(),
-                "correlation_id", authoritativeCorrelationId,
-                "causation_id", asset.id().toString(),
-                "actor", Map.of("type", "AGENT", "id", command.agentId()),
-                "payload", payload
-        );
-
-        try {
-            String envelopeJson = objectMapper.writeValueAsString(envelope);
-            jdbc.update(
-                    """
-                    INSERT INTO outbox_events
-                        (event_id, event_type, event_version, aggregate_type, aggregate_id, tenant_id,
-                         correlation_id, causation_id, payload, occurred_at)
-                    VALUES (:eventId, 'quote.visual.generated.v1', 1, 'PROPOSAL_ASSET',
-                            :aggregateId, :tenantId, :correlationId, :causationId, CAST(:payload AS JSONB), :occurredAt)
-                    ON CONFLICT (event_id) DO NOTHING
-                    """,
-                    new MapSqlParameterSource()
-                            .addValue("eventId", eventId)
-                            .addValue("aggregateId", asset.id().toString())
-                            .addValue("tenantId", command.tenantId())
-                            .addValue("correlationId", authoritativeCorrelationId)
-                            .addValue("causationId", asset.id().toString())
-                            .addValue("payload", envelopeJson)
-                            .addValue("occurredAt", now, Types.TIMESTAMP_WITH_TIMEZONE)
+            // 2. Outbox event: quote.visual.generated (version 1)
+            UUID eventId = UUID.randomUUID();
+            Map<String, Object> payload = Map.ofEntries(
+                    Map.entry("assetId", asset.id().toString()),
+                    Map.entry("quoteId", asset.quoteId()),
+                    Map.entry("storageUri", asset.storageUri()),
+                    Map.entry("storageGeneration", asset.storageGeneration() != null ? asset.storageGeneration() : 0L),
+                    Map.entry("mediaType", asset.mediaType().name()),
+                    Map.entry("modelId", asset.modelId()),
+                    Map.entry("promptSummary", asset.promptSummary()),
+                    Map.entry("aiLabel", asset.aiLabel()),
+                    Map.entry("agentId", command.agentId()),
+                    Map.entry("correlationId", authoritativeCorrelationId),
+                    Map.entry("createdAt", asset.createdAt().toString())
             );
-        } catch (JsonProcessingException exception) {
-            throw new IllegalStateException("Failed to serialize outbox event payload", exception);
+
+            Map<String, Object> envelope = Map.of(
+                    "event_id", eventId.toString(),
+                    "event_type", "quote.visual.generated",
+                    "event_version", 1,
+                    "occurred_at", now.toString(),
+                    "producer", "enterprise-core",
+                    "tenant_id", command.tenantId(),
+                    "correlation_id", authoritativeCorrelationId,
+                    "causation_id", asset.id().toString(),
+                    "actor", Map.of("type", "AGENT", "id", command.agentId()),
+                    "payload", payload
+            );
+
+            try {
+                String envelopeJson = objectMapper.writeValueAsString(envelope);
+                jdbc.update(
+                        """
+                        INSERT INTO outbox_events
+                            (event_id, event_type, event_version, aggregate_type, aggregate_id, tenant_id,
+                             correlation_id, causation_id, payload, occurred_at)
+                        VALUES (:eventId, 'quote.visual.generated', 1, 'PROPOSAL_ASSET',
+                                :aggregateId, :tenantId, :correlationId, :causationId, CAST(:payload AS JSONB), :occurredAt)
+                        ON CONFLICT (event_id) DO NOTHING
+                        """,
+                        new MapSqlParameterSource()
+                                .addValue("eventId", eventId)
+                                .addValue("aggregateId", asset.id().toString())
+                                .addValue("tenantId", command.tenantId())
+                                .addValue("correlationId", authoritativeCorrelationId)
+                                .addValue("causationId", asset.id().toString())
+                                .addValue("payload", envelopeJson)
+                                .addValue("occurredAt", now, Types.TIMESTAMP_WITH_TIMEZONE)
+                );
+            } catch (JsonProcessingException exception) {
+                throw new IllegalStateException("Failed to serialize outbox event payload", exception);
+            }
         }
 
         return asset;

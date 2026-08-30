@@ -1,4 +1,5 @@
 import asyncio
+import concurrent.futures
 import hashlib
 import logging
 from typing import Protocol, cast
@@ -18,9 +19,31 @@ from vextis_agents.tools.core_api.planning import (
 
 logger = logging.getLogger(__name__)
 
+# Shared process-level executor ensuring bounded concurrency across all coordinator instances
+# and preventing capacity leakage if an async call times out while the underlying thread runs.
+_PROCESS_IMAGEN_EXECUTOR = concurrent.futures.ThreadPoolExecutor(
+    max_workers=2,
+    thread_name_prefix="imagen-process-worker",
+)
+
 
 class ProposalAssetUploadError(Exception):
     """Raised when the generated image could not be written to Cloud Storage."""
+
+
+class ProposalAssetTimeoutError(Exception):
+    """Raised when proposal asset generation times out with structured error details."""
+
+    def __init__(
+        self,
+        message: str = "Image generation timed out",
+        retryable: bool = True,
+        error_code: str = "IMAGEN_TIMEOUT",
+    ) -> None:
+        super().__init__(message)
+        self.message = message
+        self.retryable = retryable
+        self.error_code = error_code
 
 
 def _tenant_object_prefix(tenant_id: str) -> str:
@@ -32,7 +55,12 @@ def _tenant_object_prefix(tenant_id: str) -> str:
 
 
 class _ImageBlob(Protocol):
-    def upload_from_string(self, data: bytes, content_type: str | None = None) -> object: ...
+    def upload_from_string(
+        self,
+        data: bytes,
+        content_type: str | None = None,
+        if_generation_match: int | None = None,
+    ) -> object: ...
     def delete(self) -> object: ...
 
 
@@ -68,6 +96,8 @@ class PreflightProposalAsset(BaseModel):
     authorized: bool
     tenant_prefix: str = Field(alias="tenantPrefix")
     correlation_id: str = Field(alias="correlationId")
+    already_registered: bool = Field(default=False, alias="alreadyRegistered")
+    existing_asset: RegisteredProposalAsset | None = Field(default=None, alias="existingAsset")
 
 
 class EnterpriseCoreProposalAssetClient:
@@ -105,15 +135,19 @@ class EnterpriseCoreProposalAssetClient:
     def correlation_id(self) -> str:
         return self._correlation_id
 
-    async def preflight_asset(self, quote_id: str) -> PreflightProposalAsset:
-        """Validates that quoteId exists and belongs to this tenant, and caller is authorized,
-        before any Vertex AI or Storage spend occurs."""
+    async def preflight_asset(
+        self, quote_id: str, idempotency_key: str | None = None
+    ) -> PreflightProposalAsset:
+        """Validates that quoteId exists and belongs to this tenant, caller is authorized,
+        and checks if idempotency_key is already registered."""
         headers = {
             "Authorization": f"Bearer {self._service_token}",
             "X-Tenant-Id": self._tenant_id,
             "X-Agent-Id": self._crm_agent_id,
             "X-Correlation-Id": self._correlation_id,
         }
+        if idempotency_key is not None:
+            headers["Idempotency-Key"] = idempotency_key
         if self._identity_token_provider is not None:
             try:
                 identity_token = await self._identity_token_provider()
@@ -215,7 +249,6 @@ class ProposalAssetGenerator:
         imagen_client: ImagenClient | None = None,
         storage_client: ImageObjectStore | None = None,
         generation_timeout_seconds: float = 30.0,
-        max_concurrent_generations: int = 2,
     ) -> None:
         if tenant_id != core_client.tenant_id:
             raise ValueError(
@@ -227,7 +260,6 @@ class ProposalAssetGenerator:
         self._imagen = imagen_client or ImagenClient(settings)
         self._storage_client = storage_client
         self._generation_timeout_seconds = generation_timeout_seconds
-        self._semaphore = asyncio.Semaphore(max_concurrent_generations)
 
     def _resolve_storage_client(self) -> ImageObjectStore:
         if self._storage_client is None:
@@ -241,14 +273,29 @@ class ProposalAssetGenerator:
     ) -> None:
         blob = self._resolve_storage_client().bucket(bucket_name).blob(object_name)
         try:
-            blob.upload_from_string(generation.image_bytes, content_type=generation.mime_type)
+            blob.upload_from_string(
+                generation.image_bytes,
+                content_type=generation.mime_type,
+                if_generation_match=0,
+            )
         except Exception as exception:
+            # If the object was already uploaded by a previous retry, 412 is returned
+            status_code = getattr(exception, "code", None) or getattr(
+                exception, "status_code", None
+            )
+            if status_code == 412 or "PreconditionFailed" in type(exception).__name__:
+                logger.info(
+                    "Object gs://%s/%s already uploaded with generation match 0; continuing.",
+                    bucket_name,
+                    object_name,
+                )
+                return
             raise ProposalAssetUploadError(
                 f"Failed to upload proposal asset to gs://{bucket_name}/{object_name}"
             ) from exception
 
     def _delete_blob(self, bucket_name: str, object_name: str) -> None:
-        """Compensating action: clean up orphaned blob if Core registration fails."""
+        """Compensating action: clean up orphaned blob on definitive Core rejection."""
         try:
             blob = self._resolve_storage_client().bucket(bucket_name).blob(object_name)
             blob.delete()
@@ -267,32 +314,50 @@ class ProposalAssetGenerator:
         prompt: str,
         idempotency_key: str | None = None,
     ) -> RegisteredProposalAsset:
-        # Step 0: Strict UUID validation and authorized preflight check.
-        # Malformed, non-existent, or cross-tenant IDs must result in ZERO calls
-        # to Imagen and ZERO storage uploads.
+        # Step 0: Strict UUID validation
         try:
             UUID(quote_id)
         except (ValueError, TypeError, AttributeError) as exc:
             raise ValueError(f"Invalid quote_id '{quote_id}': must be a valid UUID") from exc
 
-        # Preflight verification against Enterprise Core
-        await self._core_client.preflight_asset(quote_id)
-
-        # Derive stable, deterministic idempotency key and object name if not explicitly provided.
-        # Two retries of the same operation produce the same key and object name.
+        # Derive stable, deterministic idempotency key
         if idempotency_key is None or not idempotency_key.strip():
-            key_source = f"{self._tenant_id}:{quote_id}:{prompt.strip()}:{self._core_client.correlation_id}"
-            idempotency_key = f"proposal-asset-{hashlib.sha256(key_source.encode('utf-8')).hexdigest()[:32]}"
-
-        # Step 1: Generate the visual asset via Imagen 3 (or mock) in a non-blocking thread pool
-        # with bounded concurrency and explicit timeout.
-        async with self._semaphore:
-            generation: ImagenGenerationResult = await asyncio.wait_for(
-                asyncio.to_thread(self._imagen.generate_image, prompt),
-                timeout=self._generation_timeout_seconds,
+            key_source = (
+                f"{self._tenant_id}:{quote_id}:{prompt.strip()}:{self._core_client.correlation_id}"
+            )
+            idempotency_key = (
+                f"proposal-asset-{hashlib.sha256(key_source.encode('utf-8')).hexdigest()[:32]}"
             )
 
-        # Step 2: Deterministic object naming derived from tenant, quote, and idempotency key.
+        # Preflight verification against Enterprise Core with idempotency check
+        preflight = await self._core_client.preflight_asset(
+            quote_id, idempotency_key=idempotency_key
+        )
+        if preflight.already_registered and preflight.existing_asset is not None:
+            logger.info(
+                "Proposal asset already registered for quote %s and key %s; returning existing.",
+                quote_id,
+                idempotency_key,
+            )
+            return preflight.existing_asset
+
+        # Step 1: Generate the visual asset via process-level bounded executor
+        loop = asyncio.get_running_loop()
+        try:
+            generation: ImagenGenerationResult = await asyncio.wait_for(
+                loop.run_in_executor(
+                    _PROCESS_IMAGEN_EXECUTOR, self._imagen.generate_image, prompt
+                ),
+                timeout=self._generation_timeout_seconds,
+            )
+        except TimeoutError as exc:
+            raise ProposalAssetTimeoutError(
+                f"Imagen generation timed out after {self._generation_timeout_seconds}s",
+                retryable=True,
+                error_code="IMAGEN_TIMEOUT",
+            ) from exc
+
+        # Step 2: Deterministic object naming derived from tenant, quote, and idempotency key
         bucket = self._settings.gcs_proposal_assets_bucket
         if not bucket:
             raise ProposalAssetUploadError(
@@ -302,12 +367,12 @@ class ProposalAssetGenerator:
         idemp_hash = hashlib.sha256(idempotency_key.encode("utf-8")).hexdigest()[:16]
         object_name = f"proposals/{tenant_prefix}/{quote_id}_{idemp_hash}.png"
 
-        # Upload the generated bytes to Cloud Storage
+        # Upload the generated bytes to Cloud Storage with if_generation_match=0
         await asyncio.to_thread(self._upload, bucket, object_name, generation)
         storage_uri = f"gs://{bucket}/{object_name}"
 
         # Step 3: Register the confirmed asset with Enterprise Core.
-        # If registration fails, compensate by cleaning up the uploaded blob.
+        # Only compensate (delete blob) on definitive 4xx Core rejections.
         try:
             return await self._core_client.register_asset(
                 quote_id=quote_id,
@@ -318,7 +383,16 @@ class ProposalAssetGenerator:
                 ai_label=generation.ai_label,
                 idempotency_key=idempotency_key,
             )
-        except Exception:
-            # Compensate: delete the uploaded orphaned object before re-raising
+        except CoreToolRejectedError:
+            # Definitive rejection (4xx): compensate
             await asyncio.to_thread(self._delete_blob, bucket, object_name)
+            raise
+        except (CoreToolUnavailableError, Exception) as exc:
+            # Ambiguous / transient error: preserve blob for reconciliation/retry
+            logger.warning(
+                "Core registration failed with transient or ambiguous error %s; preserving blob gs://%s/%s",
+                exc,
+                bucket,
+                object_name,
+            )
             raise

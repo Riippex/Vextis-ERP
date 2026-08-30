@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,7 +40,7 @@ class JdbcProposalAssetDirectoryTests {
     void registerAssetInsertsNewRecordWhenNoConflict() {
         when(jdbc.update(anyString(), anyMap())).thenReturn(1);
 
-        ProposalAssetDirectory.ProposalAssetView view = directory.registerAsset(
+        ProposalAssetDirectory.RegisterProposalAssetResult result = directory.registerAsset(
                 new ProposalAssetDirectory.RegisterProposalAssetCommand(
                         "demo-tenant",
                         "quote-001",
@@ -59,12 +60,13 @@ class JdbcProposalAssetDirectoryTests {
                 )
         );
 
-        assertThat(view.quoteId()).isEqualTo("quote-001");
-        assertThat(view.storageGeneration()).isEqualTo(42L);
-        assertThat(view.contentType()).isEqualTo("image/png");
-        assertThat(view.contentHash()).isEqualTo("hash123");
-        assertThat(view.sizeBytes()).isEqualTo(1024L);
-        assertThat(view.mediaType()).isEqualTo(ProposalAssetDirectory.MediaType.IMAGE);
+        assertThat(result.created()).isTrue();
+        assertThat(result.view().quoteId()).isEqualTo("quote-001");
+        assertThat(result.view().storageGeneration()).isEqualTo(42L);
+        assertThat(result.view().contentType()).isEqualTo("image/png");
+        assertThat(result.view().contentHash()).isEqualTo("hash123");
+        assertThat(result.view().sizeBytes()).isEqualTo(1024L);
+        assertThat(result.view().mediaType()).isEqualTo(ProposalAssetDirectory.MediaType.IMAGE);
     }
 
     @Test
@@ -93,7 +95,7 @@ class JdbcProposalAssetDirectoryTests {
         when(jdbc.query(anyString(), anyMap(), any(RowMapper.class)))
                 .thenReturn(List.of(existing));
 
-        ProposalAssetDirectory.ProposalAssetView view = directory.registerAsset(
+        ProposalAssetDirectory.RegisterProposalAssetResult result = directory.registerAsset(
                 new ProposalAssetDirectory.RegisterProposalAssetCommand(
                         "demo-tenant",
                         "quote-001",
@@ -113,9 +115,37 @@ class JdbcProposalAssetDirectoryTests {
                 )
         );
 
-        assertThat(view.id()).isEqualTo(ASSET_ID);
-        assertThat(view.quoteId()).isEqualTo("quote-001");
-        assertThat(view.storageGeneration()).isEqualTo(42L);
+        assertThat(result.created()).isFalse();
+        assertThat(result.view().id()).isEqualTo(ASSET_ID);
+        assertThat(result.view().quoteId()).isEqualTo("quote-001");
+    }
+
+    @Test
+    void findByIdempotencyKeyReturnsAssetWhenFound() {
+        ProposalAssetDirectory.ProposalAssetView existing = new ProposalAssetDirectory.ProposalAssetView(
+                ASSET_ID,
+                "quote-001",
+                "gs://bucket/proposals/x/quote-001.png",
+                42L,
+                "image/png",
+                "hash123",
+                1024L,
+                ProposalAssetDirectory.MediaType.IMAGE,
+                "imagen-3.0-generate-002",
+                "Chair visual",
+                "AI-Generated",
+                "AGENT",
+                "vextis_crm_agent",
+                "corr-001",
+                NOW
+        );
+
+        when(jdbc.query(anyString(), anyMap(), any(RowMapper.class)))
+                .thenReturn(List.of(existing));
+
+        Optional<ProposalAssetDirectory.ProposalAssetView> found = directory.findByIdempotencyKey("demo-tenant", "idemp-001");
+        assertThat(found).isPresent();
+        assertThat(found.get().id()).isEqualTo(ASSET_ID);
     }
 
     @Test

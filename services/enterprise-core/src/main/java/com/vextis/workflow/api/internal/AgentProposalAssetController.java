@@ -45,7 +45,8 @@ class AgentProposalAssetController {
             @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization,
             @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 100) String tenantId,
             @RequestHeader("X-Agent-Id") @NotBlank @Size(max = 150) String agentId,
-            @RequestHeader("X-Correlation-Id") @NotBlank @Size(max = 100) String correlationId
+            @RequestHeader("X-Correlation-Id") @NotBlank @Size(max = 100) String correlationId,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idempotencyKey
     ) {
         authorizer.authorize(authorization, agentId, tenantId, AgentTool.REGISTER_QUOTE_ASSET);
 
@@ -55,14 +56,18 @@ class AgentProposalAssetController {
                             tenantId,
                             agentId,
                             quoteId,
-                            correlationId
+                            correlationId,
+                            idempotencyKey,
+                            null
                     )
             );
             return new PreflightProposalAssetResponse(
                     result.quoteId().toString(),
                     result.authorized(),
                     result.tenantPrefix(),
-                    result.correlationId()
+                    result.correlationId(),
+                    result.alreadyRegistered(),
+                    result.existingAsset() != null ? ProposalAssetResponse.from(result.existingAsset()) : null
             );
         } catch (NoSuchElementException exception) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, exception.getMessage(), exception);
@@ -118,7 +123,9 @@ class AgentProposalAssetController {
             String quoteId,
             boolean authorized,
             String tenantPrefix,
-            String correlationId
+            String correlationId,
+            boolean alreadyRegistered,
+            ProposalAssetResponse existingAsset
     ) {
     }
 

@@ -59,6 +59,7 @@ paths:
         - $ref: "#/components/parameters/TenantId"
         - $ref: "#/components/parameters/AgentId"
         - $ref: "#/components/parameters/CorrelationId"
+        - $ref: "#/components/parameters/IdempotencyKey"
       responses:
         "200":
           description: Preflight validation successful; generation is authorized
@@ -1044,6 +1045,10 @@ components:
           type: string
         correlationId:
           type: string
+        alreadyRegistered:
+          type: boolean
+        existingAsset:
+          $ref: "#/components/schemas/ProposalAsset"
     ProposalAsset:
       type: object
       additionalProperties: false

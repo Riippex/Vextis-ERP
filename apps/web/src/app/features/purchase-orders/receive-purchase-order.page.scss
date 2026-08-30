@@ -593,6 +593,12 @@ h1 {
   font-size: 0.75rem;
 }
 
+.proposal-assets__empty {
+  color: var(--vxt-text-secondary);
+  font-size: 0.85rem;
+  margin: 0.75rem 0 0;
+}
+
 
 @media (max-width: 56rem) {
   .workspace {

@@ -22,6 +22,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -103,22 +104,25 @@ class ProposalAssetServiceTests {
                 .thenReturn(new GcsProposalAssetStorage.AssetObjectMetadata(101L, "image/png", "hash123", 4096L));
 
         when(proposalAssets.registerAsset(any(ProposalAssetDirectory.RegisterProposalAssetCommand.class)))
-                .thenReturn(new ProposalAssetDirectory.ProposalAssetView(
-                        ASSET_ID,
-                        QUOTE_ID.toString(),
-                        STORAGE_URI,
-                        101L,
-                        "image/png",
-                        "hash123",
-                        4096L,
-                        ProposalAssetDirectory.MediaType.IMAGE,
-                        "imagen-3.0-generate-002",
-                        "Ergonomic chair concept",
-                        "AI-Generated Proposal Concept",
-                        "AGENT",
-                        "vextis_crm_agent",
-                        "corr-auth-123",
-                        NOW
+                .thenReturn(new ProposalAssetDirectory.RegisterProposalAssetResult(
+                        new ProposalAssetDirectory.ProposalAssetView(
+                                ASSET_ID,
+                                QUOTE_ID.toString(),
+                                STORAGE_URI,
+                                101L,
+                                "image/png",
+                                "hash123",
+                                4096L,
+                                ProposalAssetDirectory.MediaType.IMAGE,
+                                "imagen-3.0-generate-002",
+                                "Ergonomic chair concept",
+                                "AI-Generated Proposal Concept",
+                                "AGENT",
+                                "vextis_crm_agent",
+                                "corr-auth-123",
+                                NOW
+                        ),
+                        true
                 ));
 
         ProposalAssetDirectory.ProposalAssetView result = service.registerAsset(
@@ -157,6 +161,56 @@ class ProposalAssetServiceTests {
 
         // Verify outbox event insertion
         verify(jdbc).update(argThat(sql -> sql.contains("INSERT INTO outbox_events")), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class));
+    }
+
+    @Test
+    void registerAssetOnIdempotentReplayReturnsAssetWithoutEmittingAuditOrOutbox() {
+        when(quoteLookup.findQuote("demo-tenant", QUOTE_ID)).thenReturn(Optional.of(quote("corr-auth-123")));
+        when(assetStorage.assertUploaded("demo-tenant", STORAGE_URI, ProposalAssetDirectory.MediaType.IMAGE))
+                .thenReturn(new GcsProposalAssetStorage.AssetObjectMetadata(101L, "image/png", "hash123", 4096L));
+
+        when(proposalAssets.registerAsset(any(ProposalAssetDirectory.RegisterProposalAssetCommand.class)))
+                .thenReturn(new ProposalAssetDirectory.RegisterProposalAssetResult(
+                        new ProposalAssetDirectory.ProposalAssetView(
+                                ASSET_ID,
+                                QUOTE_ID.toString(),
+                                STORAGE_URI,
+                                101L,
+                                "image/png",
+                                "hash123",
+                                4096L,
+                                ProposalAssetDirectory.MediaType.IMAGE,
+                                "imagen-3.0-generate-002",
+                                "Ergonomic chair concept",
+                                "AI-Generated Proposal Concept",
+                                "AGENT",
+                                "vextis_crm_agent",
+                                "corr-auth-123",
+                                NOW
+                        ),
+                        false
+                ));
+
+        ProposalAssetDirectory.ProposalAssetView result = service.registerAsset(
+                new RegisterProposalAssetUseCase.RegisterCommand(
+                        "demo-tenant",
+                        "vextis_crm_agent",
+                        QUOTE_ID,
+                        "corr-auth-123",
+                        "idemp-001",
+                        STORAGE_URI,
+                        ProposalAssetDirectory.MediaType.IMAGE,
+                        "imagen-3.0-generate-002",
+                        "Ergonomic chair concept",
+                        "AI-Generated Proposal Concept"
+                )
+        );
+
+        assertThat(result.id()).isEqualTo(ASSET_ID);
+
+        // Audit and outbox must NEVER be called on replay (created == false)
+        verifyNoInteractions(audit);
+        verify(jdbc, never()).update(org.mockito.ArgumentMatchers.anyString(), any(org.springframework.jdbc.core.namedparam.SqlParameterSource.class));
     }
 
     @Test

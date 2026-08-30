@@ -83,8 +83,23 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
     }
 
     @Override
+    public Optional<ProposalAssetView> findByIdempotencyKey(String tenantId, String idempotencyKey) {
+        return jdbc.query(
+                """
+                SELECT id, quote_id, storage_uri, storage_generation, content_type, content_hash, size_bytes,
+                       media_type, model_id, prompt_summary, ai_label,
+                       created_by_actor_type, created_by_actor_id, correlation_id, created_at
+                FROM proposal_assets
+                WHERE tenant_id = :tenantId AND idempotency_key = :idempotencyKey
+                """,
+                Map.of("tenantId", tenantId, "idempotencyKey", idempotencyKey),
+                ROW_MAPPER
+        ).stream().findFirst();
+    }
+
+    @Override
     @Transactional
-    public ProposalAssetView registerAsset(RegisterProposalAssetCommand command) {
+    public RegisterProposalAssetResult registerAsset(RegisterProposalAssetCommand command) {
         UUID newId = UUID.randomUUID();
         Instant now = Instant.now();
 
@@ -124,13 +139,14 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
         );
 
         if (inserted > 0) {
-            return new ProposalAssetView(
+            ProposalAssetView createdView = new ProposalAssetView(
                     newId, command.quoteId(), command.storageUri(), command.storageGeneration(),
                     command.contentType(), command.contentHash(), command.sizeBytes(),
                     command.mediaType(), command.modelId(),
                     command.promptSummary(), command.aiLabel(), command.actorType(), command.actorId(),
                     command.correlationId(), now
             );
+            return new RegisterProposalAssetResult(createdView, true);
         }
 
         ProposalAssetView existing = jdbc.query(
@@ -163,7 +179,7 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
                     "Idempotency-Key was already used to register a different proposal asset");
         }
 
-        return existing;
+        return new RegisterProposalAssetResult(existing, false);
     }
 
     private static final class ProposalAssetRowMapper implements RowMapper<ProposalAssetView> {

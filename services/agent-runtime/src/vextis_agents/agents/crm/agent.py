@@ -1,5 +1,4 @@
 import logging
-import uuid
 from collections.abc import Callable
 from typing import Any
 

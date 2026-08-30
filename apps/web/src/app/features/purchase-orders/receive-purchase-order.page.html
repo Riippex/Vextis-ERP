@@ -270,27 +270,27 @@
         </section>
       }
 
-      @if (currentReceipt.execution.proposalAssets && currentReceipt.execution.proposalAssets.length) {
-        <section class="proposal-assets" aria-labelledby="proposal-assets-title">
-          <div class="plan__heading">
-            <div>
-              <p class="evidence__eyebrow">Multimodal proposal asset</p>
-              <h3 id="proposal-assets-title">Generated proposal visual</h3>
-            </div>
-            <div class="proposal-assets__actions">
-              <button
-                mat-icon-button
-                type="button"
-                [disabled]="refreshingAssets()"
-                (click)="refreshProposalAssets()"
-                title="Refresh proposal assets"
-                aria-label="Refresh proposal assets"
-              >
-                <mat-icon [class.spin]="refreshingAssets()">refresh</mat-icon>
-              </button>
-              <span class="ai-badge">AI-GENERATED</span>
-            </div>
+      <section class="proposal-assets" aria-labelledby="proposal-assets-title">
+        <div class="plan__heading">
+          <div>
+            <p class="evidence__eyebrow">Multimodal proposal asset</p>
+            <h3 id="proposal-assets-title">Generated proposal visual</h3>
           </div>
+          <div class="proposal-assets__actions">
+            <button
+              mat-icon-button
+              type="button"
+              [disabled]="refreshingAssets()"
+              (click)="refreshProposalAssets()"
+              title="Refresh proposal assets"
+              aria-label="Refresh proposal assets"
+            >
+              <mat-icon [class.spin]="refreshingAssets()">refresh</mat-icon>
+            </button>
+            <span class="ai-badge">AI-GENERATED</span>
+          </div>
+        </div>
+        @if (currentReceipt.execution.proposalAssets && currentReceipt.execution.proposalAssets.length) {
           @for (asset of currentReceipt.execution.proposalAssets; track asset.id) {
             <div class="proposal-asset-card">
               @if (asset.mediaType === 'VIDEO') {
@@ -326,8 +326,12 @@
               </div>
             </div>
           }
-        </section>
-      }
+        } @else {
+          <p class="proposal-assets__empty">
+            No proposal visual assets generated yet. Click refresh to check for new assets.
+          </p>
+        }
+      </section>
 
       <h3>Execution timeline</h3>
       <ol class="timeline">

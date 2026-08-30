@@ -224,7 +224,12 @@ async def test_generate_proposal_asset_tool_registers_a_real_asset() -> None:
         )
 
     class _FakeBlob:
-        def upload_from_string(self, data: bytes, content_type: str | None = None) -> None:
+        def upload_from_string(
+            self,
+            data: bytes,
+            content_type: str | None = None,
+            if_generation_match: int | None = None,
+        ) -> None:
             return None
 
         def delete(self) -> None:

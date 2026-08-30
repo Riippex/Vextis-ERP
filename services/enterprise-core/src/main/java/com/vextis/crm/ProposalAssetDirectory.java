@@ -15,7 +15,15 @@ public interface ProposalAssetDirectory {
 
     Optional<ProposalAssetView> findById(String tenantId, UUID assetId);
 
-    ProposalAssetView registerAsset(RegisterProposalAssetCommand command);
+    Optional<ProposalAssetView> findByIdempotencyKey(String tenantId, String idempotencyKey);
+
+    RegisterProposalAssetResult registerAsset(RegisterProposalAssetCommand command);
+
+    record RegisterProposalAssetResult(
+            ProposalAssetView view,
+            boolean created
+    ) {
+    }
 
     record RegisterProposalAssetCommand(
             String tenantId,

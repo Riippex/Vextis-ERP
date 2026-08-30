@@ -342,6 +342,7 @@ class PurchaseOrderGraphQlController {
             String quoteId,
             String storageUri,
             String imageUrl,
+            String mediaUrl,
             String mediaType,
             String modelId,
             String promptSummary,
@@ -351,14 +352,15 @@ class PurchaseOrderGraphQlController {
     }
 
     private ProposalAssetView proposalAssetView(ProposalAssetDirectory.ProposalAssetView view) {
-        String imageUrl = view.mediaType() == ProposalAssetDirectory.MediaType.IMAGE
-                ? proposalAssetImageUrls.signedImageUrl(view.storageUri(), view.storageGeneration()).orElse(null)
-                : null;
+        String signedUrl = proposalAssetImageUrls.signedImageUrl(view.storageUri(), view.storageGeneration()).orElse(null);
+        String imageUrl = view.mediaType() == ProposalAssetDirectory.MediaType.IMAGE ? signedUrl : null;
+        String mediaUrl = signedUrl;
         return new ProposalAssetView(
                 view.id(),
                 view.quoteId(),
                 view.storageUri(),
                 imageUrl,
+                mediaUrl,
                 view.mediaType().name(),
                 view.modelId(),
                 view.promptSummary(),

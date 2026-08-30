@@ -58,7 +58,12 @@ def build_coordinator(
     enable_imagen_effective = (
         enable_imagen if enable_imagen is not None else settings.imagen_enabled
     )
-    if tenant_id is not None and asset_generator is None and settings.agent_tools_token and enable_imagen_effective:
+    if (
+        tenant_id is not None
+        and asset_generator is None
+        and settings.agent_tools_token
+        and enable_imagen_effective
+    ):
         try:
             core_client = EnterpriseCoreProposalAssetClient(settings, tenant_id, correlation_id)
             asset_generator = ProposalAssetGenerator(settings, tenant_id, core_client)
