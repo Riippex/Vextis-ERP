@@ -502,6 +502,33 @@ h1 {
   padding: 1.25rem;
 }
 
+.proposal-assets__actions {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.proposal-assets__actions button {
+  height: 2rem;
+  width: 2rem;
+}
+
+.proposal-assets__actions button mat-icon {
+  font-size: 1.25rem;
+  height: 1.25rem;
+  width: 1.25rem;
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 .ai-badge {
   background: color-mix(in srgb, var(--vxt-brand-violet) 18%, transparent);
   border: 1px solid color-mix(in srgb, var(--vxt-brand-violet) 40%, transparent);
@@ -524,7 +551,8 @@ h1 {
   padding: 1rem;
 }
 
-.proposal-asset-card__image {
+.proposal-asset-card__image,
+.proposal-asset-card__video {
   border-radius: 0.4rem;
   flex-shrink: 0;
   height: 6rem;

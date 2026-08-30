@@ -9,8 +9,10 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,15 +29,23 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
 
     @Override
     public List<ProposalAssetView> findByQuoteId(String tenantId, String quoteId) {
+        return findByQuoteId(tenantId, quoteId, 20);
+    }
+
+    @Override
+    public List<ProposalAssetView> findByQuoteId(String tenantId, String quoteId, int limit) {
+        int boundedLimit = Math.max(1, Math.min(limit, 50));
         return jdbc.query(
                 """
-                SELECT id, quote_id, storage_uri, media_type, model_id, prompt_summary, ai_label,
+                SELECT id, quote_id, storage_uri, storage_generation, content_type, content_hash, size_bytes,
+                       media_type, model_id, prompt_summary, ai_label,
                        created_by_actor_type, created_by_actor_id, correlation_id, created_at
                 FROM proposal_assets
                 WHERE tenant_id = :tenantId AND quote_id = :quoteId
                 ORDER BY created_at DESC
+                LIMIT :limit
                 """,
-                Map.of("tenantId", tenantId, "quoteId", quoteId),
+                Map.of("tenantId", tenantId, "quoteId", quoteId, "limit", boundedLimit),
                 ROW_MAPPER
         );
     }
@@ -44,7 +54,8 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
     public List<ProposalAssetView> findAll(String tenantId) {
         return jdbc.query(
                 """
-                SELECT id, quote_id, storage_uri, media_type, model_id, prompt_summary, ai_label,
+                SELECT id, quote_id, storage_uri, storage_generation, content_type, content_hash, size_bytes,
+                       media_type, model_id, prompt_summary, ai_label,
                        created_by_actor_type, created_by_actor_id, correlation_id, created_at
                 FROM proposal_assets
                 WHERE tenant_id = :tenantId
@@ -60,7 +71,8 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
     public Optional<ProposalAssetView> findById(String tenantId, UUID assetId) {
         return jdbc.query(
                 """
-                SELECT id, quote_id, storage_uri, media_type, model_id, prompt_summary, ai_label,
+                SELECT id, quote_id, storage_uri, storage_generation, content_type, content_hash, size_bytes,
+                       media_type, model_id, prompt_summary, ai_label,
                        created_by_actor_type, created_by_actor_id, correlation_id, created_at
                 FROM proposal_assets
                 WHERE tenant_id = :tenantId AND id = :assetId
@@ -76,37 +88,46 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
         UUID newId = UUID.randomUUID();
         Instant now = Instant.now();
 
+        Map<String, Object> params = new HashMap<>();
+        params.put("id", newId);
+        params.put("tenantId", command.tenantId());
+        params.put("quoteId", command.quoteId());
+        params.put("storageUri", command.storageUri());
+        params.put("storageGeneration", command.storageGeneration());
+        params.put("contentType", command.contentType());
+        params.put("contentHash", command.contentHash());
+        params.put("sizeBytes", command.sizeBytes());
+        params.put("mediaType", command.mediaType().name());
+        params.put("modelId", command.modelId());
+        params.put("promptSummary", command.promptSummary());
+        params.put("aiLabel", command.aiLabel());
+        params.put("actorType", command.actorType());
+        params.put("actorId", command.actorId());
+        params.put("correlationId", command.correlationId());
+        params.put("idempotencyKey", command.idempotencyKey());
+        params.put("createdAt", OffsetDateTime.ofInstant(now, java.time.ZoneOffset.UTC));
+
         int inserted = jdbc.update(
                 """
                 INSERT INTO proposal_assets (
-                    id, tenant_id, quote_id, storage_uri, media_type, model_id, prompt_summary, ai_label,
+                    id, tenant_id, quote_id, storage_uri, storage_generation, content_type, content_hash, size_bytes,
+                    media_type, model_id, prompt_summary, ai_label,
                     created_by_actor_type, created_by_actor_id, correlation_id, idempotency_key, created_at
                 ) VALUES (
-                    :id, :tenantId, :quoteId, :storageUri, :mediaType, :modelId, :promptSummary, :aiLabel,
+                    :id, :tenantId, :quoteId, :storageUri, :storageGeneration, :contentType, :contentHash, :sizeBytes,
+                    :mediaType, :modelId, :promptSummary, :aiLabel,
                     :actorType, :actorId, :correlationId, :idempotencyKey, :createdAt
                 )
                 ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
                 """,
-                Map.ofEntries(
-                        Map.entry("id", newId),
-                        Map.entry("tenantId", command.tenantId()),
-                        Map.entry("quoteId", command.quoteId()),
-                        Map.entry("storageUri", command.storageUri()),
-                        Map.entry("mediaType", command.mediaType().name()),
-                        Map.entry("modelId", command.modelId()),
-                        Map.entry("promptSummary", command.promptSummary()),
-                        Map.entry("aiLabel", command.aiLabel()),
-                        Map.entry("actorType", command.actorType()),
-                        Map.entry("actorId", command.actorId()),
-                        Map.entry("correlationId", command.correlationId()),
-                        Map.entry("idempotencyKey", command.idempotencyKey()),
-                        Map.entry("createdAt", OffsetDateTime.ofInstant(now, java.time.ZoneOffset.UTC))
-                )
+                params
         );
 
         if (inserted > 0) {
             return new ProposalAssetView(
-                    newId, command.quoteId(), command.storageUri(), command.mediaType(), command.modelId(),
+                    newId, command.quoteId(), command.storageUri(), command.storageGeneration(),
+                    command.contentType(), command.contentHash(), command.sizeBytes(),
+                    command.mediaType(), command.modelId(),
                     command.promptSummary(), command.aiLabel(), command.actorType(), command.actorId(),
                     command.correlationId(), now
             );
@@ -114,7 +135,8 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
 
         ProposalAssetView existing = jdbc.query(
                 """
-                SELECT id, quote_id, storage_uri, media_type, model_id, prompt_summary, ai_label,
+                SELECT id, quote_id, storage_uri, storage_generation, content_type, content_hash, size_bytes,
+                       media_type, model_id, prompt_summary, ai_label,
                        created_by_actor_type, created_by_actor_id, correlation_id, created_at
                 FROM proposal_assets
                 WHERE tenant_id = :tenantId AND idempotency_key = :idempotencyKey
@@ -132,7 +154,11 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
                 || existing.mediaType() != command.mediaType()
                 || !existing.modelId().equals(command.modelId())
                 || !existing.promptSummary().equals(command.promptSummary())
-                || !existing.aiLabel().equals(command.aiLabel())) {
+                || !existing.aiLabel().equals(command.aiLabel())
+                || (command.storageGeneration() != null && existing.storageGeneration() != null
+                    && !Objects.equals(existing.storageGeneration(), command.storageGeneration()))
+                || (command.contentHash() != null && existing.contentHash() != null
+                    && !Objects.equals(existing.contentHash(), command.contentHash()))) {
             throw new ProposalAssetConflictException(
                     "Idempotency-Key was already used to register a different proposal asset");
         }
@@ -144,10 +170,16 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
         @Override
         public ProposalAssetView mapRow(ResultSet rs, int rowNum) throws SQLException {
             OffsetDateTime createdAt = rs.getObject("created_at", OffsetDateTime.class);
+            Long storageGen = rs.getObject("storage_generation") != null ? rs.getLong("storage_generation") : null;
+            Long size = rs.getObject("size_bytes") != null ? rs.getLong("size_bytes") : null;
             return new ProposalAssetView(
                     rs.getObject("id", UUID.class),
                     rs.getString("quote_id"),
                     rs.getString("storage_uri"),
+                    storageGen,
+                    rs.getString("content_type"),
+                    rs.getString("content_hash"),
+                    size,
                     MediaType.valueOf(rs.getString("media_type")),
                     rs.getString("model_id"),
                     rs.getString("prompt_summary"),

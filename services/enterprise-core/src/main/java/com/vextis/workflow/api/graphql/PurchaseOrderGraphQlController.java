@@ -105,13 +105,15 @@ class PurchaseOrderGraphQlController {
     }
 
     @QueryMapping
-    List<ProposalAssetView> proposalAssets(@Argument String quoteId) {
+    List<ProposalAssetView> proposalAssets(@Argument String quoteId, @Argument Integer limit) {
+        int boundedLimit = limit != null ? Math.max(1, Math.min(limit, 50)) : 20;
         if (quoteId != null && !quoteId.isBlank()) {
-            return proposalAssets.findByQuoteId(demoTenantId, quoteId).stream()
+            return proposalAssets.findByQuoteId(demoTenantId, quoteId, boundedLimit).stream()
                     .map(this::proposalAssetView)
                     .toList();
         }
         return proposalAssets.findAll(demoTenantId).stream()
+                .limit(boundedLimit)
                 .map(this::proposalAssetView)
                 .toList();
     }
@@ -349,11 +351,14 @@ class PurchaseOrderGraphQlController {
     }
 
     private ProposalAssetView proposalAssetView(ProposalAssetDirectory.ProposalAssetView view) {
+        String imageUrl = view.mediaType() == ProposalAssetDirectory.MediaType.IMAGE
+                ? proposalAssetImageUrls.signedImageUrl(view.storageUri(), view.storageGeneration()).orElse(null)
+                : null;
         return new ProposalAssetView(
                 view.id(),
                 view.quoteId(),
                 view.storageUri(),
-                proposalAssetImageUrls.signedImageUrl(view.storageUri()).orElse(null),
+                imageUrl,
                 view.mediaType().name(),
                 view.modelId(),
                 view.promptSummary(),
@@ -370,4 +375,3 @@ class PurchaseOrderGraphQlController {
         return ExecutionView.from(execution, invoice, assets);
     }
 }
-

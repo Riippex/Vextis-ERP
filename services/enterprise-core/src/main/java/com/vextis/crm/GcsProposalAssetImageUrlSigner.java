@@ -59,6 +59,15 @@ public class GcsProposalAssetImageUrlSigner {
      * degrades to no image, not a broken query.
      */
     public Optional<String> signedImageUrl(String storageUri) {
+        return signedImageUrl(storageUri, null);
+    }
+
+    /**
+     * Returns a signed HTTPS URL pinned to the exact registered generation for the given
+     * {@code gs://} URI, guaranteeing that overwritten objects cannot alter what
+     * was signed.
+     */
+    public Optional<String> signedImageUrl(String storageUri, Long generation) {
         if (bucketName == null || bucketName.isBlank()) {
             return Optional.empty();
         }
@@ -68,7 +77,9 @@ public class GcsProposalAssetImageUrlSigner {
         }
         String objectName = storageUri.substring(prefix.length());
         try {
-            BlobInfo blob = BlobInfo.newBuilder(bucketName, objectName).build();
+            BlobInfo blob = generation != null
+                    ? BlobInfo.newBuilder(com.google.cloud.storage.BlobId.of(bucketName, objectName, generation)).build()
+                    : BlobInfo.newBuilder(bucketName, objectName).build();
             URL signedUrl = storage.signUrl(
                     blob,
                     URL_TTL.toMinutes(),

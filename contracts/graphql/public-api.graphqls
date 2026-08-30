@@ -5,7 +5,7 @@ type Query {
   missionControl: MissionControl!
   askVextisConversation(id: ID!): AskVextisConversation
   knowledgeDocuments: [KnowledgeDocumentView!]!
-  proposalAssets(quoteId: ID): [ProposalAsset!]!
+  proposalAssets(quoteId: ID, limit: Int = 20): [ProposalAsset!]!
 }
 
 type MissionControl {
@@ -463,4 +463,3 @@ enum ProposalMediaType {
   IMAGE
   VIDEO
 }
-

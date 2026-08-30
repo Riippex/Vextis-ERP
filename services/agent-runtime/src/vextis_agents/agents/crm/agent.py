@@ -47,20 +47,17 @@ def build_crm_agent(
             never include customer secrets, credentials, or account numbers
             in it, since it becomes part of the generation prompt.
             """
-            # A fresh key per call: this tool always creates a new asset, it
-            # never has an existing operation to replay idempotently against.
-            idempotency_key = uuid.uuid4().hex
             try:
                 asset = await asset_generator.generate_and_register(
                     quote_id=quote_id,
                     prompt=visual_description,
-                    idempotency_key=idempotency_key,
                 )
             except (
                 CoreToolRejectedError,
                 CoreToolUnavailableError,
                 ProposalAssetUploadError,
                 RuntimeError,
+                ValueError,
             ) as exception:
                 logger.warning("Proposal asset generation failed: %s", exception)
                 return {"registered": False, "error": str(exception)}

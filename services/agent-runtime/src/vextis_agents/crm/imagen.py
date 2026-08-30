@@ -20,16 +20,42 @@ MOCK_MODEL_ID = "mock-imagen"
 
 
 def redact_prompt(raw_prompt: str) -> str:
-    """Removes potential secrets, credentials, tokens, or PII before logging/storing."""
+    """
+    Minimizes and sanitizes the prompt before logging, model invocation, or storage.
+    Removes secrets, tokens, credentials, private keys, phone numbers, addresses,
+    identification numbers, customer names, and emails.
+    """
     cleaned = raw_prompt.strip()
+
+    # Redact private keys / certificates
+    cleaned = re.sub(
+        r"-----BEGIN [A-Z ]+-----[^-]+-----END [A-Z ]+-----",
+        "[REDACTED_KEY]",
+        cleaned,
+        flags=re.DOTALL,
+    )
+    # Redact cloud API keys (Google AIza, AWS AKIA, GitHub tokens, etc.)
+    cleaned = re.sub(r"(AIza[0-9A-Za-z-_]{35}|AKIA[0-9A-Z]{16}|ghp_[0-9a-zA-Z]{36})", "[REDACTED_KEY]", cleaned)
     # Redact potential bearer tokens / keys
     cleaned = re.sub(r"(?i)(bearer\s+[a-zA-Z0-9_\-\.]{10,})", "[REDACTED_TOKEN]", cleaned)
-    cleaned = re.sub(r"(?i)(key|secret|password|token)\s*[:=]\s*[^\s]+", r"\1=[REDACTED]", cleaned)
+    cleaned = re.sub(r"(?i)(key|secret|password|token|apikey|credential|private_key|auth)\s*[:=]\s*[^\s,;]+", r"\1=[REDACTED]", cleaned)
+
     # Redact email addresses
     cleaned = re.sub(r"[\w\.-]+@[\w\.-]+\.\w+", "[REDACTED_EMAIL]", cleaned)
     # Redact credit card / account numbers
     cleaned = re.sub(r"\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b", "[REDACTED_CARD]", cleaned)
-    return cleaned[:500]
+    # Redact Colombian Cedula / NIT / SSN / Tax IDs
+    cleaned = re.sub(r"(?i)\b(nit|cedula|cc|ssn|rut)\s*[:=]?\s*\d{6,11}(-\d)?\b", "[REDACTED_ID]", cleaned)
+    # Redact national / international phone numbers (e.g. +57 300 123 4567, (555) 123-4567, 300-1234567)
+    cleaned = re.sub(r"(\+?\d{1,3}[-.\s]?)?(\(?\d{2,4}\)?[-.\s]?)?\d{3,4}[-.\s]?\d{3,4}\b", "[REDACTED_PHONE]", cleaned)
+    # Redact street addresses
+    cleaned = re.sub(r"(?i)\b(calle|carrera|avenida|diagonal|transversal|street|st\.|avenue|ave\.|road|rd\.|blvd|suite|apt)\s+\d+[^,\n]*", "[REDACTED_ADDRESS]", cleaned)
+    # Redact customer / contact person names prefixed by common titles
+    cleaned = re.sub(r"(?i)\b(cliente|customer|sr\.|sra\.|mr\.|mrs\.|ms\.|contacto|contact)\s*[:=]?\s*[A-Z][a-z]+(\s+[A-Z][a-z]+)+", r"\1: [REDACTED_NAME]", cleaned)
+
+    # Sanitize control characters and limit length
+    cleaned = re.sub(r"[\x00-\x1f\x7f-\x9f]", " ", cleaned)
+    return re.sub(r"\s+", " ", cleaned).strip()[:500]
 
 
 @dataclass(frozen=True)

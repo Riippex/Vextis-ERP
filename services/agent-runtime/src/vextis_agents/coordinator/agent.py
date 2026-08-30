@@ -36,6 +36,7 @@ def build_coordinator(
     core_reads: BusinessReadTool | None = None,
     knowledge_retriever: KnowledgeRetriever | None = None,
     asset_generator: ProposalAssetGenerator | None = None,
+    enable_imagen: bool | None = None,
 ) -> LlmAgent:
     """
     Build the fleet coordinator only after an explicit model has been
@@ -54,7 +55,10 @@ def build_coordinator(
     if tenant_id is not None and core_reads is None:
         core_reads = EnterpriseCoreBusinessReadClient(settings, tenant_id, correlation_id)
 
-    if tenant_id is not None and asset_generator is None and settings.agent_tools_token:
+    enable_imagen_effective = (
+        enable_imagen if enable_imagen is not None else settings.imagen_enabled
+    )
+    if tenant_id is not None and asset_generator is None and settings.agent_tools_token and enable_imagen_effective:
         try:
             core_client = EnterpriseCoreProposalAssetClient(settings, tenant_id, correlation_id)
             asset_generator = ProposalAssetGenerator(settings, tenant_id, core_client)

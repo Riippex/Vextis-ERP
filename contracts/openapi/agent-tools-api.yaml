@@ -40,6 +40,42 @@ paths:
           description: Logical agent is inactive, belongs to another service, tenant, or tool policy
         "404":
           description: Customer was not found in the tenant
+  /crm/quotes/{quoteId}/assets/preflight:
+    post:
+      operationId: preflightProposalAsset
+      x-vextis-tool-policy: register_quote_asset
+      description: >-
+        Validates authorization, quote ownership, and correlation before generating or
+        uploading an asset. Guarantees zero Vertex/Storage spend on invalid requests.
+      security:
+        - serviceBearer: []
+      parameters:
+        - name: quoteId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Preflight validation successful; generation is authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PreflightProposalAssetResponse"
+        "400":
+          description: Invalid parameters or correlation mismatch
+        "401":
+          description: Missing or invalid service credential
+        "403":
+          description: Logical agent is inactive or not authorized for this tool
+        "404":
+          description: Quote or execution was not found for this tenant
+        "503":
+          description: Enterprise Core is temporarily unavailable
   /crm/quotes/{quoteId}/assets:
     post:
       operationId: registerProposalAsset
@@ -56,8 +92,7 @@ paths:
           required: true
           schema:
             type: string
-            minLength: 1
-            maxLength: 100
+            format: uuid
         - $ref: "#/components/parameters/TenantId"
         - $ref: "#/components/parameters/AgentId"
         - $ref: "#/components/parameters/CorrelationId"
@@ -76,13 +111,17 @@ paths:
               schema:
                 $ref: "#/components/schemas/ProposalAsset"
         "400":
-          description: Invalid request payload
+          description: Invalid request payload or correlation mismatch
         "401":
           description: Missing or invalid service credential
         "403":
           description: Logical agent is inactive or not authorized for this tool
+        "404":
+          description: Quote or execution was not found for this tenant
         "409":
           description: Conflicting state or duplicate non-idempotent registration
+        "503":
+          description: Storage or Enterprise Core is temporarily unavailable
   /inventory/stock/{sku}:
     get:
       operationId: getStockBySku
@@ -991,6 +1030,20 @@ components:
           type: string
           minLength: 1
           maxLength: 100
+    PreflightProposalAssetResponse:
+      type: object
+      additionalProperties: false
+      required: [quoteId, authorized, tenantPrefix, correlationId]
+      properties:
+        quoteId:
+          type: string
+          format: uuid
+        authorized:
+          type: boolean
+        tenantPrefix:
+          type: string
+        correlationId:
+          type: string
     ProposalAsset:
       type: object
       additionalProperties: false
@@ -1001,7 +1054,7 @@ components:
           format: uuid
         quoteId:
           type: string
-          maxLength: 100
+          format: uuid
         storageUri:
           type: string
           maxLength: 1000
@@ -1020,4 +1073,3 @@ components:
         createdAt:
           type: string
           format: date-time
-

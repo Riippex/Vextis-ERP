@@ -2,8 +2,7 @@ package com.vextis.workflow.api.internal;
 
 import com.vextis.crm.ProposalAssetConflictException;
 import com.vextis.crm.ProposalAssetDirectory;
-import com.vextis.crm.GcsProposalAssetStorage;
-import com.vextis.workflow.application.FindExecutionUseCase;
+import com.vextis.crm.RegisterProposalAssetUseCase;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -20,6 +19,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.util.NoSuchElementException;
 import java.util.UUID;
 
 @RestController
@@ -27,21 +27,50 @@ import java.util.UUID;
 @RequestMapping("/internal/agent-tools/v1/crm/quotes")
 class AgentProposalAssetController {
 
-    private final ProposalAssetDirectory proposalAssets;
-    private final FindExecutionUseCase findExecution;
-    private final GcsProposalAssetStorage assetStorage;
+    private final RegisterProposalAssetUseCase proposalAssetUseCase;
     private final AgentToolAuthorizer authorizer;
 
     AgentProposalAssetController(
-            ProposalAssetDirectory proposalAssets,
-            FindExecutionUseCase findExecution,
-            GcsProposalAssetStorage assetStorage,
+            RegisterProposalAssetUseCase proposalAssetUseCase,
             AgentToolAuthorizer authorizer
     ) {
-        this.proposalAssets = proposalAssets;
-        this.findExecution = findExecution;
-        this.assetStorage = assetStorage;
+        this.proposalAssetUseCase = proposalAssetUseCase;
         this.authorizer = authorizer;
+    }
+
+    @PostMapping("/{quoteId}/assets/preflight")
+    @ResponseStatus(HttpStatus.OK)
+    PreflightProposalAssetResponse preflight(
+            @PathVariable UUID quoteId,
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization,
+            @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 100) String tenantId,
+            @RequestHeader("X-Agent-Id") @NotBlank @Size(max = 150) String agentId,
+            @RequestHeader("X-Correlation-Id") @NotBlank @Size(max = 100) String correlationId
+    ) {
+        authorizer.authorize(authorization, agentId, tenantId, AgentTool.REGISTER_QUOTE_ASSET);
+
+        try {
+            RegisterProposalAssetUseCase.PreflightResult result = proposalAssetUseCase.preflight(
+                    new RegisterProposalAssetUseCase.PreflightCommand(
+                            tenantId,
+                            agentId,
+                            quoteId,
+                            correlationId
+                    )
+            );
+            return new PreflightProposalAssetResponse(
+                    result.quoteId().toString(),
+                    result.authorized(),
+                    result.tenantPrefix(),
+                    result.correlationId()
+            );
+        } catch (NoSuchElementException exception) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, exception.getMessage(), exception);
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception);
+        } catch (IllegalStateException exception) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage(), exception);
+        }
     }
 
     @PostMapping("/{quoteId}/assets")
@@ -57,44 +86,40 @@ class AgentProposalAssetController {
     ) {
         authorizer.authorize(authorization, agentId, tenantId, AgentTool.REGISTER_QUOTE_ASSET);
 
-        // The asset must illustrate a quote/order this tenant actually owns:
-        // quoteId is not accepted at face value.
-        findExecution.findById(tenantId, quoteId)
-                .orElseThrow(() -> new ResponseStatusException(
-                        HttpStatus.NOT_FOUND, "No quote or order found for this tenant"));
-
-        // The URI must resolve to an object this tenant is authorized to
-        // write, and that object must actually exist: an agent's claim that
-        // an upload succeeded is not registered on trust alone.
-        try {
-            assetStorage.assertUploaded(tenantId, request.storageUri());
-        } catch (IllegalArgumentException exception) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception);
-        } catch (IllegalStateException exception) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage(), exception);
-        }
-
         ProposalAssetDirectory.MediaType mediaType = ProposalAssetDirectory.MediaType.valueOf(request.mediaType());
         try {
-            ProposalAssetDirectory.ProposalAssetView view = proposalAssets.registerAsset(
-                    new ProposalAssetDirectory.RegisterProposalAssetCommand(
+            ProposalAssetDirectory.ProposalAssetView view = proposalAssetUseCase.registerAsset(
+                    new RegisterProposalAssetUseCase.RegisterCommand(
                             tenantId,
-                            quoteId.toString(),
+                            agentId,
+                            quoteId,
+                            correlationId,
+                            idempotencyKey,
                             request.storageUri(),
                             mediaType,
                             request.modelId(),
                             request.promptSummary(),
-                            request.aiLabel(),
-                            "AGENT",
-                            agentId,
-                            correlationId,
-                            idempotencyKey
+                            request.aiLabel()
                     )
             );
             return ProposalAssetResponse.from(view);
+        } catch (NoSuchElementException exception) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, exception.getMessage(), exception);
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception);
+        } catch (IllegalStateException exception) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage(), exception);
         } catch (ProposalAssetConflictException exception) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, exception.getMessage(), exception);
         }
+    }
+
+    record PreflightProposalAssetResponse(
+            String quoteId,
+            boolean authorized,
+            String tenantPrefix,
+            String correlationId
+    ) {
     }
 
     record RegisterProposalAssetRequest(

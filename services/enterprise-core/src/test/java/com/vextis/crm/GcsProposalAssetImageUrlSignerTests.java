@@ -29,7 +29,7 @@ class GcsProposalAssetImageUrlSignerTests {
                 eq(TimeUnit.MINUTES),
                 any(Storage.SignUrlOption.class),
                 any(Storage.SignUrlOption.class)))
-                .thenReturn(signed);
+            .thenReturn(signed);
         GcsProposalAssetImageUrlSigner signer = new GcsProposalAssetImageUrlSigner(
                 storage, "vextis-assets", FakeSigner::new);
 
@@ -38,6 +38,29 @@ class GcsProposalAssetImageUrlSignerTests {
         assertThat(result).contains(signed.toString());
         verify(storage).signUrl(
                 eq(BlobInfo.newBuilder("vextis-assets", "proposals/x/quote-001.png").build()),
+                eq(15L), eq(TimeUnit.MINUTES), any(Storage.SignUrlOption.class), any(Storage.SignUrlOption.class));
+    }
+
+    @Test
+    void signsAnHttpsUrlPinnedToSpecificGeneration() throws Exception {
+        Storage storage = mock(Storage.class);
+        URL signed = URI.create(
+                "https://storage.googleapis.com/vextis-assets/proposals/x/quote-001.png?generation=12345678&sig=abc").toURL();
+        when(storage.signUrl(
+                any(BlobInfo.class),
+                eq(15L),
+                eq(TimeUnit.MINUTES),
+                any(Storage.SignUrlOption.class),
+                any(Storage.SignUrlOption.class)))
+            .thenReturn(signed);
+        GcsProposalAssetImageUrlSigner signer = new GcsProposalAssetImageUrlSigner(
+                storage, "vextis-assets", FakeSigner::new);
+
+        var result = signer.signedImageUrl("gs://vextis-assets/proposals/x/quote-001.png", 12345678L);
+
+        assertThat(result).contains(signed.toString());
+        verify(storage).signUrl(
+                eq(BlobInfo.newBuilder(com.google.cloud.storage.BlobId.of("vextis-assets", "proposals/x/quote-001.png", 12345678L)).build()),
                 eq(15L), eq(TimeUnit.MINUTES), any(Storage.SignUrlOption.class), any(Storage.SignUrlOption.class));
     }
 

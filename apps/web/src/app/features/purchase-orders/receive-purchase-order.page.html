@@ -277,20 +277,47 @@
               <p class="evidence__eyebrow">Multimodal proposal asset</p>
               <h3 id="proposal-assets-title">Generated proposal visual</h3>
             </div>
-            <span class="ai-badge">AI-GENERATED</span>
+            <div class="proposal-assets__actions">
+              <button
+                mat-icon-button
+                type="button"
+                [disabled]="refreshingAssets()"
+                (click)="refreshProposalAssets()"
+                title="Refresh proposal assets"
+                aria-label="Refresh proposal assets"
+              >
+                <mat-icon [class.spin]="refreshingAssets()">refresh</mat-icon>
+              </button>
+              <span class="ai-badge">AI-GENERATED</span>
+            </div>
           </div>
           @for (asset of currentReceipt.execution.proposalAssets; track asset.id) {
             <div class="proposal-asset-card">
-              @if (asset.imageUrl) {
-                <img
-                  class="proposal-asset-card__image"
-                  [src]="asset.imageUrl"
-                  [alt]="asset.aiLabel"
-                />
+              @if (asset.mediaType === 'VIDEO') {
+                @if (asset.imageUrl) {
+                  <video
+                    class="proposal-asset-card__video"
+                    controls
+                    [src]="asset.imageUrl"
+                    [attr.aria-label]="asset.aiLabel"
+                  ></video>
+                } @else {
+                  <div class="proposal-asset-card__image proposal-asset-card__image--unavailable">
+                    Video unavailable
+                  </div>
+                }
               } @else {
-                <div class="proposal-asset-card__image proposal-asset-card__image--unavailable">
-                  Image unavailable
-                </div>
+                @if (asset.imageUrl) {
+                  <img
+                    class="proposal-asset-card__image"
+                    [src]="asset.imageUrl"
+                    [alt]="asset.aiLabel"
+                  />
+                } @else {
+                  <div class="proposal-asset-card__image proposal-asset-card__image--unavailable">
+                    Image unavailable
+                  </div>
+                }
               }
               <div class="proposal-asset-card__info">
                 <strong>{{ asset.aiLabel }}</strong>

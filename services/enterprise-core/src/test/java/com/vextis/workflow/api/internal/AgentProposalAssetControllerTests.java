@@ -3,11 +3,8 @@ package com.vextis.workflow.api.internal;
 import com.vextis.agentregistry.AgentDirectory;
 import com.vextis.crm.ProposalAssetConflictException;
 import com.vextis.crm.ProposalAssetDirectory;
-import com.vextis.crm.GcsProposalAssetStorage;
+import com.vextis.crm.RegisterProposalAssetUseCase;
 import com.vextis.shared.ConfiguredServiceCallerIdentities;
-import com.vextis.workflow.application.FindExecutionUseCase;
-import com.vextis.workflow.domain.ExecutionState;
-import com.vextis.workflow.domain.WorkflowExecution;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,12 +16,11 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -45,13 +41,7 @@ class AgentProposalAssetControllerTests {
     private MockMvc mockMvc;
 
     @MockitoBean
-    private ProposalAssetDirectory proposalAssets;
-
-    @MockitoBean
-    private FindExecutionUseCase findExecution;
-
-    @MockitoBean
-    private GcsProposalAssetStorage assetStorage;
+    private RegisterProposalAssetUseCase proposalAssetUseCase;
 
     @MockitoBean
     private AgentDirectory agents;
@@ -65,18 +55,44 @@ class AgentProposalAssetControllerTests {
                         List.of(), List.of("lookup_customer", "register_quote_asset", "search_knowledge_base"))));
     }
 
-    private static WorkflowExecution executionOwnedByDemoTenant() {
-        return new WorkflowExecution(
-                QUOTE_ID, "demo-tenant", UUID.randomUUID(), "Sell ergonomic office chairs",
-                ExecutionState.RUNNING, "corr-000", Instant.parse("2026-08-01T00:00:00Z"),
-                Instant.parse("2026-08-01T00:00:00Z"), List.of());
+    @Test
+    void preflightSucceedsForValidQuote() throws Exception {
+        when(proposalAssetUseCase.preflight(any(RegisterProposalAssetUseCase.PreflightCommand.class)))
+                .thenReturn(new RegisterProposalAssetUseCase.PreflightResult(
+                        QUOTE_ID, "proposals/deadbeef", "corr-001", true));
+
+        mockMvc.perform(post("/internal/agent-tools/v1/crm/quotes/{quoteId}/assets/preflight", QUOTE_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer test-service-token")
+                        .header("X-Tenant-Id", "demo-tenant")
+                        .header("X-Agent-Id", "vextis_crm_agent")
+                        .header("X-Correlation-Id", "corr-001"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.quoteId").value(QUOTE_ID.toString()))
+                .andExpect(jsonPath("$.authorized").value(true))
+                .andExpect(jsonPath("$.tenantPrefix").value("proposals/deadbeef"))
+                .andExpect(jsonPath("$.correlationId").value("corr-001"));
+
+        verify(proposalAssetUseCase).preflight(any(RegisterProposalAssetUseCase.PreflightCommand.class));
+    }
+
+    @Test
+    void preflightRejectsNonExistentQuote() throws Exception {
+        when(proposalAssetUseCase.preflight(any(RegisterProposalAssetUseCase.PreflightCommand.class)))
+                .thenThrow(new NoSuchElementException("No quote or order found for this tenant"));
+
+        mockMvc.perform(post("/internal/agent-tools/v1/crm/quotes/{quoteId}/assets/preflight", QUOTE_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer test-service-token")
+                        .header("X-Tenant-Id", "demo-tenant")
+                        .header("X-Agent-Id", "vextis_crm_agent")
+                        .header("X-Correlation-Id", "corr-001"))
+                .andExpect(status().isNotFound());
     }
 
     @Test
     void authenticatedCrmAgentCanRegisterProposalAsset() throws Exception {
-        when(findExecution.findById("demo-tenant", QUOTE_ID))
-                .thenReturn(Optional.of(executionOwnedByDemoTenant()));
-        when(proposalAssets.registerAsset(any(ProposalAssetDirectory.RegisterProposalAssetCommand.class)))
+        when(proposalAssetUseCase.registerAsset(any(RegisterProposalAssetUseCase.RegisterCommand.class)))
                 .thenReturn(new ProposalAssetDirectory.ProposalAssetView(
                         ASSET_ID,
                         QUOTE_ID.toString(),
@@ -114,10 +130,9 @@ class AgentProposalAssetControllerTests {
                 .andExpect(jsonPath("$.modelId").value("imagen-3.0-generate-002"))
                 .andExpect(jsonPath("$.aiLabel").value("AI-Generated Proposal Concept"));
 
-        verify(assetStorage).assertUploaded("demo-tenant", STORAGE_URI);
-        verify(proposalAssets).registerAsset(org.mockito.ArgumentMatchers.argThat(cmd ->
+        verify(proposalAssetUseCase).registerAsset(org.mockito.ArgumentMatchers.argThat(cmd ->
                 cmd.tenantId().equals("demo-tenant")
-                        && cmd.quoteId().equals(QUOTE_ID.toString())
+                        && cmd.quoteId().equals(QUOTE_ID)
                         && cmd.modelId().equals("imagen-3.0-generate-002")
                         && cmd.storageUri().equals(STORAGE_URI)));
     }
@@ -142,14 +157,13 @@ class AgentProposalAssetControllerTests {
                                 """.formatted(STORAGE_URI)))
                 .andExpect(status().isUnauthorized());
 
-        verifyNoInteractions(proposalAssets);
-        verifyNoInteractions(findExecution);
-        verifyNoInteractions(assetStorage);
+        verifyNoInteractions(proposalAssetUseCase);
     }
 
     @Test
     void rejectsAssetForAQuoteNotOwnedByTenant() throws Exception {
-        when(findExecution.findById("demo-tenant", QUOTE_ID)).thenReturn(Optional.empty());
+        when(proposalAssetUseCase.registerAsset(any(RegisterProposalAssetUseCase.RegisterCommand.class)))
+                .thenThrow(new NoSuchElementException("No quote or order found for this tenant"));
 
         mockMvc.perform(post("/internal/agent-tools/v1/crm/quotes/{quoteId}/assets", QUOTE_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -168,17 +182,12 @@ class AgentProposalAssetControllerTests {
                                 }
                                 """.formatted(STORAGE_URI)))
                 .andExpect(status().isNotFound());
-
-        verifyNoInteractions(assetStorage);
-        verifyNoInteractions(proposalAssets);
     }
 
     @Test
     void rejectsAssetOutsideTheAuthorizedBucketOrPrefix() throws Exception {
-        when(findExecution.findById("demo-tenant", QUOTE_ID))
-                .thenReturn(Optional.of(executionOwnedByDemoTenant()));
-        doThrow(new IllegalArgumentException("Proposal asset URI does not belong to the authorized tenant bucket or prefix"))
-                .when(assetStorage).assertUploaded(eq("demo-tenant"), any());
+        when(proposalAssetUseCase.registerAsset(any(RegisterProposalAssetUseCase.RegisterCommand.class)))
+                .thenThrow(new IllegalArgumentException("Proposal asset URI does not belong to the authorized tenant bucket or prefix"));
 
         mockMvc.perform(post("/internal/agent-tools/v1/crm/quotes/{quoteId}/assets", QUOTE_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -197,15 +206,11 @@ class AgentProposalAssetControllerTests {
                                 }
                                 """))
                 .andExpect(status().isBadRequest());
-
-        verifyNoInteractions(proposalAssets);
     }
 
     @Test
     void returnsConflictWhenIdempotencyKeyIsReusedForADifferentAsset() throws Exception {
-        when(findExecution.findById("demo-tenant", QUOTE_ID))
-                .thenReturn(Optional.of(executionOwnedByDemoTenant()));
-        when(proposalAssets.registerAsset(any(ProposalAssetDirectory.RegisterProposalAssetCommand.class)))
+        when(proposalAssetUseCase.registerAsset(any(RegisterProposalAssetUseCase.RegisterCommand.class)))
                 .thenThrow(new ProposalAssetConflictException(
                         "Idempotency-Key was already used to register a different proposal asset"));
 

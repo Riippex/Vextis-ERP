@@ -247,7 +247,7 @@ class PurchaseOrderGraphQlControllerTests {
                         "vextis_crm_agent",
                         "corr-001",
                         NOW)));
-        when(proposalAssetImageUrls.signedImageUrl(storageUri))
+        when(proposalAssetImageUrls.signedImageUrl(eq(storageUri), any()))
                 .thenReturn(Optional.of("https://storage.googleapis.com/signed-proposal-image"));
 
         graphQlTester.document("""
@@ -273,6 +273,45 @@ class PurchaseOrderGraphQlControllerTests {
                 .path("execution.proposalAssets[0].mediaType")
                 .entity(String.class)
                 .isEqualTo("IMAGE");
+    }
+
+    @Test
+    void proposalAssetsQueryRespectsLimitAndSuppressesImageUrlForVideo() {
+        String videoUri = "gs://vextis-assets/proposals/abc123/demo.mp4";
+        when(proposalAssets.findByQuoteId(eq("demo-tenant"), eq("quote-001"), eq(5))).thenReturn(List.of(
+                new ProposalAssetDirectory.ProposalAssetView(
+                        UUID.fromString("22334455-6677-8899-aabb-ccddeeff0011"),
+                        "quote-001",
+                        videoUri,
+                        ProposalAssetDirectory.MediaType.VIDEO,
+                        "veo-2.0",
+                        "Demo walkaround video",
+                        "AI-Generated Concept Video",
+                        "AGENT",
+                        "vextis_crm_agent",
+                        "corr-002",
+                        NOW)));
+
+        graphQlTester.document("""
+                        query GetAssets($quoteId: ID, $limit: Int) {
+                          proposalAssets(quoteId: $quoteId, limit: $limit) {
+                            storageUri
+                            imageUrl
+                            mediaType
+                          }
+                        }
+                        """)
+                .variable("quoteId", "quote-001")
+                .variable("limit", 5)
+                .execute()
+                .path("proposalAssets[0].storageUri")
+                .entity(String.class)
+                .isEqualTo(videoUri)
+                .path("proposalAssets[0].imageUrl")
+                .valueIsNull()
+                .path("proposalAssets[0].mediaType")
+                .entity(String.class)
+                .isEqualTo("VIDEO");
     }
 
     private PurchaseOrderReceipt receipt() {

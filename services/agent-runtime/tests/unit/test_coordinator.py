@@ -156,6 +156,29 @@ def test_coordinator_with_asset_generator_gives_crm_agent_the_tool() -> None:
     assert "generate_proposal_asset" in tool_names
 
 
+def test_coordinator_omits_asset_generator_when_imagen_disabled() -> None:
+    from pydantic import SecretStr
+
+    settings = Settings(
+        gemini_model="gemini-test-model",
+        agent_tools_token=SecretStr("token"),
+        enterprise_core_url="https://core.vextis.local",
+        imagen_enabled=False,
+    )
+    coordinator = build_coordinator(
+        settings=settings,
+        tenant_id="demo-tenant",
+        core_reads=FakeBusinessReads(),
+    )
+    crm_agent = next(
+        cast(LlmAgent, agent)
+        for agent in coordinator.sub_agents
+        if agent.name == "vextis_crm_agent"
+    )
+    tool_names = [getattr(t, "__name__", None) for t in crm_agent.tools]
+    assert "generate_proposal_asset" not in tool_names
+
+
 @pytest.mark.asyncio
 async def test_generate_proposal_asset_tool_registers_a_real_asset() -> None:
     import httpx
@@ -166,6 +189,8 @@ async def test_generate_proposal_asset_tool_registers_a_real_asset() -> None:
         ProposalAssetGenerator,
     )
 
+    test_quote_id = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+
     settings = Settings(
         gemini_model="gemini-test-model",
         agent_tools_token=SecretStr("token"),
@@ -174,12 +199,22 @@ async def test_generate_proposal_asset_tool_registers_a_real_asset() -> None:
     )
 
     def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/preflight"):
+            return httpx.Response(
+                200,
+                json={
+                    "quoteId": test_quote_id,
+                    "authorized": True,
+                    "tenantPrefix": "proposals/deadbeef",
+                    "correlationId": "corr-456",
+                },
+            )
         return httpx.Response(
             201,
             json={
                 "id": "11223344-5566-7788-99aa-bbccddeeff00",
-                "quoteId": "exec-001",
-                "storageUri": "gs://vextis-proposal-assets/proposals/demo-tenant/exec-001_abc.png",
+                "quoteId": test_quote_id,
+                "storageUri": f"gs://vextis-proposal-assets/proposals/demo-tenant/{test_quote_id}_abc.png",
                 "mediaType": "IMAGE",
                 "modelId": "imagen-3.0-generate-002",
                 "promptSummary": "ergonomic chair concept",
@@ -191,6 +226,9 @@ async def test_generate_proposal_asset_tool_registers_a_real_asset() -> None:
     class _FakeBlob:
         def upload_from_string(self, data: bytes, content_type: str | None = None) -> None:
             return None
+
+        def delete(self) -> None:
+            pass
 
     class _FakeBucket:
         def blob(self, object_name: str) -> "_FakeBlob":
@@ -225,10 +263,10 @@ async def test_generate_proposal_asset_tool_registers_a_real_asset() -> None:
     )
     tool = cast(Callable[..., Any], matching_tool)
 
-    result = await tool(quote_id="exec-001", visual_description="ergonomic chair concept")
+    result = await tool(quote_id=test_quote_id, visual_description="ergonomic chair concept")
 
     assert result["registered"] is True
-    assert result["quoteId"] == "exec-001"
+    assert result["quoteId"] == test_quote_id
     assert result["mediaType"] == "IMAGE"
 
 

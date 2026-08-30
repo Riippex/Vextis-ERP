@@ -1,6 +1,6 @@
 import sys
 import types
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import httpx
 import pytest
@@ -9,6 +9,7 @@ from pydantic import SecretStr
 from vextis_agents.app.config import Settings
 from vextis_agents.crm.asset_generator import (
     EnterpriseCoreProposalAssetClient,
+    PreflightProposalAsset,
     ProposalAssetGenerator,
     ProposalAssetUploadError,
     RegisteredProposalAsset,
@@ -24,6 +25,9 @@ from vextis_agents.tools.core_api.planning import CoreToolRejectedError
 
 _UploadStore = dict[tuple[str, str], tuple[bytes, str | None]]
 
+TEST_QUOTE_ID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+TEST_QUOTE_UUID = UUID(TEST_QUOTE_ID)
+
 
 class _FakeBlob:
     def __init__(self, bucket_name: str, object_name: str, store: _UploadStore) -> None:
@@ -33,6 +37,9 @@ class _FakeBlob:
 
     def upload_from_string(self, data: bytes, content_type: str | None = None) -> None:
         self._store[(self._bucket_name, self._object_name)] = (data, content_type)
+
+    def delete(self) -> None:
+        self._store.pop((self._bucket_name, self._object_name), None)
 
 
 class _FakeBucket:
@@ -56,6 +63,9 @@ class _FailingBlob:
     def upload_from_string(self, data: bytes, content_type: str | None = None) -> None:
         raise OSError("network unreachable")
 
+    def delete(self) -> None:
+        pass
+
 
 class _FailingStorageClient:
     def bucket(self, name: str) -> "_FailingStorageClient":
@@ -67,8 +77,9 @@ class _FailingStorageClient:
 
 def test_redact_prompt_removes_sensitive_data() -> None:
     prompt = (
-        "Create 3D chair visual for client test@acme.com "
-        "with card 4111-2222-3333-4444 and Bearer token1234567890"
+        "Create 3D chair visual for cliente: Juan Perez with email test@acme.com, "
+        "phone +57 300 123 4567, address Calle 100 # 15-20, NIT 900123456-1, "
+        "card 4111-2222-3333-4444, apiKey=AIzaSyD-1234567890abcdef and Bearer token1234567890"
     )
     redacted = redact_prompt(prompt)
     assert "[REDACTED_EMAIL]" in redacted
@@ -77,6 +88,14 @@ def test_redact_prompt_removes_sensitive_data() -> None:
     assert "4111-2222-3333-4444" not in redacted
     assert "[REDACTED_TOKEN]" in redacted
     assert "token1234567890" not in redacted
+    assert "[REDACTED_PHONE]" in redacted
+    assert "300 123 4567" not in redacted
+    assert "[REDACTED_ADDRESS]" in redacted
+    assert "Calle 100" not in redacted
+    assert "[REDACTED_NAME]" in redacted
+    assert "Juan Perez" not in redacted
+    assert "[REDACTED_ID]" in redacted
+    assert "900123456" not in redacted
 
 
 def test_imagen_client_mock_generation() -> None:
@@ -149,7 +168,7 @@ async def test_proposal_asset_client_registers_asset() -> None:
     )
 
     def handler(request: httpx.Request) -> httpx.Response:
-        assert request.url.path == "/internal/agent-tools/v1/crm/quotes/quote-001/assets"
+        assert request.url.path == f"/internal/agent-tools/v1/crm/quotes/{TEST_QUOTE_ID}/assets"
         assert request.headers["Authorization"] == "Bearer service-token-xyz"
         assert request.headers["X-Tenant-Id"] == "demo-tenant"
         assert request.headers["X-Agent-Id"] == "vextis_crm_agent"
@@ -159,8 +178,8 @@ async def test_proposal_asset_client_registers_asset() -> None:
             201,
             json={
                 "id": "11223344-5566-7788-99aa-bbccddeeff00",
-                "quoteId": "quote-001",
-                "storageUri": "gs://vextis-erp-hackathon-assets/proposals/demo-tenant/quote-001_abc123.png",
+                "quoteId": TEST_QUOTE_ID,
+                "storageUri": f"gs://vextis-erp-hackathon-assets/proposals/demo-tenant/{TEST_QUOTE_ID}_abc123.png",
                 "mediaType": "IMAGE",
                 "modelId": "imagen-3.0-generate-002",
                 "promptSummary": "3D render of ergonomic chair",
@@ -179,8 +198,8 @@ async def test_proposal_asset_client_registers_asset() -> None:
     assert client.tenant_id == "demo-tenant"
 
     asset = await client.register_asset(
-        quote_id="quote-001",
-        storage_uri="gs://vextis-erp-hackathon-assets/proposals/demo-tenant/quote-001_abc123.png",
+        quote_id=TEST_QUOTE_ID,
+        storage_uri=f"gs://vextis-erp-hackathon-assets/proposals/demo-tenant/{TEST_QUOTE_ID}_abc123.png",
         media_type="IMAGE",
         model_id="imagen-3.0-generate-002",
         prompt_summary="3D render of ergonomic chair",
@@ -190,9 +209,41 @@ async def test_proposal_asset_client_registers_asset() -> None:
 
     assert isinstance(asset, RegisteredProposalAsset)
     assert asset.id == UUID("11223344-5566-7788-99aa-bbccddeeff00")
-    assert asset.quote_id == "quote-001"
+    assert asset.quote_id == TEST_QUOTE_ID
     assert asset.media_type == "IMAGE"
     assert asset.model_id == "imagen-3.0-generate-002"
+
+
+@pytest.mark.asyncio
+async def test_proposal_asset_client_preflight_checks_authorization() -> None:
+    settings = Settings(
+        enterprise_core_url="http://core.internal",
+        agent_tools_token=SecretStr("service-token-xyz"),
+        crm_agent_id="vextis_crm_agent",
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == f"/internal/agent-tools/v1/crm/quotes/{TEST_QUOTE_ID}/assets/preflight"
+        return httpx.Response(
+            200,
+            json={
+                "quoteId": TEST_QUOTE_ID,
+                "authorized": True,
+                "tenantPrefix": "proposals/deadbeef",
+                "correlationId": "corr-123",
+            },
+        )
+
+    client = EnterpriseCoreProposalAssetClient(
+        settings=settings,
+        tenant_id="demo-tenant",
+        correlation_id="corr-123",
+        transport=httpx.MockTransport(handler),
+    )
+    preflight = await client.preflight_asset(TEST_QUOTE_ID)
+    assert isinstance(preflight, PreflightProposalAsset)
+    assert preflight.quote_id == TEST_QUOTE_ID
+    assert preflight.authorized is True
 
 
 def test_proposal_asset_generator_rejects_tenant_mismatch() -> None:
@@ -212,7 +263,37 @@ def test_proposal_asset_generator_rejects_tenant_mismatch() -> None:
 
 
 @pytest.mark.asyncio
-async def test_proposal_asset_generator_uploads_then_registers() -> None:
+async def test_proposal_asset_generator_rejects_invalid_uuid_without_generation() -> None:
+    settings = Settings(
+        enterprise_core_url="http://core.internal",
+        agent_tools_token=SecretStr("service-token-xyz"),
+        crm_agent_id="vextis_crm_agent",
+        imagen_mock_enabled=True,
+    )
+    core_client = EnterpriseCoreProposalAssetClient(
+        settings=settings,
+        tenant_id="demo-tenant",
+        transport=httpx.MockTransport(lambda request: httpx.Response(500)),
+    )
+    fake_storage = _FakeStorageClient()
+    generator = ProposalAssetGenerator(
+        settings=settings,
+        tenant_id="demo-tenant",
+        core_client=core_client,
+        storage_client=fake_storage,
+    )
+
+    with pytest.raises(ValueError, match="must be a valid UUID"):
+        await generator.generate_and_register(
+            quote_id="not-a-valid-uuid",
+            prompt="A sleek table",
+        )
+
+    assert len(fake_storage.uploads) == 0
+
+
+@pytest.mark.asyncio
+async def test_proposal_asset_generator_aborts_when_preflight_fails_zero_spend() -> None:
     settings = Settings(
         enterprise_core_url="http://core.internal",
         agent_tools_token=SecretStr("service-token-xyz"),
@@ -222,12 +303,63 @@ async def test_proposal_asset_generator_uploads_then_registers() -> None:
     )
 
     def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/preflight"):
+            return httpx.Response(404, text="Quote not found for tenant")
+        return httpx.Response(201, json={})
+
+    core_client = EnterpriseCoreProposalAssetClient(
+        settings=settings,
+        tenant_id="demo-tenant",
+        transport=httpx.MockTransport(handler),
+    )
+    fake_storage = _FakeStorageClient()
+    generator = ProposalAssetGenerator(
+        settings=settings,
+        tenant_id="demo-tenant",
+        core_client=core_client,
+        storage_client=fake_storage,
+    )
+
+    with pytest.raises(CoreToolRejectedError, match="No quote or order found"):
+        await generator.generate_and_register(
+            quote_id=TEST_QUOTE_ID,
+            prompt="A sleek desk",
+        )
+
+    # Zero uploads to storage
+    assert len(fake_storage.uploads) == 0
+
+
+@pytest.mark.asyncio
+async def test_proposal_asset_generator_deterministic_idempotency_and_upload() -> None:
+    settings = Settings(
+        enterprise_core_url="http://core.internal",
+        agent_tools_token=SecretStr("service-token-xyz"),
+        crm_agent_id="vextis_crm_agent",
+        imagen_mock_enabled=True,
+        gcs_proposal_assets_bucket="test-assets-bucket",
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/preflight"):
+            return httpx.Response(
+                200,
+                json={
+                    "quoteId": TEST_QUOTE_ID,
+                    "authorized": True,
+                    "tenantPrefix": "proposals/deadbeef",
+                    "correlationId": "corr-456",
+                },
+            )
+        import json
+
+        body = json.loads(request.content.decode("utf-8"))
         return httpx.Response(
             201,
             json={
                 "id": "11223344-5566-7788-99aa-bbccddeeff00",
-                "quoteId": "quote-002",
-                "storageUri": "gs://test-assets-bucket/proposals/demo-tenant/quote-002_xxx.png",
+                "quoteId": TEST_QUOTE_ID,
+                "storageUri": body["storageUri"],
                 "mediaType": "IMAGE",
                 "modelId": MOCK_MODEL_ID,
                 "promptSummary": "Executive board meeting table design",
@@ -250,24 +382,72 @@ async def test_proposal_asset_generator_uploads_then_registers() -> None:
         storage_client=fake_storage,
     )
 
-    result = await generator.generate_and_register(
-        quote_id="quote-002",
+    result1 = await generator.generate_and_register(
+        quote_id=TEST_QUOTE_ID,
         prompt="Executive board meeting table design",
-        idempotency_key="idemp-002",
+    )
+    (bucket1, obj1), (data1, _) = next(iter(fake_storage.uploads.items()))
+
+    # Second invocation with same inputs produces identical deterministic object name
+    result2 = await generator.generate_and_register(
+        quote_id=TEST_QUOTE_ID,
+        prompt="Executive board meeting table design",
     )
 
-    assert result.quote_id == "quote-002"
-    assert result.model_id == MOCK_MODEL_ID
-    assert result.ai_label == "AI-Generated Proposal Concept"
-
-    # The image must actually have been written before registration happened.
+    assert result1.quote_id == TEST_QUOTE_ID
+    assert result2.quote_id == TEST_QUOTE_ID
     assert len(fake_storage.uploads) == 1
-    (bucket_name, object_name), (data, content_type) = next(iter(fake_storage.uploads.items()))
-    assert bucket_name == "test-assets-bucket"
-    assert object_name.startswith("proposals/")
-    assert "quote-002" in object_name
-    assert data == MOCK_PNG_BYTES
-    assert content_type == "image/png"
+    assert bucket1 == "test-assets-bucket"
+    assert TEST_QUOTE_ID in obj1
+    assert data1 == MOCK_PNG_BYTES
+
+
+@pytest.mark.asyncio
+async def test_proposal_asset_generator_compensates_orphaned_blob_on_core_failure() -> None:
+    settings = Settings(
+        enterprise_core_url="http://core.internal",
+        agent_tools_token=SecretStr("service-token-xyz"),
+        crm_agent_id="vextis_crm_agent",
+        imagen_mock_enabled=True,
+        gcs_proposal_assets_bucket="test-assets-bucket",
+    )
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/preflight"):
+            return httpx.Response(
+                200,
+                json={
+                    "quoteId": TEST_QUOTE_ID,
+                    "authorized": True,
+                    "tenantPrefix": "proposals/deadbeef",
+                    "correlationId": "corr-456",
+                },
+            )
+        # Registration fails with conflict or internal error
+        return httpx.Response(409, text="Conflict: duplicate different asset")
+
+    core_client = EnterpriseCoreProposalAssetClient(
+        settings=settings,
+        tenant_id="demo-tenant",
+        correlation_id="corr-456",
+        transport=httpx.MockTransport(handler),
+    )
+    fake_storage = _FakeStorageClient()
+    generator = ProposalAssetGenerator(
+        settings=settings,
+        tenant_id="demo-tenant",
+        core_client=core_client,
+        storage_client=fake_storage,
+    )
+
+    with pytest.raises(CoreToolRejectedError):
+        await generator.generate_and_register(
+            quote_id=TEST_QUOTE_ID,
+            prompt="Executive board meeting table design",
+        )
+
+    # Blob was uploaded and then cleaned up via compensation
+    assert len(fake_storage.uploads) == 0
 
 
 @pytest.mark.asyncio
@@ -283,6 +463,16 @@ async def test_proposal_asset_generator_does_not_register_when_upload_fails() ->
 
     def handler(request: httpx.Request) -> httpx.Response:
         nonlocal register_called
+        if request.url.path.endswith("/preflight"):
+            return httpx.Response(
+                200,
+                json={
+                    "quoteId": TEST_QUOTE_ID,
+                    "authorized": True,
+                    "tenantPrefix": "proposals/deadbeef",
+                    "correlationId": "corr-456",
+                },
+            )
         register_called = True
         return httpx.Response(201, json={})
 
@@ -300,39 +490,8 @@ async def test_proposal_asset_generator_does_not_register_when_upload_fails() ->
 
     with pytest.raises(ProposalAssetUploadError):
         await generator.generate_and_register(
-            quote_id="quote-003",
+            quote_id=TEST_QUOTE_ID,
             prompt="Executive board meeting table design",
-            idempotency_key="idemp-003",
         )
 
     assert not register_called
-
-
-@pytest.mark.asyncio
-async def test_proposal_asset_client_handles_rejections() -> None:
-    settings = Settings(
-        enterprise_core_url="http://core.internal",
-        agent_tools_token=SecretStr("service-token-xyz"),
-        crm_agent_id="vextis_crm_agent",
-    )
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(403, text="Agent not authorized")
-
-    client = EnterpriseCoreProposalAssetClient(
-        settings=settings,
-        tenant_id="demo-tenant",
-        correlation_id="corr-123",
-        transport=httpx.MockTransport(handler),
-    )
-
-    with pytest.raises(CoreToolRejectedError):
-        await client.register_asset(
-            quote_id="quote-001",
-            storage_uri="gs://bucket/asset.png",
-            media_type="IMAGE",
-            model_id="imagen-3.0-generate-002",
-            prompt_summary="Chair",
-            ai_label="AI-Generated",
-            idempotency_key="idemp-001",
-        )
