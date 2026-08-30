@@ -3,6 +3,7 @@ package com.vextis.workflow.infrastructure.persistence;
 import com.vextis.workflow.application.port.PurchaseOrderWorkflowRepository;
 import com.vextis.workflow.ExecutionOverview;
 import com.vextis.workflow.domain.Actor;
+import com.vextis.workflow.domain.DuplicatePurchaseOrderException;
 import com.vextis.workflow.domain.ApprovalStatus;
 import com.vextis.workflow.domain.ExecutionState;
 import com.vextis.workflow.domain.ExecutionTimelineEntry;
@@ -191,12 +192,13 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
         PurchaseOrderSource purchaseOrder = receipt.purchaseOrder();
         WorkflowExecution execution = receipt.execution();
 
-        jdbc.update(
+        int inserted = jdbc.update(
                 """
                 INSERT INTO workflow_purchase_orders
                     (id, tenant_id, purchase_order_number, customer_name, document_uri, received_at)
                 VALUES
                     (:id, :tenantId, :purchaseOrderNumber, :customerName, :documentUri, :receivedAt)
+                ON CONFLICT (tenant_id, purchase_order_number) DO NOTHING
                 """,
                 new MapSqlParameterSource()
                         .addValue("id", purchaseOrder.id())
@@ -206,6 +208,9 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
                         .addValue("documentUri", purchaseOrder.documentUri())
                         .addValue("receivedAt", sqlTimestamp(purchaseOrder.receivedAt()), Types.TIMESTAMP_WITH_TIMEZONE)
         );
+        if (inserted != 1) {
+            throw new DuplicatePurchaseOrderException(purchaseOrder.purchaseOrderNumber());
+        }
         jdbc.update(
                 """
                 INSERT INTO workflow_executions
