@@ -140,7 +140,7 @@ class QuoteVisualGeneratedEventSchemaTests {
 
         // 3. Verify no extra top-level fields (additionalProperties: false)
         JsonNode topLevelProperties = schemaNode.get("properties");
-        Iterator<String> eventFieldNames = eventNode.fieldNames();
+        Iterator<String> eventFieldNames = eventNode.propertyNames().iterator();
         while (eventFieldNames.hasNext()) {
             String fieldName = eventFieldNames.next();
             assertThat(topLevelProperties.has(fieldName))
@@ -174,7 +174,7 @@ class QuoteVisualGeneratedEventSchemaTests {
 
         // 6. Verify no extra payload fields (additionalProperties: false)
         JsonNode payloadProperties = payloadSchema.get("properties");
-        Iterator<String> payloadFieldNames = payloadNode.fieldNames();
+        Iterator<String> payloadFieldNames = payloadNode.propertyNames().iterator();
         while (payloadFieldNames.hasNext()) {
             String fieldName = payloadFieldNames.next();
             assertThat(payloadProperties.has(fieldName))
