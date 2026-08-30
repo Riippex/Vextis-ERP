@@ -1,3 +1,9 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "reportlab>=4.0.0",
+# ]
+# ///
 """Generate the synthetic purchase order used by the Vextis demo."""
 
 from __future__ import annotations
@@ -22,7 +28,7 @@ OUTPUT = ROOT / "output" / "pdf" / "vextis-demo-purchase-order.pdf"
 
 
 def money(value: float) -> str:
-    return f"USD {value:,.2f}"
+    return f"COP {value:,.2f}"
 
 
 def build_purchase_order(output: Path = OUTPUT) -> Path:
@@ -141,7 +147,7 @@ def build_purchase_order(output: Path = OUTPUT) -> Path:
     metadata = Table(
         [
             ["Order date", "Requested delivery", "Payment terms", "Currency"],
-            ["2026-08-24", "2026-09-05", "Net 30 days", "USD"],
+            ["2026-08-24", "2026-09-05", "Net 30 days", "COP"],
         ],
         colWidths=[40 * mm] * 4,
     )
@@ -161,8 +167,7 @@ def build_purchase_order(output: Path = OUTPUT) -> Path:
     story.extend([metadata, Spacer(1, 8 * mm)])
 
     lines = [
-        ("VXT-CHAIR-01", "Ergonomic task chair", 4, 285.00),
-        ("VXT-DESK-01", "Adjustable standing desk", 2, 740.00),
+        ("VXT-CHAIR-01", "Ergonomic executive task chair", 10, 100.00),
     ]
     rows = [["SKU", "Description", "Quantity", "Unit price", "Line total"]]
     for sku, description, quantity, unit_price in lines:
@@ -176,7 +181,11 @@ def build_purchase_order(output: Path = OUTPUT) -> Path:
             ]
         )
     subtotal = sum(quantity * unit_price for _, _, quantity, unit_price in lines)
-    rows.append(["", "", "", "TOTAL", money(subtotal)])
+    tax = subtotal * 0.19
+    total = subtotal + tax
+    rows.append(["", "", "", "SUBTOTAL", money(subtotal)])
+    rows.append(["", "", "", "IVA (19%)", money(tax)])
+    rows.append(["", "", "", "TOTAL", money(total)])
 
     items = Table(
         rows, colWidths=[34 * mm, 53 * mm, 20 * mm, 27 * mm, 29 * mm], repeatRows=1
@@ -187,12 +196,12 @@ def build_purchase_order(output: Path = OUTPUT) -> Path:
                 ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#5A46E8")),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                 ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("GRID", (0, 0), (-1, -2), 0.5, colors.HexColor("#D8D9E2")),
+                ("GRID", (0, 0), (-1, -4), 0.5, colors.HexColor("#D8D9E2")),
                 ("ALIGN", (2, 1), (-1, -1), "RIGHT"),
-                ("FONTNAME", (3, -1), (-1, -1), "Helvetica-Bold"),
-                ("LINEABOVE", (3, -1), (-1, -1), 1, colors.HexColor("#5A46E8")),
-                ("TOPPADDING", (0, 0), (-1, -1), 8),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                ("FONTNAME", (3, -3), (-1, -1), "Helvetica-Bold"),
+                ("LINEABOVE", (3, -3), (-1, -1), 1, colors.HexColor("#5A46E8")),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
             ]
         )
     )
@@ -200,7 +209,7 @@ def build_purchase_order(output: Path = OUTPUT) -> Path:
 
     story.append(
         Paragraph(
-            "<b>Business instruction:</b> Validate the customer, confirm availability for every explicit SKU, "
+            "<b>Business instruction:</b> Validate the customer, confirm availability for SKU VXT-CHAIR-01 (10 units), "
             "verify Net 30 credit terms, and request human approval before committing inventory or issuing an invoice.",
             styles["BodyText"],
         )
