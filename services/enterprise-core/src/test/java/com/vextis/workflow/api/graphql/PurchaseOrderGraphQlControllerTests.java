@@ -13,6 +13,7 @@ import com.vextis.workflow.application.PreparePurchaseOrderUploadUseCase;
 import com.vextis.workflow.application.DecideApprovalUseCase;
 import com.vextis.shared.security.CurrentActorProvider;
 import com.vextis.workflow.domain.ExecutionState;
+import com.vextis.workflow.domain.DuplicatePurchaseOrderException;
 import com.vextis.workflow.domain.ExecutionTimelineEntry;
 import com.vextis.workflow.domain.ExtractedOrderLine;
 import com.vextis.workflow.domain.PlanningDepartment;
@@ -48,7 +49,11 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.assertj.core.api.Assertions.assertThat;
 
-@GraphQlTest({PurchaseOrderGraphQlController.class, ExecutionAuditGraphQlController.class})
+@GraphQlTest({
+        PurchaseOrderGraphQlController.class,
+        ExecutionAuditGraphQlController.class,
+        WorkflowGraphQlErrorResolver.class
+})
 @TestPropertySource(properties = "vextis.exposure=PUBLIC")
 class PurchaseOrderGraphQlControllerTests {
 
@@ -163,6 +168,29 @@ class PurchaseOrderGraphQlControllerTests {
                 ArgumentCaptor.forClass(ReceivePurchaseOrderCommand.class);
         verify(receivePurchaseOrder).receive(command.capture());
         assertThat(command.getValue().actor().id()).isEqualTo("firebase-user-123");
+    }
+
+    @Test
+    @WithMockUser(username = "firebase-user-123")
+    void reportsDuplicatePurchaseOrderAsAnActionableClientError() {
+        when(currentActor.currentActorId()).thenReturn("firebase-user-123");
+        when(receivePurchaseOrder.receive(any(ReceivePurchaseOrderCommand.class)))
+                .thenThrow(new DuplicatePurchaseOrderException("PO-2026-001"));
+
+        graphQlTester.documentName("receive-purchase-order")
+                .variable("input", Map.of(
+                        "purchaseOrderNumber", "PO-2026-001",
+                        "customerName", "Acme Colombia",
+                        "documentUri", "gs://vextis-demo/orders/po-2026-001-copy.pdf",
+                        "idempotencyKey", "receive-po-copy"
+                ))
+                .execute()
+                .errors()
+                .satisfy(errors -> assertThat(errors).singleElement().satisfies(error -> {
+                    assertThat(error.getMessage())
+                            .isEqualTo("Purchase order PO-2026-001 has already been received.");
+                    assertThat(error.getErrorType().toString()).isEqualTo("BAD_REQUEST");
+                }));
     }
 
     @Test
