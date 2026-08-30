@@ -1,0 +1,119 @@
+:host {
+  display: block;
+  position: relative;
+}
+
+.workspace-search__field {
+  align-items: center;
+  background: var(--vxt-rail-bg-elevated);
+  border: 1px solid var(--vxt-rail-border);
+  border-radius: 999px;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.45rem 0.8rem;
+}
+
+.workspace-search__field:focus-within {
+  border-color: var(--vxt-brand-violet);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--vxt-brand-violet) 20%, transparent);
+}
+
+mat-icon {
+  color: var(--vxt-rail-text-muted);
+  flex: 0 0 1.1rem;
+  font-size: 1.1rem;
+  height: 1.1rem;
+  width: 1.1rem;
+}
+
+input {
+  background: none;
+  border: none;
+  color: var(--vxt-rail-text);
+  flex: 1;
+  font: inherit;
+  font-size: 0.85rem;
+  min-width: 0;
+  outline: none;
+  width: 100%;
+}
+
+input::placeholder {
+  color: var(--vxt-rail-text-muted);
+}
+
+.workspace-search__field button {
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  padding: 0;
+}
+
+.workspace-search__results {
+  background: var(--vxt-rail-bg-elevated);
+  border: 1px solid var(--vxt-rail-border);
+  border-radius: 1rem;
+  box-shadow: 0 1rem 2.5rem rgb(0 0 0 / 24%);
+  display: grid;
+  left: 0;
+  margin-top: 0.5rem;
+  max-height: min(26rem, 60vh);
+  overflow: auto;
+  padding: 0.4rem;
+  position: absolute;
+  right: 0;
+  z-index: 30;
+}
+
+.workspace-search__result {
+  align-items: center;
+  background: transparent;
+  border: none;
+  border-radius: 0.7rem;
+  color: var(--vxt-rail-text);
+  cursor: pointer;
+  display: grid;
+  font: inherit;
+  gap: 0.7rem;
+  grid-template-columns: auto 1fr auto;
+  padding: 0.7rem;
+  text-align: left;
+  width: 100%;
+}
+
+.workspace-search__result:hover,
+.workspace-search__result:focus-visible {
+  background: color-mix(in srgb, var(--vxt-brand-violet) 12%, transparent);
+  outline: none;
+}
+
+.workspace-search__result span {
+  display: grid;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.workspace-search__result strong,
+.workspace-search__result small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-search__result strong {
+  font-size: 0.82rem;
+}
+
+.workspace-search__result small,
+.workspace-search__results p {
+  color: var(--vxt-rail-text-muted);
+  font-size: 0.72rem;
+}
+
+.workspace-search__results p {
+  line-height: 1.4;
+  margin: 0;
+  padding: 0.8rem;
+}

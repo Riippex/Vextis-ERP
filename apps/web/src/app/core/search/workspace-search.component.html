@@ -1,0 +1,46 @@
+<div class="workspace-search" (focusout)="onFocusOut($event)">
+  <div class="workspace-search__field">
+    <mat-icon>search</mat-icon>
+    <input
+      type="search"
+      aria-label="Search workspace"
+      aria-autocomplete="list"
+      [attr.aria-expanded]="open()"
+      aria-controls="workspace-search-results"
+      placeholder="Search customer, order, SKU…"
+      [value]="query()"
+      (focus)="onFocus()"
+      (input)="onInput($event)"
+      (keydown)="onKeydown($event)"
+    />
+    @if (query()) {
+      <button type="button" aria-label="Clear search" (click)="clear()">
+        <mat-icon>close</mat-icon>
+      </button>
+    }
+  </div>
+
+  @if (open()) {
+    <div id="workspace-search-results" class="workspace-search__results" role="listbox">
+      @if (results().length) {
+        @for (result of results(); track result.route + result.title) {
+          <button
+            type="button"
+            class="workspace-search__result"
+            role="option"
+            aria-selected="false"
+            (click)="select(result)"
+          >
+            <mat-icon>{{ result.icon }}</mat-icon>
+            <span><strong>{{ result.title }}</strong><small>{{ result.detail }}</small></span>
+            <mat-icon>arrow_forward</mat-icon>
+          </button>
+        }
+      } @else if (loading()) {
+        <p>Loading workspace data…</p>
+      } @else {
+        <p>No customers, orders, SKUs, credit profiles, or invoices found.</p>
+      }
+    </div>
+  }
+</div>

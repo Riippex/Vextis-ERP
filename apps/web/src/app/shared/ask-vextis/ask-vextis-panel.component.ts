@@ -11,10 +11,11 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { AskVextisChatStore } from './ask-vextis-chat.store';
 import { AskVextisLiveStore } from './ask-vextis-live.store';
+import { SafeMarkdownPipe } from './safe-markdown.pipe';
 
 @Component({
   selector: 'vxt-ask-vextis-panel',
-  imports: [MatButtonModule, MatIconModule],
+  imports: [MatButtonModule, MatIconModule, SafeMarkdownPipe],
   templateUrl: './ask-vextis-panel.component.html',
   styleUrl: './ask-vextis-panel.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

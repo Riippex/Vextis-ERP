@@ -116,6 +116,11 @@
   gap: 0.5rem;
 }
 
+.login__brand-mark {
+  display: block;
+  object-fit: contain;
+}
+
 .login__wordmark {
   background-image: linear-gradient(135deg, #2568c9 0%, #6a4fe0 60%, #7c5cff 100%);
   -webkit-background-clip: text;
