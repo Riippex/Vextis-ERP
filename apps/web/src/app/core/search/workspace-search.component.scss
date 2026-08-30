@@ -42,6 +42,20 @@ input::placeholder {
   color: var(--vxt-rail-text-muted);
 }
 
+// Chrome/WebKit adds its own clear affordance to search inputs. Vextis keeps
+// the explicit button below so there is one consistent, accessible control.
+input::-webkit-search-cancel-button {
+  appearance: none;
+  display: none;
+}
+
+input::-ms-clear,
+input::-ms-reveal {
+  display: none;
+  height: 0;
+  width: 0;
+}
+
 .workspace-search__field button {
   align-items: center;
   background: none;

@@ -11,7 +11,7 @@
   transition: grid-template-columns 180ms ease;
 }
 
-// The sidebar and toolbar share one dark rail surface (Cloud-Console style):
+// The sidebar and toolbar share one theme-aware rail surface (Cloud-Console style):
 // same background/text tokens, no internal border between them, so the
 // top-left corner where they meet reads as one continuous shape.
 .shell__sidebar,
