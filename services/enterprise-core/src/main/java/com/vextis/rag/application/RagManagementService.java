@@ -55,6 +55,7 @@ public class RagManagementService implements RagDirectory {
             String fileName,
             String contentType,
             String contentHash,
+            String embeddingSpace,
             List<RagChunkInput> chunks
     ) {
         if (tenantId == null || tenantId.isBlank()) {
@@ -72,9 +73,26 @@ public class RagManagementService implements RagDirectory {
         if (contentHash == null || contentHash.isBlank()) {
             throw new IllegalArgumentException("contentHash must not be blank");
         }
+        if (embeddingSpace == null || embeddingSpace.isBlank()) {
+            throw new IllegalArgumentException("embeddingSpace must not be blank");
+        }
+        // Chunks carry the space too, because search filters on the chunk row.
+        // A chunk from another space in this payload would make the document
+        // unreachable by its own space, so it is a caller error, not a merge.
+        if (chunks != null) {
+            for (RagChunkInput chunk : chunks) {
+                if (!embeddingSpace.equals(chunk.embeddingSpace())) {
+                    throw new IllegalArgumentException(
+                            "chunk " + chunk.chunkIndex() + " was embedded in "
+                                    + chunk.embeddingSpace() + ", not " + embeddingSpace);
+                }
+            }
+        }
 
         Instant now = clock.instant();
-        Optional<RagDocument> existing = repository.findByUri(tenantId, documentUri);
+        // Scoped to the space: the same URI indexed by a different embedder is a
+        // separate indexation, so it must not match this one and be skipped.
+        Optional<RagDocument> existing = repository.findByUri(tenantId, documentUri, embeddingSpace);
 
         if (existing.isPresent()) {
             RagDocument current = existing.get();
@@ -91,6 +109,7 @@ public class RagManagementService implements RagDirectory {
                     fileName,
                     contentType,
                     contentHash,
+                    embeddingSpace,
                     current.version() + 1,
                     RagDocument.Status.INDEXED,
                     chunks != null ? chunks.size() : 0,
@@ -116,6 +135,7 @@ public class RagManagementService implements RagDirectory {
                 fileName,
                 contentType,
                 contentHash,
+                embeddingSpace,
                 1,
                 RagDocument.Status.INDEXED,
                 chunks != null ? chunks.size() : 0,
@@ -151,11 +171,13 @@ public class RagManagementService implements RagDirectory {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<RagDocument> findByUri(String tenantId, String documentUri) {
-        if (tenantId == null || tenantId.isBlank() || documentUri == null || documentUri.isBlank()) {
+    public Optional<RagDocument> findByUri(String tenantId, String documentUri, String embeddingSpace) {
+        if (tenantId == null || tenantId.isBlank()
+                || documentUri == null || documentUri.isBlank()
+                || embeddingSpace == null || embeddingSpace.isBlank()) {
             return Optional.empty();
         }
-        return repository.findByUri(tenantId, documentUri);
+        return repository.findByUri(tenantId, documentUri, embeddingSpace);
     }
 
     private List<RagChunk> toChunkEntities(

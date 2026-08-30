@@ -45,7 +45,8 @@ public final class AgentRegistryMigrationReplay {
 
     /** One {@code agent_registry_entries} row as it exists after the replay. */
     public record Registration(String tenantId, String agentId, String version, String status,
-                               List<String> capabilities, List<String> allowedTools) {
+                               String serviceIdentity, List<String> capabilities,
+                               List<String> allowedTools) {
     }
 
     /** Applies every migration in version order and returns the surviving rows. */
@@ -59,7 +60,7 @@ public final class AgentRegistryMigrationReplay {
         }
         return rows.stream()
                 .map(row -> new Registration(row.tenantId, row.agentId, row.version, row.status,
-                        List.copyOf(row.capabilities), List.copyOf(row.allowedTools)))
+                        row.serviceIdentity, List.copyOf(row.capabilities), List.copyOf(row.allowedTools)))
                 .toList();
     }
 
@@ -153,6 +154,7 @@ public final class AgentRegistryMigrationReplay {
                     scalar(raw.get("agent_id")),
                     scalar(raw.get("version")),
                     scalar(raw.get("status")),
+                    scalar(raw.get("service_identity")),
                     array(raw.get("capabilities")),
                     array(raw.get("allowed_tools"))));
         }
@@ -190,6 +192,9 @@ public final class AgentRegistryMigrationReplay {
             }
             if (assignments.containsKey("status")) {
                 row.status = scalar(assignments.get("status"));
+            }
+            if (assignments.containsKey("service_identity")) {
+                row.serviceIdentity = scalar(assignments.get("service_identity"));
             }
         }
     }
@@ -334,15 +339,17 @@ public final class AgentRegistryMigrationReplay {
         private final String agentId;
         private final String version;
         private String status;
+        private String serviceIdentity;
         private List<String> capabilities;
         private List<String> allowedTools;
 
         private MutableRow(String tenantId, String agentId, String version, String status,
-                           List<String> capabilities, List<String> allowedTools) {
+                           String serviceIdentity, List<String> capabilities, List<String> allowedTools) {
             this.tenantId = tenantId;
             this.agentId = agentId;
             this.version = version;
             this.status = status;
+            this.serviceIdentity = serviceIdentity;
             this.capabilities = capabilities;
             this.allowedTools = allowedTools;
         }
@@ -354,6 +361,7 @@ public final class AgentRegistryMigrationReplay {
                     case "agent_id" -> agentId;
                     case "version" -> version;
                     case "status" -> status;
+                    case "service_identity" -> serviceIdentity;
                     default -> throw new IllegalStateException(
                             "Unsupported WHERE column for agent_registry_entries: " + predicate.getKey());
                 };

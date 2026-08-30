@@ -1,5 +1,6 @@
 package com.vextis.livesession.api.internal;
 
+import com.vextis.shared.ConfiguredServiceCallerIdentities;
 import com.vextis.livesession.application.LiveSessionValidation;
 import com.vextis.livesession.application.ValidateLiveSessionUseCase;
 import org.junit.jupiter.api.Test;
@@ -22,7 +23,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(LiveSessionValidationController.class)
-@Import(LiveSessionToolAuthorizer.class)
+@Import({LiveSessionToolAuthorizer.class, ConfiguredServiceCallerIdentities.class})
 class LiveSessionValidationControllerTests {
 
     private static final UUID SESSION_ID = UUID.fromString("2a6e5e2b-1c8a-4a9e-9b0a-6a2c1d10ab12");

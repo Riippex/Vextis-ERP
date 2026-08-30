@@ -40,9 +40,21 @@ vextis:
   demo:
     tenant-id: ${VEXTIS_DEMO_TENANT_ID:demo-tenant}
     actor-id: ${VEXTIS_DEMO_ACTOR_ID:demo-user}
+    # Seeding and the destructive reset are administrative, not agent tools:
+    # they get their own credential so the token Agent Runtime carries for
+    # business reads cannot purge a tenant. Unset means the endpoints are
+    # disabled, except under LOCAL exposure.
+    admin-token: ${VEXTIS_DEMO_ADMIN_TOKEN:}
   agent-tools:
     service-token: ${VEXTIS_AGENT_TOOLS_TOKEN:}
     coordinator-agent-id: ${VEXTIS_COORDINATOR_AGENT_ID:coordinator-agent}
+    # The publicly reachable Live gateway presents its own credential, which
+    # resolves to its own service identity. The registry entries bound to that
+    # identity are read-only, so a leak of this token cannot reserve stock or
+    # issue an invoice. It must differ from service-token; sharing the value is
+    # refused at startup.
+    live-gateway-token: ${VEXTIS_LIVE_GATEWAY_TOKEN:}
+    live-gateway-agent-id: ${VEXTIS_LIVE_GATEWAY_AGENT_ID:live-gateway-agent}
   pubsub:
     enabled: ${VEXTIS_PUBSUB_ENABLED:false}
     project-id: ${GOOGLE_CLOUD_PROJECT:}
@@ -60,6 +72,13 @@ vextis:
     mock-embeddings:
       enabled: ${VEXTIS_RAG_MOCK_EMBEDDINGS_ENABLED:false}
     min-similarity: ${VEXTIS_RAG_MIN_SIMILARITY:0.55}
+  live:
+    # createLiveSession is the only thing between a signed-in user and Vertex AI
+    # Gemini Live minutes, and each session holds a Cloud Run instance for its
+    # whole duration. Cap how many one actor can mint in a rolling window; 0
+    # disables the cap.
+    max-sessions-per-actor: ${VEXTIS_LIVE_MAX_SESSIONS_PER_ACTOR:5}
+    session-quota-window: ${VEXTIS_LIVE_SESSION_QUOTA_WINDOW:PT1H}
   agent-runtime:
     chat-url: ${VEXTIS_AGENT_RUNTIME_CHAT_URL:}
     callback-token: ${VEXTIS_CORE_CALLBACK_TOKEN:}

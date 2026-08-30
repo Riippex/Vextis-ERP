@@ -125,6 +125,7 @@ class AgentRagToolController {
                 request.fileName(),
                 request.contentType(),
                 request.contentHash(),
+                request.embeddingSpace(),
                 chunks);
 
         return IngestKnowledgeDocumentResponse.from(document);

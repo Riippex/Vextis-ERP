@@ -72,8 +72,9 @@ class DemoSeedingServiceTests {
         when(stockAdmin.setAvailability(any())).thenReturn(
                 new StockDirectory.StockSummary("SKU", 10)
         );
-        when(ragDirectory.ingestDocument(any(), any(), any(), any(), any(), any())).thenReturn(
-                new RagDocument(UUID.randomUUID(), "demo-tenant", "gs://uri", "file.pdf", "app/pdf", "hash", 1, RagDocument.Status.INDEXED, 2, Instant.now(), Instant.now())
+        when(ragDirectory.ingestDocument(any(), any(), any(), any(), any(), any(), any())).thenReturn(
+                new RagDocument(UUID.randomUUID(), "demo-tenant", "gs://uri", "file.pdf", "app/pdf", "hash",
+                        DemoSeedingService.MOCK_EMBEDDING_SPACE, 1, RagDocument.Status.INDEXED, 2, Instant.now(), Instant.now())
         );
 
         DemoSeedingService.SeedResult result = service.seedDemoData("demo-tenant", "tester");
@@ -87,7 +88,8 @@ class DemoSeedingServiceTests {
         verify(customerAdmin, times(2)).save(any());
         verify(creditAdmin, times(2)).save(any());
         verify(stockAdmin, times(3)).setAvailability(any());
-        verify(ragDirectory, times(2)).ingestDocument(eq("demo-tenant"), any(), any(), any(), any(), any());
+        verify(ragDirectory, times(2))
+                .ingestDocument(eq("demo-tenant"), any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -124,15 +126,17 @@ class DemoSeedingServiceTests {
         when(stockAdmin.setAvailability(any())).thenReturn(
                 new StockDirectory.StockSummary("SKU", 10)
         );
-        when(ragDirectory.ingestDocument(any(), any(), any(), any(), any(), any())).thenReturn(
-                new RagDocument(UUID.randomUUID(), "demo-tenant", "gs://uri", "file.pdf", "app/pdf", "hash", 1, RagDocument.Status.INDEXED, 2, Instant.now(), Instant.now())
+        when(ragDirectory.ingestDocument(any(), any(), any(), any(), any(), any(), any())).thenReturn(
+                new RagDocument(UUID.randomUUID(), "demo-tenant", "gs://uri", "file.pdf", "app/pdf", "hash",
+                        DemoSeedingService.MOCK_EMBEDDING_SPACE, 1, RagDocument.Status.INDEXED, 2, Instant.now(), Instant.now())
         );
 
         service.seedDemoData("demo-tenant", "tester");
 
         ArgumentCaptor<List<RagChunkInput>> chunks = ArgumentCaptor.captor();
         verify(ragDirectory, times(2))
-                .ingestDocument(any(), any(), any(), any(), any(), chunks.capture());
+                .ingestDocument(any(), any(), any(), any(), any(), eq(DemoSeedingService.MOCK_EMBEDDING_SPACE),
+                        chunks.capture());
 
         assertThat(chunks.getAllValues())
                 .flatExtracting(list -> list)

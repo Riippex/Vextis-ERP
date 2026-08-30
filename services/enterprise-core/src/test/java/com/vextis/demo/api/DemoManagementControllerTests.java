@@ -2,6 +2,7 @@ package com.vextis.demo.api;
 
 import com.vextis.demo.DemoResetService;
 import com.vextis.demo.DemoSeedingService;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -23,8 +24,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest(DemoManagementController.class)
 @TestPropertySource(properties = {
-        "vextis.agent-tools.service-token=test-demo-token",
-        "vextis.demo.tenant-id=demo-tenant"
+        "vextis.demo.admin-token=test-demo-admin-token",
+        "vextis.agent-tools.service-token=test-agent-tools-token",
+        "vextis.demo.tenant-id=demo-tenant",
+        "vextis.exposure=INTERNAL"
 })
 class DemoManagementControllerTests {
 
@@ -37,20 +40,17 @@ class DemoManagementControllerTests {
     @MockitoBean
     private DemoResetService demoResetService;
 
+    private static DemoSeedingService.SeedResult emptySeed() {
+        return new DemoSeedingService.SeedResult(
+                "demo-tenant", List.of(), List.of(), List.of(), List.of());
+    }
+
     @Test
-    void seed_withValidToken_returns200AndCounts() throws Exception {
-        when(demoSeedingService.seedDemoData(eq("demo-tenant"), any())).thenReturn(
-                new DemoSeedingService.SeedResult(
-                        "demo-tenant",
-                        List.of(),
-                        List.of(),
-                        List.of(),
-                        List.of()
-                )
-        );
+    void seed_withValidAdminToken_returns200AndCounts() throws Exception {
+        when(demoSeedingService.seedDemoData(eq("demo-tenant"), any())).thenReturn(emptySeed());
 
         mockMvc.perform(post("/internal/demo/seed")
-                        .header("Authorization", "Bearer test-demo-token")
+                        .header("Authorization", "Bearer test-demo-admin-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"tenantId\":\"demo-tenant\"}"))
                 .andExpect(status().isOk())
@@ -62,20 +62,10 @@ class DemoManagementControllerTests {
     void reset_purgesTenantDataBeforeSeedingAndReportsWhatItRemoved() throws Exception {
         when(demoResetService.resetDemoData(eq("demo-tenant"), any())).thenReturn(
                 new DemoResetService.ResetResult(
-                        Map.of("knowledge", 3, "inventory", 5),
-                        8,
-                        new DemoSeedingService.SeedResult(
-                                "demo-tenant",
-                                List.of(),
-                                List.of(),
-                                List.of(),
-                                List.of()
-                        )
-                )
-        );
+                        Map.of("knowledge", 3, "inventory", 5), 8, emptySeed()));
 
         mockMvc.perform(post("/internal/demo/reset")
-                        .header("Authorization", "Bearer test-demo-token")
+                        .header("Authorization", "Bearer test-demo-admin-token")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"tenantId\":\"demo-tenant\"}"))
                 .andExpect(status().isOk())
@@ -89,30 +79,78 @@ class DemoManagementControllerTests {
     }
 
     @Test
-    void reset_withInvalidToken_returns401() throws Exception {
-        mockMvc.perform(post("/internal/demo/reset")
-                        .header("Authorization", "Bearer wrong-token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"tenantId\":\"demo-tenant\"}"))
-                .andExpect(status().isUnauthorized());
+    void seed_withoutABody_targetsTheConfiguredTenant() throws Exception {
+        when(demoSeedingService.seedDemoData(eq("demo-tenant"), any())).thenReturn(emptySeed());
 
-        verifyNoInteractions(demoResetService);
+        mockMvc.perform(post("/internal/demo/seed")
+                        .header("Authorization", "Bearer test-demo-admin-token"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.tenantId").value("demo-tenant"));
     }
 
-    @Test
-    void seed_withInvalidToken_returns401() throws Exception {
-        mockMvc.perform(post("/internal/demo/seed")
-                        .header("Authorization", "Bearer wrong-token")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"tenantId\":\"demo-tenant\"}"))
-                .andExpect(status().isUnauthorized());
+    @Nested
+    class Credential {
+
+        @Test
+        void theAgentToolsTokenCannotAdministerTheDemo() throws Exception {
+            // The credential Agent Runtime carries for business reads used to be
+            // accepted here, so a compromised runtime could purge the tenant.
+            mockMvc.perform(post("/internal/demo/reset")
+                            .header("Authorization", "Bearer test-agent-tools-token")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"tenantId\":\"demo-tenant\"}"))
+                    .andExpect(status().isUnauthorized());
+
+            verifyNoInteractions(demoResetService);
+        }
+
+        @Test
+        void seed_withInvalidToken_returns401() throws Exception {
+            mockMvc.perform(post("/internal/demo/seed")
+                            .header("Authorization", "Bearer wrong-token")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"tenantId\":\"demo-tenant\"}"))
+                    .andExpect(status().isUnauthorized());
+
+            verifyNoInteractions(demoSeedingService);
+        }
+
+        @Test
+        void seed_missingToken_returns401() throws Exception {
+            mockMvc.perform(post("/internal/demo/seed")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"tenantId\":\"demo-tenant\"}"))
+                    .andExpect(status().isUnauthorized());
+
+            verifyNoInteractions(demoSeedingService);
+        }
     }
 
-    @Test
-    void seed_missingToken_returns401() throws Exception {
-        mockMvc.perform(post("/internal/demo/seed")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"tenantId\":\"demo-tenant\"}"))
-                .andExpect(status().isUnauthorized());
+    @Nested
+    class Tenant {
+
+        @Test
+        void reset_refusesATenantOtherThanTheConfiguredOne() throws Exception {
+            // The body used to choose the tenant, so this request purged an
+            // unrelated tenant with a valid demo credential.
+            mockMvc.perform(post("/internal/demo/reset")
+                            .header("Authorization", "Bearer test-demo-admin-token")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"tenantId\":\"acme-production\"}"))
+                    .andExpect(status().isForbidden());
+
+            verifyNoInteractions(demoResetService);
+        }
+
+        @Test
+        void seed_refusesATenantOtherThanTheConfiguredOne() throws Exception {
+            mockMvc.perform(post("/internal/demo/seed")
+                            .header("Authorization", "Bearer test-demo-admin-token")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"tenantId\":\"acme-production\"}"))
+                    .andExpect(status().isForbidden());
+
+            verifyNoInteractions(demoSeedingService);
+        }
     }
 }
