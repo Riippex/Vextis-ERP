@@ -57,7 +57,7 @@ def build_coordinator(
     if tenant_id is not None and asset_generator is None and settings.agent_tools_token:
         try:
             core_client = EnterpriseCoreProposalAssetClient(settings, tenant_id, correlation_id)
-            asset_generator = ProposalAssetGenerator(settings, core_client)
+            asset_generator = ProposalAssetGenerator(settings, tenant_id, core_client)
         except ValueError:
             # No agent-tools credential configured; leaving the tool off is
             # the honest outcome rather than mounting a tool that would fail

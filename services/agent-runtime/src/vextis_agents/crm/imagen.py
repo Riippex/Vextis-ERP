@@ -13,6 +13,11 @@ MOCK_PNG_BYTES = (
     b"\x15c4\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
 )
 
+# Never the real Imagen model id: this is the provenance marker persisted on
+# every mock-generated asset, so a mock concept can never be mistaken for a
+# genuine Vertex AI Imagen output downstream.
+MOCK_MODEL_ID = "mock-imagen"
+
 
 def redact_prompt(raw_prompt: str) -> str:
     """Removes potential secrets, credentials, tokens, or PII before logging/storing."""
@@ -54,47 +59,50 @@ class ImagenClient:
         prompt_summary = redact_prompt(prompt)
         ai_label = "AI-Generated Proposal Concept"
 
-        if self._mock_enabled or not self._project:
+        if self._mock_enabled:
+            # Intentional opt-in only (VEXTIS_IMAGEN_MOCK_ENABLED). Provenance
+            # is recorded as MOCK_MODEL_ID, never the real Imagen model id, so
+            # a mock concept can never be mistaken for a genuine Vertex AI
+            # output downstream.
             logger.info("Using mock Imagen generator for prompt: %s", prompt_summary)
             return ImagenGenerationResult(
                 image_bytes=MOCK_PNG_BYTES,
                 mime_type="image/png",
-                model_id=self._model_id,
+                model_id=MOCK_MODEL_ID,
                 prompt_summary=prompt_summary,
                 ai_label=ai_label,
             )
 
-        try:
-            import vertexai
-            from vertexai.preview.vision_models import ImageGenerationModel
+        if not self._project:
+            raise RuntimeError(
+                "GOOGLE_CLOUD_PROJECT must be configured to call Vertex AI Imagen; "
+                "set VEXTIS_IMAGEN_MOCK_ENABLED=true to opt into mock generation instead"
+            )
 
-            vertexai.init(project=self._project, location=self._location)
-            model = ImageGenerationModel.from_pretrained(self._model_id)
-            response: Any = model.generate_images(
-                prompt=prompt_summary,
-                number_of_images=1,
-                aspect_ratio="1:1",
-                # ImageGenerationModel.generate_images only accepts
-                # "block_most" / "block_some" / "block_few" / "block_fewest";
-                # "block_most" is the strictest available level, matching the
-                # strict intent for customer-facing proposal assets.
-                safety_filter_level="block_most",
-                person_generation="allow_adult",
-            )
-            image = response[0]
-            return ImagenGenerationResult(
-                image_bytes=image._image_bytes,
-                mime_type="image/png",
-                model_id=self._model_id,
-                prompt_summary=prompt_summary,
-                ai_label=ai_label,
-            )
-        except Exception as exception:
-            logger.warning("Vertex AI Imagen generation failed: %s", exception)
-            return ImagenGenerationResult(
-                image_bytes=MOCK_PNG_BYTES,
-                mime_type="image/png",
-                model_id=self._model_id,
-                prompt_summary=prompt_summary,
-                ai_label=ai_label,
-            )
+        # No fallback to the mock on failure: a deployed environment must
+        # fail explicitly rather than silently return a mock image labelled
+        # with a real Imagen model id.
+        import vertexai
+        from vertexai.preview.vision_models import ImageGenerationModel
+
+        vertexai.init(project=self._project, location=self._location)
+        model = ImageGenerationModel.from_pretrained(self._model_id)
+        response: Any = model.generate_images(
+            prompt=prompt_summary,
+            number_of_images=1,
+            aspect_ratio="1:1",
+            # ImageGenerationModel.generate_images only accepts
+            # "block_most" / "block_some" / "block_few" / "block_fewest";
+            # "block_most" is the strictest available level, matching the
+            # strict intent for customer-facing proposal assets.
+            safety_filter_level="block_most",
+            person_generation="allow_adult",
+        )
+        image = response[0]
+        return ImagenGenerationResult(
+            image_bytes=image._image_bytes,
+            mime_type="image/png",
+            model_id=self._model_id,
+            prompt_summary=prompt_summary,
+            ai_label=ai_label,
+        )

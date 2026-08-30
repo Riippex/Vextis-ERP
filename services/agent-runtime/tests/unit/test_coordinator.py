@@ -137,7 +137,7 @@ def test_coordinator_with_asset_generator_gives_crm_agent_the_tool() -> None:
         tenant_id="demo-tenant",
         transport=httpx.MockTransport(lambda req: httpx.Response(500)),
     )
-    asset_generator = ProposalAssetGenerator(settings, core_client)
+    asset_generator = ProposalAssetGenerator(settings, "demo-tenant", core_client)
 
     coordinator = build_coordinator(
         settings=settings,
@@ -188,12 +188,26 @@ async def test_generate_proposal_asset_tool_registers_a_real_asset() -> None:
             },
         )
 
+    class _FakeBlob:
+        def upload_from_string(self, data: bytes, content_type: str | None = None) -> None:
+            return None
+
+    class _FakeBucket:
+        def blob(self, object_name: str) -> "_FakeBlob":
+            return _FakeBlob()
+
+    class _FakeStorageClient:
+        def bucket(self, name: str) -> "_FakeBucket":
+            return _FakeBucket()
+
     core_client = EnterpriseCoreProposalAssetClient(
         settings=settings,
         tenant_id="demo-tenant",
         transport=httpx.MockTransport(handler),
     )
-    asset_generator = ProposalAssetGenerator(settings, core_client)
+    asset_generator = ProposalAssetGenerator(
+        settings, "demo-tenant", core_client, storage_client=_FakeStorageClient()
+    )
 
     coordinator = build_coordinator(
         settings=settings,

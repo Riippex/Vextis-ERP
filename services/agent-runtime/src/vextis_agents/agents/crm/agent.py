@@ -8,7 +8,7 @@ from google.adk.models import BaseLlm
 from google.adk.tools.base_tool import BaseTool
 from google.adk.tools.base_toolset import BaseToolset
 
-from vextis_agents.crm.asset_generator import ProposalAssetGenerator
+from vextis_agents.crm.asset_generator import ProposalAssetGenerator, ProposalAssetUploadError
 from vextis_agents.tools.core_api.business_reads import BusinessReadTool
 from vextis_agents.tools.core_api.planning import CoreToolRejectedError, CoreToolUnavailableError
 
@@ -56,7 +56,12 @@ def build_crm_agent(
                     prompt=visual_description,
                     idempotency_key=idempotency_key,
                 )
-            except (CoreToolRejectedError, CoreToolUnavailableError) as exception:
+            except (
+                CoreToolRejectedError,
+                CoreToolUnavailableError,
+                ProposalAssetUploadError,
+                RuntimeError,
+            ) as exception:
                 logger.warning("Proposal asset generation failed: %s", exception)
                 return {"registered": False, "error": str(exception)}
             return {"registered": True, **asset.model_dump(by_alias=True, mode="json")}
