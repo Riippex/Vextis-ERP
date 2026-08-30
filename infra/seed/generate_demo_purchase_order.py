@@ -1,3 +1,9 @@
+# /// script
+# requires-python = ">=3.11"
+# dependencies = [
+#   "reportlab>=4.0.0",
+# ]
+# ///
 """Generate the synthetic purchase order used by the Vextis demo."""
 
 from __future__ import annotations

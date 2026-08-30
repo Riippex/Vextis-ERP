@@ -1,9 +1,11 @@
 # Vextis ERP — Devpost Official Submission Package
 
-> **Competition:** Google Cloud All Things Agentic Hackathon  
-> **Official Track:** The Fortified Enterprise Fleet  
-> **Repository:** [https://github.com/Riippex/Vextis-ERP](https://github.com/Riippex/Vextis-ERP)  
-> **Author:** Rafael Patiño Díaz  
+> **Competition:** Google Cloud All Things Agentic Hackathon
+> **Official Track:** The Fortified Enterprise Fleet
+> **Repository:** [https://github.com/Riippex/Vextis-ERP](https://github.com/Riippex/Vextis-ERP)
+> **Live Deployed Application:** [https://vextis-erp.web.app](https://vextis-erp.web.app) (Firebase Hosting)
+> **Demo Video Status:** `[Demo Video Placeholder - Recording in progress]`
+> **Author:** Rafael Patiño Díaz
 
 ---
 
@@ -13,7 +15,7 @@
 **Vextis ERP — The Governed Multi-Agent Enterprise Operating System**
 
 ### Elevator Pitch (English)
-> *Vextis transforms unstructured business documents and voice requests into auditable, end-to-end operations across Sales, Inventory, and Billing through a governed fleet of Gemini-powered agents, guaranteed by a Java dual-authority architecture on Google Cloud.*
+> *Vextis transforms unstructured business documents and voice requests into auditable, end-to-end operations across Sales, Inventory, and Billing through a governed fleet of Gemini-powered agents, backed by a Java dual-authority architecture on Google Cloud.*
 
 ### Elevator Pitch (Spanish)
 > *Vextis convierte documentos comerciales no estructurados y solicitudes por voz en operaciones empresariales completas y auditables en Ventas, Inventario y Facturación mediante una flota gobernada de agentes Gemini, respaldada por una arquitectura de doble autoridad en Google Cloud.*
@@ -22,32 +24,31 @@
 
 ## 2. Inspiration & The Problem
 
-Mid-market enterprises lose thousands of hours annually manually translating customer purchase orders, checking stock across disparate spreadsheets, and reconciling credit policies. 
+Mid-market enterprises process numerous purchase orders, quotes, and pricing requests daily through manual coordination across fragmented systems and spreadsheets.
 
-When enterprises attempt to adopt Generative AI agents, they face the **"Rogue Agent Dilemma"**: giving autonomous LLMs direct write access to enterprise SQL databases introduces catastrophic risks of hallucinations, unauthorized discounts, and data corruption. 
+When companies attempt to introduce Generative AI agents into operational workflows, they face the **"Rogue Agent Dilemma"**: giving LLMs direct write access to enterprise databases introduces severe risks of data races, unapproved terms, and unconstrained mutations.
 
-We built **Vextis ERP** to prove that enterprise agent fleets can be both **deeply autonomous** and **mathematically governed**.
+We built **Vextis ERP** to prove that enterprise agent fleets can be both **deeply autonomous** and **transactionally governed**.
 
 ---
 
 ## 3. What It Does
 
-Vextis unites the three official hackathon capabilities in a single industrial platform:
+Vextis delivers a governed multi-agent enterprise architecture under **The Fortified Enterprise Fleet** track:
 
-1. **The Fortified Enterprise Fleet (Track Entry):**
-   - **Mission Control Registry:** Real-time visibility into registered agents (`vextis_coordinator`, `vextis_crm_agent`, `vextis_inventory_agent`, `vextis_billing_agent`), their active models (`gemini-3.5-flash`), prompt versions, and strict tool allowlists.
-   - **Deterministic Tool Governance:** Every database write is executed exclusively by Java Enterprise Core. Tool invocations outside an agent's registered capability are instantly rejected and recorded as `DENIED`.
-   - **Durable Audit Trail:** Immutable PostgreSQL audit logging tracking actors (`AGENT` vs `USER`), correlation IDs, timestamps, and outcomes.
+1. **The Fortified Enterprise Fleet (Official Entry Track):**
+   - **Mission Control Registry:** Real-time visibility into registered specialist agents (`vextis_coordinator`, `vextis_crm_agent`, `vextis_inventory_agent`, `vextis_billing_agent`), their active models (`gemini-3.5-flash`), prompt versions, and strict tool allowlists.
+   - **Deterministic Tool Governance:** Every database write is executed exclusively by Java Enterprise Core. Tool invocations outside an agent's registered capability are blocked server-side and recorded as `DENIED`.
+   - **Durable Audit Trail:** Structured PostgreSQL audit logging tracking actors (`AGENT` vs `USER`), correlation IDs, timestamps, and execution outcomes.
 
-2. **The Taskmaster (Autonomous Workflows):**
-   - **Intake to Settlement:** Ingests unformatted purchase order PDFs, uses Gemini to extract SKU lines, coordinates inventory availability, reserves real stock, evaluates credit terms, and issues official fiscal invoices.
+2. **Supporting Autonomous Workflows (Order-to-Cash):**
+   - **Intake to Settlement:** Ingests unformatted purchase order PDFs, uses Gemini 3.5 Flash to extract SKU lines, coordinates inventory availability, reserves real stock in PostgreSQL, evaluates credit terms, and issues invoices.
    - **Human-in-the-Loop (HITL) Checkpoints:** Automatically halts workflows requiring managerial sign-off before committing high-risk credit or financial decisions.
 
-3. **The Collaborative Partner (Ask Vextis & Multimodal Innovation):**
-   - **Gemini Live Audio Bridge:** Real-time, low-latency bidirectional voice interaction over WebSockets using browser Web Audio API streaming.
-   - **Grounded pgvector RAG:** Instant enterprise document Q&A backed by PostgreSQL vector search with strict similarity thresholds and source citations.
-   - **Vertex AI Memory Bank:** Persistent cross-conversation memory bounded by tenant isolation.
-   - **Imagen 3 Concept Visuals:** Automatic generation of 3D proposal visuals with prompt sanitization, registered directly in the CRM quote directory.
+3. **Supporting Collaborative Assistant (Ask Vextis):**
+   - **Gemini Live Audio Bridge:** Real-time, low-latency bidirectional voice interaction over WebSockets using browser Web Audio API streaming to a dedicated Live gateway.
+   - **Grounded pgvector RAG:** Enterprise document Q&A backed by PostgreSQL vector search with similarity thresholds and source citations.
+   - **On-Demand Proposal Visuals:** Capability-gated generation of proposal visual concepts via Imagen 3 on Vertex AI, registered with generation metadata and signed Cloud Storage URLs.
 
 ---
 
@@ -56,73 +57,93 @@ Vextis unites the three official hackathon capabilities in a single industrial p
 Vextis is built on an enterprise **Dual-Authority Monorepo Architecture**:
 
 ```text
-                                  +-----------------------+
-                                  |      Angular Web      |
-                                  |   (Material 3 / UI)   |
-                                  +-----------+-----------+
-                                              | GraphQL
-                                              v
-+-----------------------+         +-------------------------------+
-|  Cloud SQL PostgreSQL | <-----> |   Java 21 / Spring Boot Core  |
-|  + pgvector (Vector)  |         |   (Sole Mutation Authority)   |
-+-----------------------+         +---------------+---------------+
-                                                  | Outbox Events
-                                                  v (GCP Pub/Sub)
-+-----------------------+         +---------------+---------------+
-|  Vertex AI / Gemini   | <-----> |   Python 3.13 Agent Runtime   |
-|  (Memory Bank, Live)  |         |   (Google ADK Specialist Fleet)
-+-----------------------+         +-------------------------------+
++-------------------------------------------------------------------------+
+|                   FIREBASE HOSTING: ANGULAR WEB APP                     |
+|                        https://vextis-erp.web.app                       |
+|             Mission Control · Purchase Orders · Ask Vextis              |
++------------------------------------+------------------------------------+
+                                     | GraphQL / WebSockets
+                                     v
++------------------------------------+------------------------------------+
+|      CLOUD RUN: ENTERPRISE CORE (Java 21 / Spring Boot 4.1.0)           |
+|   - Sole authority for mutations   - Role-based tool allowlists         |
+|   - Multi-tenant data isolation    - Structured PostgreSQL audit log    |
++------------------+---------------------------------+--------------------+
+                   | Outbox Events                   ^ Tool Invocations
+                   v (Pub/Sub 'order-events')        | (REST + Bearer Token)
++------------------+---------------------------------+--------------------+
+|        CLOUD RUN: AGENT RUNTIME & LIVE GATEWAY (Python 3.13 / ADK)      |
+|   - Specialist Fleet Coordination  - Gemini 3.5 Flash Reasoning         |
+|   - Grounded pgvector RAG          - WebSocket Gemini Live Audio        |
+|   - On-Demand Proposal Assets      - Vertex AI Image Generation         |
++------------------+---------------------------------+--------------------+
+                   |                                 |
+                   v                                 v
++------------------------------------+  +---------------------------------+
+|      MANAGED GOOGLE CLOUD DATA     |  |       VERTEX AI & STORAGE       |
+|   - Cloud SQL (PostgreSQL 16)      |  |   - Gemini 3.5 Flash / Live API |
+|   - pgvector (Embeddings & RAG)    |  |   - Imagen 3 (Proposal Assets)  |
+|   - Cloud Pub/Sub ('order-events') |  |   - Cloud Storage (GCS Assets)  |
++------------------------------------+  +---------------------------------+
 ```
 
-- **Frontend (`apps/web`):** Angular 22 (Standalone Components, Signals, Material 3, Apollo GraphQL Client, Web Audio API streaming).
-- **Transactional Authority (`services/enterprise-core`):** Java 21, Spring Boot 4.1, Spring Security, Flyway database migrations, Transactional Outbox Pattern, JDBC Idempotent Repositories.
-- **Agent Intelligence (`services/agent-runtime`):** Python 3.13, Google Agent Development Kit (ADK), Gemini 3.5 Flash, Vertex AI ImageGenerationModel (Imagen 3), WebSocket Live Bridge.
-- **Google Cloud Infrastructure (`infra/`):** Terraform IAC provisioning Cloud Run, Cloud SQL (PostgreSQL with `pgvector`), Cloud Pub/Sub, Cloud Storage, and Google Secret Manager.
-- **Contracts (`contracts/`):** Strict single-source-of-truth schema definitions in GraphQL SDL, OpenAPI 3.0, and AsyncAPI.
+- **Frontend (`apps/web`):** Angular 22.1.x (Standalone Components, Signals, Material 3, Apollo GraphQL Client, Web Audio API streaming), deployed to **Firebase Hosting**.
+- **Transactional Authority (`services/enterprise-core`):** Java 21, Spring Boot 4.1.0, Spring Security, Flyway database migrations, Transactional Outbox Pattern, JDBC Idempotent Repositories, deployed to **Cloud Run**.
+- **Agent Intelligence (`services/agent-runtime`):** Python 3.13, Google Agent Development Kit (ADK), Gemini 3.5 Flash, WebSocket Live Audio Bridge, deployed to **Cloud Run**.
+- **Google Cloud Infrastructure (`infra/`):** Terraform IAC provisioning Cloud Run, Cloud SQL (PostgreSQL 16 with `pgvector`), Cloud Pub/Sub (`order-events`), Cloud Storage (`vextis-erp-hackathon-assets`), and Google Secret Manager.
+- **Contracts (`contracts/`):** Version-controlled schema definitions in GraphQL SDL, OpenAPI 3.0, and AsyncAPI.
 
 ---
 
-## 5. Challenges We Overcame
+## 5. Live Application Access & Testing Guide
 
-1. **Eliminating Direct Database Mutation by AI:** Early agent prototypes frequently caused data race conditions. We solved this by designing the *Agent-Tools API* where agents only suggest intents, and Enterprise Core validates cryptographic signatures, RBAC permissions, and ACID constraints before writing.
-2. **Deterministic Multi-Tenant Memory:** Bounding Vertex AI Memory Bank and pgvector queries so that tenant data can never leak across organization boundaries, even under complex conversational queries.
-3. **WebSockets Audio Synchronization:** Building a resilient Web Audio PCM pipeline to stream microphone input to the Gemini Live endpoint with zero audio degradation and instant interruption handling.
+Judges can evaluate the deployed system live at **[https://vextis-erp.web.app](https://vextis-erp.web.app)**:
+
+1. **Mission Control (`/mission-control`):**
+   - Review registered agents (`vextis_coordinator`, `vextis_crm_agent`, `vextis_inventory_agent`, `vextis_billing_agent`), their active models (`gemini-3.5-flash`), allowed tool scopes, and operational status.
+2. **Order Execution & Manager Approval (`/purchase-orders`):**
+   - Submit purchase order documents, follow multi-agent coordination steps, inspect Human-in-the-Loop approval checkpoints (`WAITING_FOR_APPROVAL`), and review generated invoices.
+3. **Ask Vextis (`/ask-vextis` or floating widget):**
+   - Test grounded document Q&A with similarity citations backed by PostgreSQL `pgvector`, and test real-time voice streaming via Gemini Live Audio WebSockets.
 
 ---
 
-## 6. Accomplishments That We're Proud Of
+## 6. Challenges We Overcame
 
-- **100% Real Transactional Backing:** Zero fake mocks in the primary workflow. Real PDF intake -> real Pub/Sub event -> real Gemini ADK planning -> real SQL stock reservation -> real invoice generation.
-- **Comprehensive Test & Eval Coverage:** Over 300 automated unit, integration, and contract evaluation tests passing cleanly across Java (134 tests), Python (135 tests), and Angular (32 tests).
-- **Instant Recovery & Deterministic Seeding:** Fully automated database seeding script (`tools/seed-demo.ps1`) ensuring 100% reproducible demo states.
+1. **Separating Mutation Authority from AI Reasoning:** Preventing data inconsistencies by ensuring the Agent Runtime has zero direct SQL write access; all mutations must be authorized and validated by Enterprise Core tool controllers.
+2. **Multi-Tenant Data Isolation:** Enforcing tenant scoping across GraphQL resolvers, database queries, and vector similarity search.
+3. **Low-Latency Voice Streaming:** Building a bidirectional Web Audio PCM streaming pipeline connecting browser WebSockets to the Gemini Live gateway.
 
 ---
 
 ## 7. What We Learned
 
-- High-trust enterprise AI does not come from smarter prompts, but from **stricter architectural boundaries**.
-- The Google Agent Development Kit (ADK) paired with Gemini 3.5 Flash provides unmatched speed and tool-calling fidelity for structured business workflows.
-- Keeping schemas version-controlled across OpenAPI and GraphQL prevents agent drift and runtime integration bugs.
+- High-trust enterprise AI requires strict architectural boundaries and explicit server-side authorization rather than reliance on prompt constraints alone.
+- The Google Agent Development Kit (ADK) paired with Gemini 3.5 Flash provides reliable structured tool calling for business workflow coordination.
+- Version-controlled API schemas (OpenAPI, GraphQL, AsyncAPI) prevent runtime integration drift across microservices.
 
 ---
 
 ## 8. What's Next for Vextis ERP
 
-- **Automated EDI & B2B Ingestion Connectors:** Ingesting XML/EDIFACT purchase orders from external vendor networks.
-- **Predictive Inventory Replenishment Agents:** Proactively ordering raw materials based on predicted sales trends.
-- **Full Mobile Companion:** Extending the Gemini Live voice interface to an Android mobile client for warehouse operators.
+- **Automated B2B EDI Connectors:** Ingestion pipelines for standard XML/EDIFACT purchase order streams.
+- **Predictive Inventory Replenishment:** Proactive material reordering based on historical demand trends.
+- **Mobile Warehouse Client:** Extending Gemini Live voice capabilities to Android warehouse handhelds.
 
 ---
 
 ## 9. Built With
 
-`google-cloud` `vertex-ai` `gemini-3.5-flash` `google-agent-development-kit` `imagen-3` `gemini-live` `java-21` `spring-boot` `python-3.13` `angular` `postgresql` `pgvector` `docker` `terraform` `cloud-run` `cloud-pubsub` `cloud-storage`
+`google-cloud` `vertex-ai` `gemini-3.5-flash` `google-agent-development-kit` `imagen-3` `gemini-live` `java-21` `spring-boot` `python-3.13` `angular` `postgresql` `pgvector` `docker` `terraform` `cloud-run` `cloud-pubsub` `cloud-storage` `firebase-hosting`
 
 ---
 
-## 10. Links & Verification
+## 10. Deliverables & Reference Links
 
 - **GitHub Repository:** [https://github.com/Riippex/Vextis-ERP](https://github.com/Riippex/Vextis-ERP)
-- **Demo Video (YouTube):** [https://www.youtube.com/watch?v=5Xw3LtPeByE](https://www.youtube.com/watch?v=5Xw3LtPeByE)
-- **Architecture Documentation:** [`docs/TECH_STACK.md`](TECH_STACK.md) and [`docs/CONTRACTS.md`](CONTRACTS.md)
-- **Demo Script:** [`docs/DEMO_SCRIPT.md`](DEMO_SCRIPT.md)
+- **Live Deployed Web App:** [https://vextis-erp.web.app](https://vextis-erp.web.app)
+- **Demo Video:** `[Demo Video Placeholder - Recording in progress]`
+- **Demo Screenplay & Script:** [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md)
+- **Pitch Deck & Architecture Story:** [`docs/PITCH_DECK.md`](docs/PITCH_DECK.md)
+- **Contracts Specification:** [`docs/CONTRACTS.md`](docs/CONTRACTS.md)
+- **Tech Stack Specification:** [`docs/TECH_STACK.md`](docs/TECH_STACK.md)
