@@ -3,6 +3,7 @@ package com.vextis.workflow.api.graphql;
 import com.vextis.billing.InvoiceDirectory;
 import com.vextis.billing.Invoice;
 import com.vextis.crm.ProposalAssetDirectory;
+import com.vextis.crm.GcsProposalAssetImageUrlSigner;
 import com.vextis.workflow.application.FindExecutionUseCase;
 import com.vextis.workflow.application.ReceivePurchaseOrderCommand;
 import com.vextis.workflow.application.ReceivePurchaseOrderUseCase;
@@ -47,6 +48,7 @@ class PurchaseOrderGraphQlController {
     private final DecideApprovalUseCase decideApproval;
     private final InvoiceDirectory invoices;
     private final ProposalAssetDirectory proposalAssets;
+    private final GcsProposalAssetImageUrlSigner proposalAssetImageUrls;
     private final CurrentActorProvider currentActor;
     private final String demoTenantId;
 
@@ -57,6 +59,7 @@ class PurchaseOrderGraphQlController {
             DecideApprovalUseCase decideApproval,
             InvoiceDirectory invoices,
             ProposalAssetDirectory proposalAssets,
+            GcsProposalAssetImageUrlSigner proposalAssetImageUrls,
             CurrentActorProvider currentActor,
             @org.springframework.beans.factory.annotation.Value("${vextis.demo.tenant-id:demo-tenant}") String demoTenantId
     ) {
@@ -66,6 +69,7 @@ class PurchaseOrderGraphQlController {
         this.decideApproval = decideApproval;
         this.invoices = invoices;
         this.proposalAssets = proposalAssets;
+        this.proposalAssetImageUrls = proposalAssetImageUrls;
         this.currentActor = currentActor;
         this.demoTenantId = demoTenantId;
     }
@@ -104,11 +108,11 @@ class PurchaseOrderGraphQlController {
     List<ProposalAssetView> proposalAssets(@Argument String quoteId) {
         if (quoteId != null && !quoteId.isBlank()) {
             return proposalAssets.findByQuoteId(demoTenantId, quoteId).stream()
-                    .map(ProposalAssetView::from)
+                    .map(this::proposalAssetView)
                     .toList();
         }
         return proposalAssets.findAll(demoTenantId).stream()
-                .map(ProposalAssetView::from)
+                .map(this::proposalAssetView)
                 .toList();
     }
 
@@ -335,30 +339,33 @@ class PurchaseOrderGraphQlController {
             UUID id,
             String quoteId,
             String storageUri,
+            String imageUrl,
             String mediaType,
             String modelId,
             String promptSummary,
             String aiLabel,
             String createdAt
     ) {
-        static ProposalAssetView from(ProposalAssetDirectory.ProposalAssetView view) {
-            return new ProposalAssetView(
-                    view.id(),
-                    view.quoteId(),
-                    view.storageUri(),
-                    view.mediaType().name(),
-                    view.modelId(),
-                    view.promptSummary(),
-                    view.aiLabel(),
-                    view.createdAt().toString()
-            );
-        }
+    }
+
+    private ProposalAssetView proposalAssetView(ProposalAssetDirectory.ProposalAssetView view) {
+        return new ProposalAssetView(
+                view.id(),
+                view.quoteId(),
+                view.storageUri(),
+                proposalAssetImageUrls.signedImageUrl(view.storageUri()).orElse(null),
+                view.mediaType().name(),
+                view.modelId(),
+                view.promptSummary(),
+                view.aiLabel(),
+                view.createdAt().toString()
+        );
     }
 
     private ExecutionView executionView(WorkflowExecution execution) {
         InvoiceView invoice = invoices.findByExecution(demoTenantId, execution.id()).map(InvoiceView::from).orElse(null);
         List<ProposalAssetView> assets = proposalAssets.findByQuoteId(demoTenantId, execution.id().toString()).stream()
-                .map(ProposalAssetView::from)
+                .map(this::proposalAssetView)
                 .toList();
         return ExecutionView.from(execution, invoice, assets);
     }

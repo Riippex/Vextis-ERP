@@ -56,6 +56,7 @@ mutation DecideApproval($input: DecideApprovalInput!) {
       id
       quoteId
       storageUri
+      imageUrl
       mediaType
       modelId
       promptSummary

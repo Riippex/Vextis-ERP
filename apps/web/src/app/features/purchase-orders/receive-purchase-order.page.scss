@@ -518,8 +518,32 @@ h1 {
   background: var(--vxt-surface);
   border: 1px solid var(--vxt-border);
   border-radius: 0.6rem;
+  display: flex;
+  gap: 1rem;
   margin-top: 0.75rem;
   padding: 1rem;
+}
+
+.proposal-asset-card__image {
+  border-radius: 0.4rem;
+  flex-shrink: 0;
+  height: 6rem;
+  object-fit: cover;
+  width: 6rem;
+}
+
+.proposal-asset-card__image--unavailable {
+  align-items: center;
+  background: color-mix(in srgb, var(--vxt-text-tertiary, var(--vxt-text-secondary)) 12%, var(--vxt-surface));
+  color: var(--vxt-text-tertiary, var(--vxt-text-secondary));
+  display: flex;
+  font-size: 0.7rem;
+  justify-content: center;
+  text-align: center;
+}
+
+.proposal-asset-card__info {
+  min-width: 0;
 }
 
 .proposal-asset-card__info strong {

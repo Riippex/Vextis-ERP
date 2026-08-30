@@ -161,7 +161,19 @@ describe('ReceivePurchaseOrderPage', () => {
           },
           approval: null,
           invoice: null,
-          proposalAssets: [],
+          proposalAssets: [
+            {
+              id: '11223344-5566-7788-99aa-bbccddeeff00',
+              quoteId: '8d3f290d-1322-44a2-8bd7-3b325f170e07',
+              storageUri: 'gs://vextis-erp-hackathon-assets/proposals/abc123/quote-001.png',
+              imageUrl: 'https://storage.googleapis.com/signed-proposal-image',
+              mediaType: 'IMAGE',
+              modelId: 'imagen-3.0-generate-002',
+              promptSummary: '3D render of ergonomic office chair',
+              aiLabel: 'AI-Generated Proposal Concept',
+              createdAt: '2026-08-21T03:30:06Z',
+            },
+          ],
           auditTrail: [
             {
               id: 'audit-agent-1',
@@ -271,6 +283,14 @@ describe('ReceivePurchaseOrderPage', () => {
     expect(fixture.nativeElement.textContent).toContain('Start execution planning');
     expect(fixture.nativeElement.textContent).toContain('rogue-agent');
     expect(fixture.nativeElement.textContent).toContain('DENIED');
+
+    expect(fixture.nativeElement.textContent).toContain('AI-Generated Proposal Concept');
+    const proposalImage = fixture.nativeElement.querySelector(
+      '.proposal-asset-card__image',
+    ) as HTMLImageElement;
+    expect(proposalImage.tagName).toBe('IMG');
+    expect(proposalImage.src).toBe('https://storage.googleapis.com/signed-proposal-image');
+    expect(proposalImage.alt).toBe('AI-Generated Proposal Concept');
   });
 
   it('rejects unsupported files before requesting an upload policy', () => {

@@ -64,6 +64,13 @@ vextis:
   documents:
     bucket-name: ${VEXTIS_DOCUMENTS_BUCKET:}
     signing-service-account: ${VEXTIS_DOCUMENTS_SIGNING_SERVICE_ACCOUNT:}
+  crm:
+    proposal-assets:
+      # Same physical bucket as vextis.documents.bucket-name in every real
+      # deployment (Agent Runtime writes under proposals/, purchase order
+      # intake under purchase-orders/); a separate property because bucket
+      # authorization is a CRM-owned business rule, not a workflow one.
+      bucket-name: ${VEXTIS_CRM_PROPOSAL_ASSETS_BUCKET_NAME:}
   rag:
     # Retrieval only compares vectors produced the same way. The demo seeder
     # writes deterministic SHA-256 mock vectors, which are meaningful only when

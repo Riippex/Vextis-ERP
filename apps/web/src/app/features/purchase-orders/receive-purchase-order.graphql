@@ -82,6 +82,7 @@ mutation ReceivePurchaseOrder($input: ReceivePurchaseOrderInput!) {
         id
         quoteId
         storageUri
+        imageUrl
         mediaType
         modelId
         promptSummary

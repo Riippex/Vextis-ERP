@@ -281,6 +281,17 @@
           </div>
           @for (asset of currentReceipt.execution.proposalAssets; track asset.id) {
             <div class="proposal-asset-card">
+              @if (asset.imageUrl) {
+                <img
+                  class="proposal-asset-card__image"
+                  [src]="asset.imageUrl"
+                  [alt]="asset.aiLabel"
+                />
+              } @else {
+                <div class="proposal-asset-card__image proposal-asset-card__image--unavailable">
+                  Image unavailable
+                </div>
+              }
               <div class="proposal-asset-card__info">
                 <strong>{{ asset.aiLabel }}</strong>
                 <p>{{ asset.promptSummary }}</p>

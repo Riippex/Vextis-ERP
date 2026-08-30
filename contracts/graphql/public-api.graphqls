@@ -450,6 +450,8 @@ type ProposalAsset {
   id: ID!
   quoteId: ID!
   storageUri: String!
+  "Short-lived signed HTTPS URL to render the image; null if it could not be signed."
+  imageUrl: String
   mediaType: ProposalMediaType!
   modelId: String!
   promptSummary: String!
