@@ -99,6 +99,13 @@ resource "google_cloud_run_v2_service" "enterprise_core" {
         value = var.pubsub_topic_id
       }
       env {
+        # Lets this (private) Core confirm a proposal asset Agent Runtime
+        # claims to have registered was actually written to the shared
+        # assets bucket, under this tenant's own prefix, before persisting it.
+        name  = "VEXTIS_CRM_PROPOSAL_ASSETS_BUCKET_NAME"
+        value = var.assets_bucket_name
+      }
+      env {
         name  = "GRAPHQL_GRAPHIQL_ENABLED"
         value = "false"
       }
@@ -202,6 +209,14 @@ resource "google_cloud_run_v2_service" "enterprise_core_public" {
       env {
         name  = "VEXTIS_DOCUMENTS_SIGNING_SERVICE_ACCOUNT"
         value = var.enterprise_core_public_service_account_email
+      }
+      env {
+        # Same bucket as VEXTIS_DOCUMENTS_BUCKET; lets this (public) Core sign
+        # short-lived HTTPS URLs for proposal asset images the Angular UI can
+        # actually render, since gs:// is not browser-loadable and the
+        # bucket is not public.
+        name  = "VEXTIS_CRM_PROPOSAL_ASSETS_BUCKET_NAME"
+        value = var.assets_bucket_name
       }
       env {
         name  = "VEXTIS_PUBSUB_ENABLED"
@@ -333,6 +348,15 @@ resource "google_cloud_run_v2_service" "agent_runtime" {
       env {
         name  = "VEXTIS_CHAT_ENABLED"
         value = "true"
+      }
+      env {
+        # Same physical bucket as VEXTIS_DOCUMENTS_BUCKET / the storage
+        # module's assets bucket. Agent Runtime already holds
+        # roles/storage.objectUser on it, and this is where the CRM
+        # specialist's generate_proposal_asset tool uploads generated images
+        # before registering them with Enterprise Core.
+        name  = "VEXTIS_GCS_PROPOSAL_ASSETS_BUCKET"
+        value = var.assets_bucket_name
       }
       env {
         name  = "VEXTIS_MEMORY_BANK_ENABLED"
