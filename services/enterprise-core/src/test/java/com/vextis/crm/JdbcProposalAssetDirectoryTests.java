@@ -6,6 +6,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -17,7 +18,6 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -38,6 +38,7 @@ class JdbcProposalAssetDirectoryTests {
 
     @Test
     void registerAssetInsertsNewRecordWhenNoConflict() {
+        when(jdbc.query(anyString(), anyMap(), any(RowMapper.class))).thenReturn(List.of());
         when(jdbc.update(anyString(), anyMap())).thenReturn(1);
 
         ProposalAssetDirectory.RegisterProposalAssetResult result = directory.registerAsset(
@@ -56,7 +57,8 @@ class JdbcProposalAssetDirectoryTests {
                         "AGENT",
                         "vextis_crm_agent",
                         "corr-001",
-                        "idemp-001"
+                        "idemp-001",
+                        "token-valid-123"
                 )
         );
 
@@ -70,10 +72,36 @@ class JdbcProposalAssetDirectoryTests {
     }
 
     @Test
-    void registerAssetReturnsExistingRecordOnExactIdempotentReplay() {
-        // Insert returned 0 because ON CONFLICT DO NOTHING
-        when(jdbc.update(anyString(), anyMap())).thenReturn(0);
+    void registerAssetFailsWhenNoReservationExists() {
+        when(jdbc.query(anyString(), anyMap(), any(RowMapper.class))).thenReturn(List.of());
+        when(jdbc.update(anyString(), anyMap())).thenReturn(0); // Claim fails
+        when(jdbc.queryForList(anyString(), anyMap())).thenReturn(List.of()); // No reservation row exists
 
+        assertThatThrownBy(() -> directory.registerAsset(
+                new ProposalAssetDirectory.RegisterProposalAssetCommand(
+                        "demo-tenant",
+                        "quote-001",
+                        "gs://bucket/proposals/x/quote-001.png",
+                        42L,
+                        "image/png",
+                        "hash123",
+                        1024L,
+                        ProposalAssetDirectory.MediaType.IMAGE,
+                        "imagen-3.0-generate-002",
+                        "Chair visual",
+                        "AI-Generated",
+                        "AGENT",
+                        "vextis_crm_agent",
+                        "corr-001",
+                        "idemp-001",
+                        "token-valid-123"
+                )
+        )).isInstanceOf(ProposalAssetConflictException.class)
+                .hasMessageContaining("No active reservation found");
+    }
+
+    @Test
+    void registerAssetReturnsExistingRecordOnExactIdempotentReplay() {
         ProposalAssetDirectory.ProposalAssetView existing = new ProposalAssetDirectory.ProposalAssetView(
                 ASSET_ID,
                 "quote-001",
@@ -111,7 +139,8 @@ class JdbcProposalAssetDirectoryTests {
                         "AGENT",
                         "vextis_crm_agent",
                         "corr-001",
-                        "idemp-001"
+                        "idemp-001",
+                        "token-any"
                 )
         );
 
@@ -150,8 +179,6 @@ class JdbcProposalAssetDirectoryTests {
 
     @Test
     void registerAssetThrowsConflictOnSameKeyWithDifferentPayload() {
-        when(jdbc.update(anyString(), anyMap())).thenReturn(0);
-
         ProposalAssetDirectory.ProposalAssetView existing = new ProposalAssetDirectory.ProposalAssetView(
                 ASSET_ID,
                 "quote-001",
@@ -190,7 +217,8 @@ class JdbcProposalAssetDirectoryTests {
                         "AGENT",
                         "vextis_crm_agent",
                         "corr-001",
-                        "idemp-001"
+                        "idemp-001",
+                        "token-any"
                 )
         )).isInstanceOf(ProposalAssetConflictException.class)
                 .hasMessageContaining("Idempotency-Key was already used to register a different proposal asset");
@@ -226,7 +254,7 @@ class JdbcProposalAssetDirectoryTests {
         when(jdbc.update(anyString(), anyMap())).thenReturn(0);
 
         String fingerprint = JdbcProposalAssetDirectory.computeFingerprint("quote-001", "Chair visual");
-        java.time.OffsetDateTime futureExpiry = java.time.OffsetDateTime.now().plusMinutes(5);
+        OffsetDateTime futureExpiry = OffsetDateTime.now().plusMinutes(5);
         when(jdbc.queryForList(anyString(), anyMap())).thenReturn(List.of(
                 Map.of("fingerprint", fingerprint, "status", "PENDING", "reservation_token", "token-orig", "expires_at", futureExpiry)
         ));
@@ -246,7 +274,7 @@ class JdbcProposalAssetDirectoryTests {
                 .thenReturn(1); // Takeover update succeeds
 
         String fingerprint = JdbcProposalAssetDirectory.computeFingerprint("quote-001", "Chair visual");
-        java.time.OffsetDateTime pastExpiry = java.time.OffsetDateTime.now().minusMinutes(5);
+        OffsetDateTime pastExpiry = OffsetDateTime.now().minusMinutes(5);
         when(jdbc.queryForList(anyString(), anyMap())).thenReturn(List.of(
                 Map.of("fingerprint", fingerprint, "status", "PENDING", "reservation_token", "token-crashed-owner", "expires_at", pastExpiry)
         ));
@@ -262,7 +290,10 @@ class JdbcProposalAssetDirectoryTests {
 
     @Test
     void registerAssetFailsWhenReservationTokenIsInvalid() {
-        java.time.OffsetDateTime futureExpiry = java.time.OffsetDateTime.now().plusMinutes(5);
+        when(jdbc.query(anyString(), anyMap(), any(RowMapper.class))).thenReturn(List.of());
+        when(jdbc.update(anyString(), anyMap())).thenReturn(0); // Claim fails
+
+        OffsetDateTime futureExpiry = OffsetDateTime.now().plusMinutes(5);
         String fingerprint = JdbcProposalAssetDirectory.computeFingerprint("quote-001", "Chair visual");
         when(jdbc.queryForList(anyString(), anyMap())).thenReturn(List.of(
                 Map.of("fingerprint", fingerprint, "status", "PENDING", "reservation_token", "correct-token-123", "expires_at", futureExpiry)
@@ -288,7 +319,29 @@ class JdbcProposalAssetDirectoryTests {
                         "wrong-token-999"
                 )
         )).isInstanceOf(ProposalAssetConflictException.class)
-                .hasMessageContaining("Invalid or missing reservation token");
+                .hasMessageContaining("Invalid or mismatched reservation token");
+    }
+
+    @Test
+    void raceBetweenFinalizeAndLeaseTakeoverOnlyOneWins() {
+        // Scenario: Finalize executes first and claims token (status = COMPLETING)
+        // Subsequent takeover update matches 0 rows and returns PENDING
+        when(jdbc.update(anyString(), anyMap()))
+                .thenReturn(0) // takeover insert fails
+                .thenReturn(0); // takeover conditional UPDATE status='PENDING' returns 0 because status is COMPLETING
+
+        String fingerprint = JdbcProposalAssetDirectory.computeFingerprint("quote-001", "Chair visual");
+        OffsetDateTime pastExpiry = OffsetDateTime.now().minusMinutes(5);
+        when(jdbc.queryForList(anyString(), anyMap())).thenReturn(List.of(
+                Map.of("fingerprint", fingerprint, "status", "COMPLETING", "reservation_token", "tok-1", "expires_at", pastExpiry)
+        ));
+
+        ProposalAssetDirectory.ReservationResult takeoverResult = directory.reserve(
+                "demo-tenant", "quote-001", "idemp-res-1", fingerprint);
+
+        // Takeover did not win; status is PENDING
+        assertThat(takeoverResult.status()).isEqualTo(ProposalAssetDirectory.ReservationStatus.PENDING);
+        assertThat(takeoverResult.isOwner()).isFalse();
     }
 
     @Test
@@ -297,7 +350,7 @@ class JdbcProposalAssetDirectoryTests {
 
         String existingFingerprint = "fingerprint-original";
         when(jdbc.queryForList(anyString(), anyMap())).thenReturn(List.of(
-                Map.of("fingerprint", existingFingerprint, "status", "PENDING", "reservation_token", "token-orig", "expires_at", java.time.OffsetDateTime.now().plusMinutes(5))
+                Map.of("fingerprint", existingFingerprint, "status", "PENDING", "reservation_token", "token-orig", "expires_at", OffsetDateTime.now().plusMinutes(5))
         ));
 
         String newFingerprint = "fingerprint-different";

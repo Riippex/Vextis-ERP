@@ -224,23 +224,94 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
     @Override
     @Transactional
     public RegisterProposalAssetResult registerAsset(RegisterProposalAssetCommand command) {
-        UUID newId = UUID.randomUUID();
         Instant now = clock.instant();
         OffsetDateTime offsetNow = OffsetDateTime.ofInstant(now, java.time.ZoneOffset.UTC);
-
         String fingerprint = computeFingerprint(command.quoteId(), command.promptSummary());
 
-        // Validate any pre-existing reservation for this idempotency key
-        List<Map<String, Object>> existingReservations = jdbc.queryForList(
+        // 1. Check for existing asset replay (idempotency)
+        Optional<ProposalAssetView> existingOpt = findByIdempotencyKey(command.tenantId(), command.idempotencyKey());
+        if (existingOpt.isPresent()) {
+            ProposalAssetView existing = existingOpt.get();
+            if (!existing.quoteId().equals(command.quoteId())
+                    || !existing.storageUri().equals(command.storageUri())
+                    || existing.mediaType() != command.mediaType()
+                    || !existing.modelId().equals(command.modelId())
+                    || !existing.promptSummary().equals(command.promptSummary())
+                    || !existing.aiLabel().equals(command.aiLabel())
+                    || (command.storageGeneration() != null && existing.storageGeneration() != null
+                        && !Objects.equals(existing.storageGeneration(), command.storageGeneration()))
+                    || (command.contentHash() != null && existing.contentHash() != null
+                        && !Objects.equals(existing.contentHash(), command.contentHash()))) {
+                throw new ProposalAssetConflictException(
+                        "Idempotency-Key was already used to register a different proposal asset");
+            }
+            return new RegisterProposalAssetResult(existing, false);
+        }
+
+        // 2. Reject registrations without reservation token
+        if (command.reservationToken() == null || command.reservationToken().isBlank()) {
+            throw new ProposalAssetConflictException(
+                    "Missing reservation token: registration requires a valid reservation token");
+        }
+
+        // 3. Atomically claim/consume the pending reservation
+        int claimed = jdbc.update(
                 """
-                SELECT fingerprint, status, reservation_token, expires_at, asset_id
-                FROM proposal_asset_reservations
-                WHERE tenant_id = :tenantId AND idempotency_key = :idempotencyKey
+                UPDATE proposal_asset_reservations
+                SET status = 'COMPLETING', updated_at = :now
+                WHERE tenant_id = :tenantId
+                  AND idempotency_key = :idempotencyKey
+                  AND reservation_token = :reservationToken
+                  AND status = 'PENDING'
+                  AND expires_at >= :now
+                  AND fingerprint = :fingerprint
                 """,
-                Map.of("tenantId", command.tenantId(), "idempotencyKey", command.idempotencyKey())
+                Map.of(
+                        "tenantId", command.tenantId(),
+                        "idempotencyKey", command.idempotencyKey(),
+                        "reservationToken", command.reservationToken(),
+                        "fingerprint", fingerprint,
+                        "now", offsetNow
+                )
         );
-        if (!existingReservations.isEmpty()) {
-            Map<String, Object> resRow = existingReservations.get(0);
+
+        if (claimed != 1) {
+            // Check if concurrent registration completed
+            Optional<ProposalAssetView> concurrentExisting = findByIdempotencyKey(command.tenantId(), command.idempotencyKey());
+            if (concurrentExisting.isPresent()) {
+                ProposalAssetView existing = concurrentExisting.get();
+                if (!existing.quoteId().equals(command.quoteId())
+                        || !existing.storageUri().equals(command.storageUri())
+                        || existing.mediaType() != command.mediaType()
+                        || !existing.modelId().equals(command.modelId())
+                        || !existing.promptSummary().equals(command.promptSummary())
+                        || !existing.aiLabel().equals(command.aiLabel())
+                        || (command.storageGeneration() != null && existing.storageGeneration() != null
+                            && !Objects.equals(existing.storageGeneration(), command.storageGeneration()))
+                        || (command.contentHash() != null && existing.contentHash() != null
+                            && !Objects.equals(existing.contentHash(), command.contentHash()))) {
+                    throw new ProposalAssetConflictException(
+                            "Idempotency-Key was already used to register a different proposal asset");
+                }
+                return new RegisterProposalAssetResult(existing, false);
+            }
+
+            // Inspect reservation state to return precise conflict explanation
+            List<Map<String, Object>> resRows = jdbc.queryForList(
+                    """
+                    SELECT fingerprint, status, reservation_token, expires_at
+                    FROM proposal_asset_reservations
+                    WHERE tenant_id = :tenantId AND idempotency_key = :idempotencyKey
+                    """,
+                    Map.of("tenantId", command.tenantId(), "idempotencyKey", command.idempotencyKey())
+            );
+
+            if (resRows.isEmpty()) {
+                throw new ProposalAssetConflictException(
+                        "No active reservation found for idempotency key: registration requires prior reservation");
+            }
+
+            Map<String, Object> resRow = resRows.get(0);
             String existingFingerprint = (String) resRow.get("fingerprint");
             String existingStatus = (String) resRow.get("status");
             String existingToken = (String) resRow.get("reservation_token");
@@ -248,23 +319,22 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
 
             if (!Objects.equals(existingFingerprint, fingerprint)) {
                 throw new ProposalAssetConflictException(
-                        "Idempotency-Key was already reserved with a different payload fingerprint"
-                );
+                        "Idempotency-Key was already reserved with a different payload fingerprint");
             }
-            if ("PENDING".equals(existingStatus)) {
-                if (command.reservationToken() == null || !Objects.equals(existingToken, command.reservationToken())) {
-                    throw new ProposalAssetConflictException(
-                            "Invalid or missing reservation token for idempotency key"
-                    );
-                }
-                if (resExpiresAt != null && resExpiresAt.toInstant().isBefore(now)) {
-                    throw new ProposalAssetConflictException(
-                            "Reservation lease expired before asset could be registered"
-                    );
-                }
+            if (!Objects.equals(existingToken, command.reservationToken())) {
+                throw new ProposalAssetConflictException(
+                        "Invalid or mismatched reservation token for idempotency key");
             }
+            if (resExpiresAt != null && resExpiresAt.toInstant().isBefore(now)) {
+                throw new ProposalAssetConflictException(
+                        "Reservation lease expired before asset could be registered");
+            }
+            throw new ProposalAssetConflictException(
+                    "Reservation is not in PENDING state or was already claimed (status: " + existingStatus + ")");
         }
 
+        // 4. Insert newly created asset
+        UUID newId = UUID.randomUUID();
         Map<String, Object> params = new HashMap<>();
         params.put("id", newId);
         params.put("tenantId", command.tenantId());
@@ -284,7 +354,7 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
         params.put("idempotencyKey", command.idempotencyKey());
         params.put("createdAt", offsetNow);
 
-        int inserted = jdbc.update(
+        jdbc.update(
                 """
                 INSERT INTO proposal_assets (
                     id, tenant_id, quote_id, storage_uri, storage_generation, content_type, content_hash, size_bytes,
@@ -295,77 +365,32 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
                     :mediaType, :modelId, :promptSummary, :aiLabel,
                     :actorType, :actorId, :correlationId, :idempotencyKey, :createdAt
                 )
-                ON CONFLICT (tenant_id, idempotency_key) DO NOTHING
                 """,
                 params
         );
 
-        if (inserted > 0) {
-            // Upsert reservation status to COMPLETED
-            jdbc.update(
-                    """
-                    INSERT INTO proposal_asset_reservations (
-                        id, tenant_id, quote_id, idempotency_key, fingerprint, status, reservation_token, expires_at, asset_id, created_at, updated_at
-                    ) VALUES (
-                        :resId, :tenantId, :quoteId, :idempotencyKey, :fingerprint, 'COMPLETED', :token, :expiresAt, :assetId, :createdAt, :createdAt
-                    )
-                    ON CONFLICT (tenant_id, idempotency_key) DO UPDATE
-                    SET status = 'COMPLETED', asset_id = :assetId, updated_at = :createdAt
-                    """,
-                    Map.of(
-                            "resId", UUID.randomUUID(),
-                            "tenantId", command.tenantId(),
-                            "quoteId", command.quoteId(),
-                            "idempotencyKey", command.idempotencyKey(),
-                            "fingerprint", fingerprint,
-                            "token", command.reservationToken() != null ? command.reservationToken() : "completed",
-                            "expiresAt", OffsetDateTime.ofInstant(now.plusSeconds(86400), java.time.ZoneOffset.UTC),
-                            "assetId", newId,
-                            "createdAt", offsetNow
-                    )
-            );
-
-            ProposalAssetView createdView = new ProposalAssetView(
-                    newId, command.quoteId(), command.storageUri(), command.storageGeneration(),
-                    command.contentType(), command.contentHash(), command.sizeBytes(),
-                    command.mediaType(), command.modelId(),
-                    command.promptSummary(), command.aiLabel(), command.actorType(), command.actorId(),
-                    command.correlationId(), now
-            );
-            return new RegisterProposalAssetResult(createdView, true);
-        }
-
-        ProposalAssetView existing = jdbc.query(
+        jdbc.update(
                 """
-                SELECT id, quote_id, storage_uri, storage_generation, content_type, content_hash, size_bytes,
-                       media_type, model_id, prompt_summary, ai_label,
-                       created_by_actor_type, created_by_actor_id, correlation_id, created_at
-                FROM proposal_assets
+                UPDATE proposal_asset_reservations
+                SET status = 'COMPLETED', asset_id = :assetId, updated_at = :now
                 WHERE tenant_id = :tenantId AND idempotency_key = :idempotencyKey
                 """,
-                Map.of("tenantId", command.tenantId(), "idempotencyKey", command.idempotencyKey()),
-                ROW_MAPPER
-        ).stream().findFirst().orElseThrow(() -> new IllegalStateException("Failed to find idempotent proposal asset"));
+                Map.of(
+                        "tenantId", command.tenantId(),
+                        "idempotencyKey", command.idempotencyKey(),
+                        "assetId", newId,
+                        "now", offsetNow
+                )
+        );
 
-        // The idempotency key alone does not uniquely constrain the payload:
-        // replaying it with a different quote or content must be rejected as
-        // a conflict rather than silently handing back the unrelated asset
-        // that happened to be registered first under this key.
-        if (!existing.quoteId().equals(command.quoteId())
-                || !existing.storageUri().equals(command.storageUri())
-                || existing.mediaType() != command.mediaType()
-                || !existing.modelId().equals(command.modelId())
-                || !existing.promptSummary().equals(command.promptSummary())
-                || !existing.aiLabel().equals(command.aiLabel())
-                || (command.storageGeneration() != null && existing.storageGeneration() != null
-                    && !Objects.equals(existing.storageGeneration(), command.storageGeneration()))
-                || (command.contentHash() != null && existing.contentHash() != null
-                    && !Objects.equals(existing.contentHash(), command.contentHash()))) {
-            throw new ProposalAssetConflictException(
-                    "Idempotency-Key was already used to register a different proposal asset");
-        }
-
-        return new RegisterProposalAssetResult(existing, false);
+        ProposalAssetView createdView = new ProposalAssetView(
+                newId, command.quoteId(), command.storageUri(), command.storageGeneration(),
+                command.contentType(), command.contentHash(), command.sizeBytes(),
+                command.mediaType(), command.modelId(),
+                command.promptSummary(), command.aiLabel(), command.actorType(), command.actorId(),
+                command.correlationId(), now
+        );
+        return new RegisterProposalAssetResult(createdView, true);
     }
 
     private static final class ProposalAssetRowMapper implements RowMapper<ProposalAssetView> {

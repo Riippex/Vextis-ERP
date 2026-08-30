@@ -120,7 +120,8 @@ class AgentProposalAssetControllerTests {
                                   "mediaType": "IMAGE",
                                   "modelId": "imagen-3.0-generate-002",
                                   "promptSummary": "3D render of ergonomic office chair in titanium grey",
-                                  "aiLabel": "AI-Generated Proposal Concept"
+                                  "aiLabel": "AI-Generated Proposal Concept",
+                                  "reservationToken": "tok-valid-123"
                                 }
                                 """.formatted(STORAGE_URI)))
                 .andExpect(status().isCreated())
@@ -134,7 +135,31 @@ class AgentProposalAssetControllerTests {
                 cmd.tenantId().equals("demo-tenant")
                         && cmd.quoteId().equals(QUOTE_ID)
                         && cmd.modelId().equals("imagen-3.0-generate-002")
-                        && cmd.storageUri().equals(STORAGE_URI)));
+                        && cmd.storageUri().equals(STORAGE_URI)
+                        && "tok-valid-123".equals(cmd.reservationToken())));
+    }
+
+    @Test
+    void rejectsMissingReservationToken() throws Exception {
+        mockMvc.perform(post("/internal/agent-tools/v1/crm/quotes/{quoteId}/assets", QUOTE_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .header("Authorization", "Bearer test-service-token")
+                        .header("X-Tenant-Id", "demo-tenant")
+                        .header("X-Agent-Id", "vextis_crm_agent")
+                        .header("X-Correlation-Id", "corr-001")
+                        .header("Idempotency-Key", "idemp-key-proposal-asset-001")
+                        .content("""
+                                {
+                                  "storageUri": "%s",
+                                  "mediaType": "IMAGE",
+                                  "modelId": "imagen-3.0-generate-002",
+                                  "promptSummary": "3D render",
+                                  "aiLabel": "AI-Generated"
+                                }
+                                """.formatted(STORAGE_URI)))
+                .andExpect(status().isBadRequest());
+
+        verifyNoInteractions(proposalAssetUseCase);
     }
 
     @Test
@@ -152,7 +177,8 @@ class AgentProposalAssetControllerTests {
                                   "mediaType": "IMAGE",
                                   "modelId": "imagen-3.0-generate-002",
                                   "promptSummary": "3D render",
-                                  "aiLabel": "AI-Generated"
+                                  "aiLabel": "AI-Generated",
+                                  "reservationToken": "tok-valid-123"
                                 }
                                 """.formatted(STORAGE_URI)))
                 .andExpect(status().isUnauthorized());
@@ -178,7 +204,8 @@ class AgentProposalAssetControllerTests {
                                   "mediaType": "IMAGE",
                                   "modelId": "imagen-3.0-generate-002",
                                   "promptSummary": "3D render",
-                                  "aiLabel": "AI-Generated"
+                                  "aiLabel": "AI-Generated",
+                                  "reservationToken": "tok-valid-123"
                                 }
                                 """.formatted(STORAGE_URI)))
                 .andExpect(status().isNotFound());
@@ -202,7 +229,8 @@ class AgentProposalAssetControllerTests {
                                   "mediaType": "IMAGE",
                                   "modelId": "imagen-3.0-generate-002",
                                   "promptSummary": "3D render",
-                                  "aiLabel": "AI-Generated"
+                                  "aiLabel": "AI-Generated",
+                                  "reservationToken": "tok-valid-123"
                                 }
                                 """))
                 .andExpect(status().isBadRequest());
@@ -227,7 +255,8 @@ class AgentProposalAssetControllerTests {
                                   "mediaType": "IMAGE",
                                   "modelId": "imagen-3.0-generate-002",
                                   "promptSummary": "A different render entirely",
-                                  "aiLabel": "AI-Generated"
+                                  "aiLabel": "AI-Generated",
+                                  "reservationToken": "tok-valid-123"
                                 }
                                 """.formatted(STORAGE_URI)))
                 .andExpect(status().isConflict());

@@ -1015,7 +1015,7 @@ components:
     RegisterProposalAssetRequest:
       type: object
       additionalProperties: false
-      required: [storageUri, mediaType, modelId, promptSummary, aiLabel]
+      required: [storageUri, mediaType, modelId, promptSummary, aiLabel, reservationToken]
       properties:
         storageUri:
           type: string
@@ -1041,6 +1041,7 @@ components:
           maxLength: 100
         reservationToken:
           type: string
+          minLength: 1
           maxLength: 100
     PreflightProposalAssetRequest:
       type: object

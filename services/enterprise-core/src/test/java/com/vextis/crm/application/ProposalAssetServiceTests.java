@@ -136,7 +136,8 @@ class ProposalAssetServiceTests {
                         ProposalAssetDirectory.MediaType.IMAGE,
                         "imagen-3.0-generate-002",
                         "Ergonomic chair concept",
-                        "AI-Generated Proposal Concept"
+                        "AI-Generated Proposal Concept",
+                        "token-valid-123"
                 )
         );
 
@@ -202,7 +203,8 @@ class ProposalAssetServiceTests {
                         ProposalAssetDirectory.MediaType.IMAGE,
                         "imagen-3.0-generate-002",
                         "Ergonomic chair concept",
-                        "AI-Generated Proposal Concept"
+                        "AI-Generated Proposal Concept",
+                        "token-valid-123"
                 )
         );
 
@@ -228,7 +230,8 @@ class ProposalAssetServiceTests {
                         ProposalAssetDirectory.MediaType.IMAGE,
                         "imagen-3.0-generate-002",
                         "Ergonomic chair concept",
-                        "AI-Generated Proposal Concept"
+                        "AI-Generated Proposal Concept",
+                        "token-valid-123"
                 )
         )).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("Correlation ID mismatch");
 

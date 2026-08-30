@@ -91,9 +91,11 @@ class ProposalAssetFlowIntegrationTests {
 
         // Step A: Preflight check before spending generation resources
         RegisterProposalAssetUseCase.PreflightResult preflight = service.preflight(
-                new RegisterProposalAssetUseCase.PreflightCommand(TENANT_ID, "vextis_crm_agent", QUOTE_ID, CORRELATION_ID));
+                new RegisterProposalAssetUseCase.PreflightCommand(
+                        TENANT_ID, "vextis_crm_agent", QUOTE_ID, CORRELATION_ID, "idemp-flow-001", "3D render of ergonomic chair"));
         assertThat(preflight.authorized()).isTrue();
         assertThat(preflight.tenantPrefix()).isEqualTo(tenantPrefix);
+        assertThat(preflight.reservationToken()).isNotNull();
 
         // Step B: Core registers the confirmed upload
         ProposalAssetDirectory.ProposalAssetView asset = service.registerAsset(
@@ -107,7 +109,8 @@ class ProposalAssetFlowIntegrationTests {
                         ProposalAssetDirectory.MediaType.IMAGE,
                         "imagen-3.0-generate-002",
                         "3D render of ergonomic chair",
-                        "AI-Generated Proposal Concept"
+                        "AI-Generated Proposal Concept",
+                        preflight.reservationToken()
                 )
         );
 

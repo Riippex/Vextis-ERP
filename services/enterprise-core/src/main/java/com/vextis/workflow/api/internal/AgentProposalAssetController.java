@@ -152,7 +152,7 @@ class AgentProposalAssetController {
             @NotBlank @Size(max = 150) String modelId,
             @NotBlank @Size(max = 500) String promptSummary,
             @NotBlank @Size(max = 100) String aiLabel,
-            @Size(max = 100) String reservationToken
+            @NotBlank @Size(max = 100) String reservationToken
     ) {
     }
 
