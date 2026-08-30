@@ -971,7 +971,10 @@ components:
       properties:
         storageUri:
           type: string
-          pattern: "^(gs://|https://|urn:).+"
+          # Only a gs:// object inside the authorized proposal assets bucket
+          # and this tenant's own prefix is accepted; Enterprise Core
+          # confirms the object actually exists before registering it.
+          pattern: "^gs://.+"
           maxLength: 1000
         mediaType:
           type: string

@@ -1,9 +1,11 @@
 package com.vextis.workflow.api.internal;
 
+import com.vextis.crm.ProposalAssetConflictException;
 import com.vextis.crm.ProposalAssetDirectory;
+import com.vextis.crm.GcsProposalAssetStorage;
+import com.vextis.workflow.application.FindExecutionUseCase;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import org.springframework.http.HttpHeaders;
@@ -16,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.UUID;
 
@@ -25,17 +28,26 @@ import java.util.UUID;
 class AgentProposalAssetController {
 
     private final ProposalAssetDirectory proposalAssets;
+    private final FindExecutionUseCase findExecution;
+    private final GcsProposalAssetStorage assetStorage;
     private final AgentToolAuthorizer authorizer;
 
-    AgentProposalAssetController(ProposalAssetDirectory proposalAssets, AgentToolAuthorizer authorizer) {
+    AgentProposalAssetController(
+            ProposalAssetDirectory proposalAssets,
+            FindExecutionUseCase findExecution,
+            GcsProposalAssetStorage assetStorage,
+            AgentToolAuthorizer authorizer
+    ) {
         this.proposalAssets = proposalAssets;
+        this.findExecution = findExecution;
+        this.assetStorage = assetStorage;
         this.authorizer = authorizer;
     }
 
     @PostMapping("/{quoteId}/assets")
     @ResponseStatus(HttpStatus.CREATED)
     ProposalAssetResponse registerAsset(
-            @PathVariable @NotBlank @Size(max = 100) String quoteId,
+            @PathVariable UUID quoteId,
             @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization,
             @RequestHeader("X-Tenant-Id") @NotBlank @Size(max = 100) String tenantId,
             @RequestHeader("X-Agent-Id") @NotBlank @Size(max = 150) String agentId,
@@ -45,28 +57,48 @@ class AgentProposalAssetController {
     ) {
         authorizer.authorize(authorization, agentId, tenantId, AgentTool.REGISTER_QUOTE_ASSET);
 
-        ProposalAssetDirectory.MediaType mediaType = ProposalAssetDirectory.MediaType.valueOf(request.mediaType());
-        ProposalAssetDirectory.ProposalAssetView view = proposalAssets.registerAsset(
-                new ProposalAssetDirectory.RegisterProposalAssetCommand(
-                        tenantId,
-                        quoteId,
-                        request.storageUri(),
-                        mediaType,
-                        request.modelId(),
-                        request.promptSummary(),
-                        request.aiLabel(),
-                        "AGENT",
-                        agentId,
-                        correlationId,
-                        idempotencyKey
-                )
-        );
+        // The asset must illustrate a quote/order this tenant actually owns:
+        // quoteId is not accepted at face value.
+        findExecution.findById(tenantId, quoteId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "No quote or order found for this tenant"));
 
-        return ProposalAssetResponse.from(view);
+        // The URI must resolve to an object this tenant is authorized to
+        // write, and that object must actually exist: an agent's claim that
+        // an upload succeeded is not registered on trust alone.
+        try {
+            assetStorage.assertUploaded(tenantId, request.storageUri());
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage(), exception);
+        } catch (IllegalStateException exception) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage(), exception);
+        }
+
+        ProposalAssetDirectory.MediaType mediaType = ProposalAssetDirectory.MediaType.valueOf(request.mediaType());
+        try {
+            ProposalAssetDirectory.ProposalAssetView view = proposalAssets.registerAsset(
+                    new ProposalAssetDirectory.RegisterProposalAssetCommand(
+                            tenantId,
+                            quoteId.toString(),
+                            request.storageUri(),
+                            mediaType,
+                            request.modelId(),
+                            request.promptSummary(),
+                            request.aiLabel(),
+                            "AGENT",
+                            agentId,
+                            correlationId,
+                            idempotencyKey
+                    )
+            );
+            return ProposalAssetResponse.from(view);
+        } catch (ProposalAssetConflictException exception) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, exception.getMessage(), exception);
+        }
     }
 
     record RegisterProposalAssetRequest(
-            @NotBlank @Size(max = 1000) @Pattern(regexp = "^(gs://|https://|urn:).+") String storageUri,
+            @NotBlank @Size(max = 1000) @Pattern(regexp = "^gs://.+") String storageUri,
             @NotBlank @Pattern(regexp = "^(IMAGE|VIDEO)$") String mediaType,
             @NotBlank @Size(max = 150) String modelId,
             @NotBlank @Size(max = 500) String promptSummary,

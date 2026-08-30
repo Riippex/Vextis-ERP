@@ -112,7 +112,7 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
             );
         }
 
-        return jdbc.query(
+        ProposalAssetView existing = jdbc.query(
                 """
                 SELECT id, quote_id, storage_uri, media_type, model_id, prompt_summary, ai_label,
                        created_by_actor_type, created_by_actor_id, correlation_id, created_at
@@ -122,6 +122,22 @@ class JdbcProposalAssetDirectory implements ProposalAssetDirectory {
                 Map.of("tenantId", command.tenantId(), "idempotencyKey", command.idempotencyKey()),
                 ROW_MAPPER
         ).stream().findFirst().orElseThrow(() -> new IllegalStateException("Failed to find idempotent proposal asset"));
+
+        // The idempotency key alone does not uniquely constrain the payload:
+        // replaying it with a different quote or content must be rejected as
+        // a conflict rather than silently handing back the unrelated asset
+        // that happened to be registered first under this key.
+        if (!existing.quoteId().equals(command.quoteId())
+                || !existing.storageUri().equals(command.storageUri())
+                || existing.mediaType() != command.mediaType()
+                || !existing.modelId().equals(command.modelId())
+                || !existing.promptSummary().equals(command.promptSummary())
+                || !existing.aiLabel().equals(command.aiLabel())) {
+            throw new ProposalAssetConflictException(
+                    "Idempotency-Key was already used to register a different proposal asset");
+        }
+
+        return existing;
     }
 
     private static final class ProposalAssetRowMapper implements RowMapper<ProposalAssetView> {
