@@ -36,35 +36,39 @@
 +-------------------------------------------------------------------------+
 |                   FIREBASE HOSTING: ANGULAR WEB APP                     |
 |                        https://vextis-erp.web.app                       |
-|             Mission Control · Purchase Orders · Ask Vextis              |
-+------------------------------------+------------------------------------+
-                                     | GraphQL / WebSockets
-                                     v
-+------------------------------------+------------------------------------+
-|      CLOUD RUN: ENTERPRISE CORE (Java 21 / Spring Boot 4.1.0)           |
-|   - Sole authority for mutations   - Role-based tool allowlists         |
-|   - Multi-tenant data isolation    - Structured PostgreSQL audit log    |
-+------------------+---------------------------------+--------------------+
-                   | Outbox Events                   ^ Tool Invocations
-                   v (Pub/Sub 'order-events')        | (REST + Bearer Token)
-+------------------+---------------------------------+--------------------+
-|        CLOUD RUN: AGENT RUNTIME & LIVE GATEWAY (Python 3.13 / ADK)      |
-|   - Specialist Fleet Coordination  - Gemini 3.5 Flash Reasoning         |
-|   - Grounded pgvector RAG          - WebSocket Gemini Live Audio        |
-|   - On-Demand Proposal Assets      - Vertex AI Image Generation         |
-+------------------+---------------------------------+--------------------+
-                   |                                 |
-                   v                                 v
-+------------------------------------+  +---------------------------------+
-|      MANAGED GOOGLE CLOUD DATA     |  |       VERTEX AI & STORAGE       |
-|   - Cloud SQL (PostgreSQL 16)      |  |   - Gemini 3.5 Flash / Live API |
-|   - pgvector (Embeddings & RAG)    |  |   - Imagen 3 (Proposal Assets)  |
-|   - Cloud Pub/Sub ('order-events') |  |   - Cloud Storage (GCS Assets)  |
-+------------------------------------+  +---------------------------------+
+|           Mission Control (/app) · New Order · Ask Vextis Widget        |
++-------------------+---------------------------------+-------------------+
+                    | GraphQL (HTTP/HTTPS)            | WebSockets (/ws/live)
+                    v                                 v
++-------------------+--------------------+  +---------+-------------------+
+|      CLOUD RUN: ENTERPRISE CORE        |  |    CLOUD RUN: LIVE GATEWAY  |
+|      (Java 21 / Spring Boot 4.1.0)     |  |       (Python 3.13 / ADK)   |
+|  - Sole authority for mutations        |  |  - Bidirectional Web Audio  |
+|  - Multi-tenant data isolation         |  |  - WebSocket Session Client |
+|  - Role-based tool allowlists          |  +---------+-------------------+
+|  - Structured PostgreSQL audit log     |            |
++-------------------+--------------------+            |
+                    | Outbox Events                   |
+                    v (Pub/Sub 'order-events')        |
++-------------------+--------------------+            |
+|       CLOUD RUN: AGENT RUNTIME         |            |
+|          (Python 3.13 / ADK)           |            |
+|  - Specialist Fleet Coordination       |            |
+|  - Gemini 3.5 Flash Reasoning          |            |
+|  - Grounded pgvector RAG               |            |
++-------------------+--------------------+            |
+                    | Tool Calls (REST)               |
+                    v                                 v
++-------------------+--------------------+  +---------+-------------------+
+|      MANAGED GOOGLE CLOUD DATA         |  |       VERTEX AI & STORAGE   |
+|   - Cloud SQL (PostgreSQL 16)          |  |   - Gemini 3.5 Flash / Live |
+|   - pgvector (Embeddings & RAG)        |  |   - Imagen 3 (Concepts)     |
+|   - Cloud Pub/Sub ('order-events')     |  |   - Cloud Storage (GCS)     |
++----------------------------------------+  +-----------------------------+
 ```
 
-- **Enterprise Core (Java 21):** Enforces ACID transactions, role-based tool allowlists, and append-only audit logs.
-- **Agent Runtime (Python 3.13 / Google ADK):** Orchestrates intelligent reasoning, planning, RAG, and multimodal capabilities without direct database access.
+- **Enterprise Core (Java 21):** Enforces ACID transactions, role-based tool allowlists, and append-only audit logs via GraphQL APIs.
+- **Agent Runtime & Live Gateway (Python 3.13 / Google ADK):** Orchestrates intelligent reasoning, planning, pgvector RAG, and Web Audio streaming without direct database access.
 
 ---
 
@@ -99,7 +103,7 @@ sequenceDiagram
     participant Gemini as Gemini 3.5 Flash
 
     Customer->>UI: Upload Purchase Order PDF
-    UI->>Core: Receive Purchase Order
+    UI->>Core: Receive Purchase Order (/app/purchase-orders/new)
     Core->>PubSub: Outbox Event (Order Received)
     PubSub->>Runtime: Trigger Coordinator
     Runtime->>Gemini: Extract items & plan steps

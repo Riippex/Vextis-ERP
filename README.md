@@ -6,7 +6,7 @@
 [![Angular](https://img.shields.io/badge/Angular-22.1_Signals-red.svg)](apps/web)
 [![Google Cloud](https://img.shields.io/badge/Google_Cloud-Vertex_AI_%7C_Cloud_Run_%7C_Cloud_SQL-4285F4.svg)](infra)
 
-> **All Things Agentic Hackathon** official submission under **The Fortified Enterprise Fleet** track.  
+> **All Things Agentic Hackathon** official submission under **The Fortified Enterprise Fleet** track.<br>
 > Transforming unstructured business inputs into auditable, multi-agent operations across Sales, Inventory, and Finance.
 
 ---
@@ -17,9 +17,9 @@
 - **Default Tenant:** `demo-tenant` (Pre-seeded with customer `Acme Colombia`, credit limits, inventory catalog, and knowledge documents)
 
 ### Live Access & Evaluation Walkthrough
-1. **Mission Control (`/mission-control`):** Inspect the 4 registered specialist agents (`vextis_coordinator`, `vextis_crm_agent`, `vextis_inventory_agent`, `vextis_billing_agent`), their active models (`gemini-3.5-flash`), allowed tool scopes, and operational status.
-2. **Order-to-Cash Pipeline (`/purchase-orders`):** Ingest purchase orders, follow autonomous multi-agent planning and stock reservations, review Human-in-the-Loop manager approval gates (`WAITING_FOR_APPROVAL`), and inspect generated invoices.
-3. **Ask Vextis (`/ask-vextis` or floating widget):** Query grounded enterprise Q&A with similarity citations backed by PostgreSQL `pgvector`, and engage in real-time bidirectional voice interaction via Gemini Live Audio WebSockets.
+1. **Mission Control (`/app`):** Inspect the 4 registered specialist agents (`vextis_coordinator`, `vextis_crm_agent`, `vextis_inventory_agent`, `vextis_billing_agent`), their active models (`gemini-3.5-flash`), allowed tool scopes, and operational status.
+2. **Order-to-Cash Pipeline (`/app/purchase-orders/new`):** Ingest purchase orders, follow autonomous multi-agent planning and stock reservations, review Human-in-the-Loop manager approval gates (`WAITING_FOR_APPROVAL`), and inspect generated invoices.
+3. **Ask Vextis (Floating Assistant Widget):** Query grounded enterprise Q&A with similarity citations backed by PostgreSQL `pgvector`, and engage in real-time bidirectional voice interaction via Gemini Live Audio WebSockets directly to the Live gateway.
 
 ---
 
@@ -37,7 +37,7 @@ Vextis participates officially under **The Fortified Enterprise Fleet** track, i
    - **Human-in-the-Loop (HITL) Checkpoints:** Automatically halts workflows requiring managerial sign-off before committing high-risk credit or financial decisions.
 
 3. **Supporting Collaborative Assistant (Ask Vextis):**
-   - **Gemini Live Audio Bridge:** Real-time, low-latency bidirectional voice interaction over WebSockets using browser Web Audio API streaming.
+   - **Gemini Live Audio Bridge:** Real-time, low-latency bidirectional voice interaction over WebSockets directly to `vextis-agent-runtime-live` using browser Web Audio API streaming.
    - **Grounded pgvector RAG:** Enterprise document Q&A backed by PostgreSQL vector search with similarity thresholds and source citations.
    - **On-Demand Proposal Visuals:** Capability-gated generation of proposal visual concepts via Imagen 3 on Vertex AI, registered with generation metadata and signed Cloud Storage URLs.
 
@@ -49,31 +49,35 @@ Vextis participates officially under **The Fortified Enterprise Fleet** track, i
 +-------------------------------------------------------------------------+
 |                   FIREBASE HOSTING: ANGULAR WEB APP                     |
 |                        https://vextis-erp.web.app                       |
-|             Mission Control · Purchase Orders · Ask Vextis              |
-+------------------------------------+------------------------------------+
-                                     | GraphQL / WebSockets
-                                     v
-+------------------------------------+------------------------------------+
-|      CLOUD RUN: ENTERPRISE CORE (Java 21 / Spring Boot 4.1.0)           |
-|   - Sole authority for mutations   - Role-based tool allowlists         |
-|   - Multi-tenant data isolation    - Structured PostgreSQL audit log    |
-+------------------+---------------------------------+--------------------+
-                   | Outbox Events                   ^ Tool Invocations
-                   v (Pub/Sub 'order-events')        | (REST + Bearer Token)
-+------------------+---------------------------------+--------------------+
-|        CLOUD RUN: AGENT RUNTIME & LIVE GATEWAY (Python 3.13 / ADK)      |
-|   - Specialist Fleet Coordination  - Gemini 3.5 Flash Reasoning         |
-|   - Grounded pgvector RAG          - WebSocket Gemini Live Audio        |
-|   - On-Demand Proposal Assets      - Vertex AI Image Generation         |
-+------------------+---------------------------------+--------------------+
-                   |                                 |
-                   v                                 v
-+------------------------------------+  +---------------------------------+
-|      MANAGED GOOGLE CLOUD DATA     |  |       VERTEX AI & STORAGE       |
-|   - Cloud SQL (PostgreSQL 16)      |  |   - Gemini 3.5 Flash / Live API |
-|   - pgvector (Embeddings & RAG)    |  |   - Imagen 3 (Proposal Assets)  |
-|   - Cloud Pub/Sub ('order-events') |  |   - Cloud Storage (GCS Assets)  |
-+------------------------------------+  +---------------------------------+
+|           Mission Control (/app) · New Order · Ask Vextis Widget        |
++-------------------+---------------------------------+-------------------+
+                    | GraphQL (HTTP/HTTPS)            | WebSockets (/ws/live)
+                    v                                 v
++-------------------+--------------------+  +---------+-------------------+
+|      CLOUD RUN: ENTERPRISE CORE        |  |    CLOUD RUN: LIVE GATEWAY  |
+|      (Java 21 / Spring Boot 4.1.0)     |  |       (Python 3.13 / ADK)   |
+|  - Sole authority for mutations        |  |  - Bidirectional Web Audio  |
+|  - Multi-tenant data isolation         |  |  - WebSocket Session Client |
+|  - Role-based tool allowlists          |  +---------+-------------------+
+|  - Structured PostgreSQL audit log     |            |
++-------------------+--------------------+            |
+                    | Outbox Events                   |
+                    v (Pub/Sub 'order-events')        |
++-------------------+--------------------+            |
+|       CLOUD RUN: AGENT RUNTIME         |            |
+|          (Python 3.13 / ADK)           |            |
+|  - Specialist Fleet Coordination       |            |
+|  - Gemini 3.5 Flash Reasoning          |            |
+|  - Grounded pgvector RAG               |            |
++-------------------+--------------------+            |
+                    | Tool Calls (REST)               |
+                    v                                 v
++-------------------+--------------------+  +---------+-------------------+
+|      MANAGED GOOGLE CLOUD DATA         |  |       VERTEX AI & STORAGE   |
+|   - Cloud SQL (PostgreSQL 16)          |  |   - Gemini 3.5 Flash / Live |
+|   - pgvector (Embeddings & RAG)        |  |   - Imagen 3 (Concepts)     |
+|   - Cloud Pub/Sub ('order-events')     |  |   - Cloud Storage (GCS)     |
++----------------------------------------+  +-----------------------------+
 ```
 
 - **Java** is the sole authority for CRM, inventory, and billing mutations.
@@ -110,8 +114,8 @@ docs/                             Architecture decisions (ADR), runbooks, demo s
 # 1. Clone & prepare environment
 Copy-Item .env.example .env
 
-# 2. Launch infrastructure & services
-./tools/dev.ps1 infra     # Cloud SQL PostgreSQL + pgvector + Pub/Sub emulator
+# 2. Launch local infrastructure & services
+./tools/dev.ps1 infra     # Local PostgreSQL + pgvector container + Pub/Sub emulator in Docker
 ./tools/dev.ps1 core      # Enterprise Core (Java 21 / Spring Boot on :8080)
 ./tools/dev.ps1 agents    # Agent Runtime (Python 3.13 / Google ADK on :8081)
 ./tools/dev.ps1 web       # Angular Web UI (on :4200)
@@ -132,8 +136,10 @@ Copy-Item .env.example .env
 | Component | Test Suite | Validation Status |
 |---|---|---|
 | **Enterprise Core** | `./gradlew test` | Unit, controller, and integration tests passing cleanly |
-| **Agent Runtime** | `uv run pytest`, `uv run ruff check`, `uv run mypy` | All unit, evaluation, and contract tests passing; lint and typecheck clean |
+| **Agent Runtime** | `uv run pytest`, `uv run ruff check`, `uv run mypy` | Unit and contract tests passing (excludes `model_eval` by default); lint and typecheck clean |
 | **Angular Web UI** | `pnpm web:test`, `pnpm web:lint`, `pnpm web:build` | Unit tests passing, ESLint clean, production build passing |
+
+> Note: `uv run pytest` runs fast unit and contract tests by default. Tests marked `@pytest.mark.model_eval` require live Vertex AI credentials and are invoked explicitly with `uv run pytest -m model_eval`.
 
 ---
 
@@ -150,5 +156,5 @@ Copy-Item .env.example .env
 
 ## 📄 License & Attributions
 
-Copyright © 2026 Rafael Patiño Díaz.  
+Copyright © 2026 Rafael Patiño Díaz.
 Distributed under the [Apache License 2.0](LICENSE). See also [NOTICE](NOTICE).
