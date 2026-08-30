@@ -27,10 +27,7 @@
       <button mat-button type="button" (click)="store.refresh()">Try again</button>
     </section>
   } @else if (store.loading() && !store.data()) {
-    <section class="panel state-panel" aria-label="Loading Mission Control">
-      <mat-spinner diameter="28" />
-      <span>Synchronizing the workspace…</span>
-    </section>
+    <vxt-workspace-skeleton layout="dashboard" label="Loading Mission Control" />
   } @else if (store.data(); as data) {
     <section class="metrics-surface" aria-label="Operational summary">
       <div class="metrics-surface__header">

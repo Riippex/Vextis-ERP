@@ -131,3 +131,69 @@ input::-ms-reveal {
   margin: 0;
   padding: 0.8rem;
 }
+
+.workspace-search__loading {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.workspace-search__loading-row {
+  align-items: center;
+  display: grid;
+  gap: 0.7rem;
+  grid-template-columns: 1.1rem 1fr;
+  padding: 0.7rem;
+}
+
+.workspace-search__loading-row > i,
+.workspace-search__loading-row span i {
+  animation: search-skeleton-shimmer 1.45s ease-in-out infinite;
+  background:
+    linear-gradient(
+      90deg,
+      transparent 20%,
+      color-mix(in srgb, var(--vxt-rail-bg-elevated) 80%, transparent) 50%,
+      transparent 80%
+    ),
+    color-mix(in srgb, var(--vxt-rail-text-muted) 18%, var(--vxt-rail-bg-elevated));
+  background-size: 220% 100%;
+  border-radius: 999px;
+  display: block;
+}
+
+.workspace-search__loading-row > i {
+  height: 1.1rem;
+  width: 1.1rem;
+}
+
+.workspace-search__loading-row span {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.workspace-search__loading-row span i:first-child {
+  height: 0.7rem;
+  width: 55%;
+}
+
+.workspace-search__loading-row span i:last-child {
+  height: 0.55rem;
+  width: 78%;
+}
+
+@keyframes search-skeleton-shimmer {
+  from {
+    background-position: 200% 0;
+  }
+
+  to {
+    background-position: -20% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-search__loading-row > i,
+  .workspace-search__loading-row span i {
+    animation: none;
+  }
+}
