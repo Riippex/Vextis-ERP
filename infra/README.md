@@ -43,7 +43,14 @@ plan stays out of this apply:
 
 ```bash
 cd terraform/environments/hackathon
-terraform apply     -target=module.cloud_sql.google_sql_database_instance.postgres     -target=module.cloud_sql.google_sql_database.application     -target=module.cloud_sql.google_secret_manager_secret.database_password     -target=module.iam.google_secret_manager_secret.agent_tools_token     -target=module.iam.google_secret_manager_secret.live_gateway_token     -target=module.iam.google_secret_manager_secret.demo_admin_token     -target=module.iam.google_secret_manager_secret.core_callback_token
+terraform apply \
+  -target=module.cloud_sql.google_sql_database_instance.postgres \
+  -target=module.cloud_sql.google_sql_database.application \
+  -target=module.cloud_sql.google_secret_manager_secret.database_password \
+  -target=module.iam.google_secret_manager_secret.agent_tools_token \
+  -target=module.iam.google_secret_manager_secret.live_gateway_token \
+  -target=module.iam.google_secret_manager_secret.demo_admin_token \
+  -target=module.iam.google_secret_manager_secret.core_callback_token
 ```
 
 The Cloud SQL instance alone can take several minutes to come up — this is the
@@ -82,22 +89,54 @@ not exist yet either. Check for it first and branch: `create` on a first
 deploy (the instance from Phase 1 exists, but no application user does yet),
 `set-password` on a redeploy or a rotation (the user is already there from a
 previous run of this same block). Either way, the same generated password ends
-up in both the Cloud SQL user and the secret version:
+up in both the Cloud SQL user and the secret version — but only if every step
+actually succeeds. Run the whole thing as one subshell under `set -euo
+pipefail` with a trap that clears `DB_PASSWORD` on any exit, so a failure
+anywhere upstream (a permission-denied `create`, a dropped connection during
+`set-password`, `sql users list` itself erroring instead of returning an empty
+list) aborts before the last line ever runs, instead of leaving Secret Manager
+holding a password Cloud SQL doesn't actually have:
 
 ```bash
-DB_PASSWORD="$(openssl rand -base64 32)"
-if gcloud sql users list     --project=vextis-erp --instance=vextis-hackathon-pg     --format="value(name)" | grep -qx vextis_app; then
-  gcloud sql users set-password vextis_app       --project=vextis-erp --instance=vextis-hackathon-pg       --password="$DB_PASSWORD"
-else
-  gcloud sql users create vextis_app       --project=vextis-erp --instance=vextis-hackathon-pg       --password="$DB_PASSWORD"
-fi
-printf '%s' "$DB_PASSWORD" | gcloud secrets versions add vextis-db-password     --project=vextis-erp --data-file=-
-unset DB_PASSWORD
+(
+  set -euo pipefail
+  trap 'unset DB_PASSWORD' EXIT
+
+  DB_PASSWORD="$(openssl rand -base64 32)"
+
+  # Captured first and checked on its own exit status, so a failure here
+  # (permissions, connectivity) aborts instead of being read as "no such
+  # user" by the grep below.
+  EXISTING_USERS="$(gcloud sql users list \
+    --project=vextis-erp --instance=vextis-hackathon-pg \
+    --format="value(name)")"
+
+  if printf '%s\n' "$EXISTING_USERS" | grep -qx vextis_app; then
+    gcloud sql users set-password vextis_app \
+      --project=vextis-erp --instance=vextis-hackathon-pg \
+      --password="$DB_PASSWORD"
+  else
+    gcloud sql users create vextis_app \
+      --project=vextis-erp --instance=vextis-hackathon-pg \
+      --password="$DB_PASSWORD"
+  fi
+
+  printf '%s' "$DB_PASSWORD" | gcloud secrets versions add vextis-db-password \
+    --project=vextis-erp --data-file=-
+)
 ```
 
-Both branches leave `vextis-db-password`'s new version matching whatever
-`vextis_app`'s live password actually is, so this block is safe to re-run on a
-partially-deployed install without knowing in advance which case it's in.
+`set -e` alone would still let `sql users list`'s failure slip by unnoticed,
+because a failing pipeline that's the condition of an `if` never trips `set
+-e` — that's what the separate `EXISTING_USERS=$(...)` assignment is for:
+run outside any conditional, its own failure trips `set -e` immediately, before
+either branch of the `if` runs. `pipefail` covers the final line, so a failed
+`gcloud secrets versions add` after a successful `printf` is still reported as
+a failure rather than swallowed. Both create and set-password branches leave
+`vextis-db-password`'s new version matching whatever `vextis_app`'s live
+password actually is, so this block is safe to re-run on a partially-deployed
+install without knowing in advance which case it's in — and safe to abort
+mid-way through, since nothing downstream of a failed step runs at all.
 
 The other four are opaque bearer tokens compared byte-for-byte by the
 application (`MessageDigest.isEqual`), so any sufficiently random value works;
