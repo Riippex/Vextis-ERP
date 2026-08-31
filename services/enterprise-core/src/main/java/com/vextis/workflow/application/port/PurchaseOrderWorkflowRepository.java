@@ -24,6 +24,8 @@ public interface PurchaseOrderWorkflowRepository {
 
     List<ExecutionOverview.DepartmentVolume> findExecutionVolumeByDepartment(String tenantId);
 
+    List<ExecutionOverview.WeeklyVolume> findCompletedExecutionVolumeByWeek(String tenantId, int weeks);
+
     Optional<PurchaseOrderSource> findPurchaseOrder(String tenantId, UUID purchaseOrderId);
 
     Optional<WorkflowExecution> findExecutionResult(

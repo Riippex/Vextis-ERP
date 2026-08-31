@@ -78,7 +78,9 @@ class MissionControlGraphQlController {
                         .toList(),
                 invoices.findRecent(demoTenantId, 100).stream().map(InvoiceOverviewView::from).toList(),
                 executions.volumeByDepartment(demoTenantId).stream()
-                        .map(DepartmentExecutionVolumeView::from).toList()
+                        .map(DepartmentExecutionVolumeView::from).toList(),
+                executions.completedPerWeek(demoTenantId, 6).stream()
+                        .map(WeeklyExecutionVolumeView::from).toList()
         );
     }
 
@@ -91,7 +93,8 @@ class MissionControlGraphQlController {
             List<StockReservationOverviewView> stockReservations,
             List<CreditProfileOverviewView> creditProfiles,
             List<InvoiceOverviewView> invoices,
-            List<DepartmentExecutionVolumeView> executionVolumeByDepartment
+            List<DepartmentExecutionVolumeView> executionVolumeByDepartment,
+            List<WeeklyExecutionVolumeView> completedOrdersPerWeek
     ) {
     }
 
@@ -214,6 +217,12 @@ class MissionControlGraphQlController {
     record DepartmentExecutionVolumeView(String department, int count) {
         static DepartmentExecutionVolumeView from(ExecutionOverview.DepartmentVolume volume) {
             return new DepartmentExecutionVolumeView(volume.department(), volume.count());
+        }
+    }
+
+    record WeeklyExecutionVolumeView(String weekStart, int count) {
+        static WeeklyExecutionVolumeView from(ExecutionOverview.WeeklyVolume volume) {
+            return new WeeklyExecutionVolumeView(volume.weekStart().toString(), volume.count());
         }
     }
 }

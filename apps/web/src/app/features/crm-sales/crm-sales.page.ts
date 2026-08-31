@@ -3,6 +3,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -12,6 +13,7 @@ import { RouterLink } from '@angular/router';
 import { UpsertCustomerGQL } from '../../api/generated/graphql';
 import { WorkspaceSkeletonComponent } from '../../shared/loading/workspace-skeleton.component';
 import { MissionControlStore } from '../mission-control/mission-control.store';
+import { EditCustomerDialogComponent } from './edit-customer-dialog.component';
 
 @Component({
   selector: 'vxt-crm-sales-page',
@@ -34,9 +36,9 @@ export class CrmSalesPage {
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly mutation = inject(UpsertCustomerGQL);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly dialog = inject(MatDialog);
 
   protected readonly store = inject(MissionControlStore);
-  protected readonly editingCustomerId = signal<string | null>(null);
   protected readonly saving = signal(false);
   protected readonly saveMessage = signal<string | null>(null);
   protected readonly saveError = signal<string | null>(null);
@@ -49,15 +51,11 @@ export class CrmSalesPage {
   );
 
   protected editCustomer(customer: { id: string; legalName: string; active: boolean }): void {
-    this.editingCustomerId.set(customer.id);
-    this.customerForm.setValue({ legalName: customer.legalName, active: customer.active });
     this.clearFeedback();
-  }
-
-  protected cancelEdit(): void {
-    this.editingCustomerId.set(null);
-    this.customerForm.reset({ legalName: '', active: true });
-    this.clearFeedback();
+    this.dialog.open(EditCustomerDialogComponent, { data: customer, width: '36rem', maxWidth: '94vw' })
+      .afterClosed().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((saved) => {
+        if (saved) { this.saveMessage.set(`${customer.legalName} was updated in CRM.`); this.store.refresh(); }
+      });
   }
 
   protected saveCustomer(): void {
@@ -72,7 +70,7 @@ export class CrmSalesPage {
       .mutate({
         variables: {
           input: {
-            id: this.editingCustomerId(),
+            id: null,
             legalName: value.legalName.trim(),
             active: value.active,
           },
@@ -83,7 +81,6 @@ export class CrmSalesPage {
         next: ({ data }) => {
           const saved = data?.upsertCustomer;
           this.saveMessage.set(saved ? `${saved.legalName} was saved in CRM.` : 'Customer saved.');
-          this.editingCustomerId.set(null);
           this.customerForm.reset({ legalName: '', active: true });
           this.saving.set(false);
           this.store.refresh();

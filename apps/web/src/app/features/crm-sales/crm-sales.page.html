@@ -37,11 +37,9 @@
       <div class="panel__header">
         <div>
           <p class="eyebrow">Authoritative command</p>
-          <h2>{{ editingCustomerId() ? 'Edit customer' : 'Create customer' }}</h2>
+          <h2>Create customer</h2>
         </div>
-        @if (editingCustomerId()) {
-          <button mat-button type="button" (click)="cancelEdit()">Cancel edit</button>
-        }
+        <span class="data-row__meta">Existing records open in a focused edit dialog</span>
       </div>
       <form class="command-form command-form--customer" [formGroup]="customerForm" (ngSubmit)="saveCustomer()">
         <mat-form-field appearance="outline">

@@ -196,6 +196,47 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.chart-card__empty--explain {
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  justify-content: center;
+  min-height: 14rem;
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.chart-card__empty--explain mat-icon {
+  color: var(--vxt-brand-violet);
+  font-size: 2rem;
+  height: 2rem;
+  width: 2rem;
+}
+
+.chart-card__empty--explain span {
+  color: var(--vxt-text-secondary);
+  max-width: 28rem;
+}
+
+.execution-row {
+  background: transparent;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: background-color 150ms ease;
+  width: 100%;
+}
+
+.execution-row:hover,
+.execution-row:focus-visible {
+  background: color-mix(in srgb, var(--vxt-brand-violet) 8%, transparent);
+}
+
 .agent-activity-panel {
   overflow: hidden;
 }

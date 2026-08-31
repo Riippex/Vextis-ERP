@@ -18,6 +18,7 @@ type MissionControl {
   creditProfiles: [CreditProfileOverview!]!
   invoices: [Invoice!]!
   executionVolumeByDepartment: [DepartmentExecutionVolume!]!
+  completedOrdersPerWeek: [WeeklyExecutionVolume!]!
 }
 
 type AgentRegistryEntry {
@@ -43,6 +44,11 @@ enum AgentRegistryStatus {
 
 type DepartmentExecutionVolume {
   department: PlanningDepartment!
+  count: Int!
+}
+
+type WeeklyExecutionVolume {
+  weekStart: String!
   count: Int!
 }
 

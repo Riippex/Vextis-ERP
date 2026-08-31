@@ -80,5 +80,9 @@ query MissionControl {
       department
       count
     }
+    completedOrdersPerWeek {
+      weekStart
+      count
+    }
   }
 }

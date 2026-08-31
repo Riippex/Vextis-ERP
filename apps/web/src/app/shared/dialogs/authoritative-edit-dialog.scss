@@ -1,0 +1,42 @@
+:host {
+  display: block;
+}
+
+.dialog-copy {
+  color: var(--vxt-text-secondary);
+  margin: 0 0 1.25rem;
+}
+
+.dialog-form {
+  display: grid;
+  gap: 0.75rem;
+  min-width: min(30rem, 72vw);
+}
+
+.dialog-form mat-form-field {
+  width: 100%;
+}
+
+.dialog-error {
+  color: var(--vxt-danger, #c34040);
+  margin: 0;
+}
+
+.dialog-identity {
+  background: color-mix(in srgb, var(--vxt-brand-violet) 8%, transparent);
+  border: 1px solid var(--vxt-border);
+  border-radius: 0.85rem;
+  color: var(--vxt-text-primary);
+  padding: 0.8rem 1rem;
+}
+
+mat-dialog-actions mat-spinner {
+  display: inline-block;
+  margin-right: 0.35rem;
+}
+
+@media (max-width: 40rem) {
+  .dialog-form {
+    min-width: 0;
+  }
+}

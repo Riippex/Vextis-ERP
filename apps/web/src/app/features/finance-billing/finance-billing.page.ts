@@ -2,6 +2,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signa
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -15,6 +16,7 @@ import {
 } from '../../api/generated/graphql';
 import { WorkspaceSkeletonComponent } from '../../shared/loading/workspace-skeleton.component';
 import { MissionControlStore } from '../mission-control/mission-control.store';
+import { EditCreditProfileDialogComponent } from './edit-credit-profile-dialog.component';
 
 @Component({
   selector: 'vxt-finance-billing-page',
@@ -37,6 +39,7 @@ export class FinanceBillingPage {
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly mutation = inject(UpsertCreditProfileGQL);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly dialog = inject(MatDialog);
 
   protected readonly store = inject(MissionControlStore);
   protected readonly standings: CreditStanding[] = ['GOOD', 'REVIEW', 'BLOCKED'];
@@ -54,15 +57,15 @@ export class FinanceBillingPage {
 
   protected editProfile(profile: {
     customerId: string;
+    customerName: string;
     standing: CreditStanding;
     maxPaymentTermsDays: number;
   }): void {
-    this.creditForm.setValue({
-      customerId: profile.customerId,
-      standing: profile.standing,
-      maxPaymentTermsDays: profile.maxPaymentTermsDays,
-    });
     this.clearFeedback();
+    this.dialog.open(EditCreditProfileDialogComponent, { data: profile, width: '36rem', maxWidth: '94vw' })
+      .afterClosed().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((saved) => {
+        if (saved) { this.saveMessage.set(`${profile.customerName}'s credit profile was updated.`); this.store.refresh(); }
+      });
   }
 
   protected saveCreditProfile(): void {
