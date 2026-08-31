@@ -119,6 +119,13 @@ reply plus bounded public activity evidence. Runtime may report at most four log
 eight tool names per agent. It never returns prompts, tool arguments, tool results, credentials, or
 hidden model reasoning through this contract.
 
+For follow-up continuity, Enterprise Core may include up to twelve prior turns from the same
+tenant-scoped conversation, capped at 4,000 characters per turn and 12,000 characters total.
+Agent Runtime uses this ephemeral history only to resolve conversational references. It treats the
+content as untrusted data, does not persist it, and never accepts it as authorization or evidence for
+current stock, credit, permissions, orders, quotes, or accounting facts; those still require an
+authorized Core tool lookup.
+
 Runtime activity claims are not authoritative. Before storing or exposing them, Enterprise Core
 requires an active tenant registry entry, verifies that its service identity matches the trusted
 coordinator, intersects tool names with that version's `allowed_tools`, and snapshots the registry

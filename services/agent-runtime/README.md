@@ -47,6 +47,14 @@ The schema extracts only explicit SKU, quantity, and requested payment-term fact
 
 In Cloud Run, keep the service unauthenticated setting disabled. Configure the Pub/Sub push subscription with a dedicated service account and OIDC token that has only `roles/run.invoker` on Agent Runtime. The application-level service token must come from Secret Manager and protects calls from Agent Runtime back to Enterprise Core.
 
+## Conversation continuity
+
+Enterprise Core owns the Ask Vextis transcript and may send the private runtime up to twelve recent
+tenant-scoped turns, bounded to 4,000 characters per turn and 12,000 characters total. The runtime
+uses that ephemeral history only to resolve references in follow-up questions. It serializes the
+turns as untrusted data, never persists them, and still calls authorized Core tools for current
+business facts.
+
 ## Durable preference memory
 
 Ask Vextis can use Vertex AI Agent Engine Memory Bank for explicit language, response-style, and

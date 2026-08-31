@@ -10,7 +10,21 @@ public interface AgentChatClient {
      * its side through the existing authenticated /internal/agent-tools/**
      * path — this call only carries the conversation turn.
      */
-    ChatCompletion complete(String tenantId, String actorId, UUID conversationId, String message);
+    ChatCompletion complete(
+            String tenantId,
+            String actorId,
+            UUID conversationId,
+            List<ConversationTurn> history,
+            String message
+    );
+
+    enum ConversationRole {
+        USER,
+        ASSISTANT
+    }
+
+    record ConversationTurn(ConversationRole role, String content) {
+    }
 
     record ChatCompletion(String reply, List<AgentActivity> activities, MemoryActivity memory) {
         public ChatCompletion {

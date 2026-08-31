@@ -35,7 +35,13 @@ class HttpAgentChatClient implements AgentChatClient {
     }
 
     @Override
-    public ChatCompletion complete(String tenantId, String actorId, UUID conversationId, String message) {
+    public ChatCompletion complete(
+            String tenantId,
+            String actorId,
+            UUID conversationId,
+            List<ConversationTurn> history,
+            String message
+    ) {
         if (chatUrl.isBlank() || callbackToken.isBlank()) {
             throw new IllegalStateException("Ask Vextis is not configured to reach Agent Runtime");
         }
@@ -46,7 +52,14 @@ class HttpAgentChatClient implements AgentChatClient {
                 .header("X-Serverless-Authorization", "Bearer " + fetchIdentityToken())
                 .header("X-Tenant-Id", tenantId)
                 .header("X-Correlation-Id", conversationId.toString())
-                .body(new ChatCompleteRequest(tenantId, actorId, conversationId.toString(), message))
+                .body(new ChatCompleteRequest(
+                        tenantId,
+                        actorId,
+                        conversationId.toString(),
+                        message,
+                        history.stream()
+                                .map(turn -> new ChatHistoryTurnRequest(turn.role().name(), turn.content()))
+                                .toList()))
                 .retrieve()
                 .body(ChatCompleteResponse.class);
         if (response == null || response.reply() == null || response.reply().isBlank()) {
@@ -110,7 +123,16 @@ class HttpAgentChatClient implements AgentChatClient {
         }
     }
 
-    record ChatCompleteRequest(String tenantId, String actorId, String conversationId, String message) {
+    record ChatCompleteRequest(
+            String tenantId,
+            String actorId,
+            String conversationId,
+            String message,
+            List<ChatHistoryTurnRequest> history
+    ) {
+    }
+
+    record ChatHistoryTurnRequest(String role, String content) {
     }
 
     record ChatCompleteResponse(String reply, List<AgentActivityResponse> activities, MemoryActivityResponse memory) {

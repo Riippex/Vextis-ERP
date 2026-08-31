@@ -63,6 +63,69 @@ class ConversationServiceTests {
     }
 
     @Test
+    void sendsExistingTenantScopedTurnsAsConversationContext() {
+        InMemoryRepository repository = new InMemoryRepository();
+        UUID conversationId = repository.startConversation(TENANT_ID, NOW);
+        repository.appendMessage(
+                TENANT_ID, conversationId, MessageSender.USER, "de Acme Colombia",
+                MessageKind.TEXT, NOW, List.of(), null);
+        repository.appendMessage(
+                TENANT_ID, conversationId, MessageSender.ASSISTANT,
+                "Encontré el registro activo de Acme Colombia.",
+                MessageKind.TEXT, NOW, List.of(), null);
+        FakeAgentChatClient agentChat = new FakeAgentChatClient("Estas son sus cotizaciones.");
+        ConversationService service = service(repository, agentChat, new FakeAgentDirectory(List.of()));
+
+        service.postMessage(new AskVextisCommand(
+                TENANT_ID, "firebase-user-123", conversationId, "¿Qué cotizaciones hay?"));
+
+        assertThat(agentChat.lastHistory()).containsExactly(
+                new AgentChatClient.ConversationTurn(
+                        AgentChatClient.ConversationRole.USER, "de Acme Colombia"),
+                new AgentChatClient.ConversationTurn(
+                        AgentChatClient.ConversationRole.ASSISTANT,
+                        "Encontré el registro activo de Acme Colombia."));
+    }
+
+    @Test
+    void boundsConversationContextByTurnAndCharacterBudgets() {
+        InMemoryRepository repository = new InMemoryRepository();
+        UUID conversationId = repository.startConversation(TENANT_ID, NOW);
+        for (int index = 0; index < 13; index++) {
+            repository.appendMessage(
+                    TENANT_ID, conversationId, MessageSender.USER, "turn-" + index,
+                    MessageKind.TEXT, NOW, List.of(), null);
+        }
+        FakeAgentChatClient turnBoundedChat = new FakeAgentChatClient("bounded");
+        service(repository, turnBoundedChat, new FakeAgentDirectory(List.of())).postMessage(
+                new AskVextisCommand(TENANT_ID, "firebase-user-123", conversationId, "follow up"));
+
+        assertThat(turnBoundedChat.lastHistory()).hasSize(12);
+        assertThat(turnBoundedChat.lastHistory().getFirst().content()).isEqualTo("turn-1");
+
+        InMemoryRepository characterRepository = new InMemoryRepository();
+        UUID characterConversationId = characterRepository.startConversation(TENANT_ID, NOW);
+        for (int index = 0; index < 12; index++) {
+            characterRepository.appendMessage(
+                    TENANT_ID, characterConversationId, MessageSender.USER, "x".repeat(1_000),
+                    MessageKind.TEXT, NOW, List.of(), null);
+        }
+        characterRepository.appendMessage(
+                TENANT_ID, characterConversationId, MessageSender.ASSISTANT, "y".repeat(5_000),
+                MessageKind.TEXT, NOW, List.of(), null);
+        FakeAgentChatClient characterBoundedChat = new FakeAgentChatClient("bounded");
+        service(characterRepository, characterBoundedChat, new FakeAgentDirectory(List.of())).postMessage(
+                new AskVextisCommand(
+                        TENANT_ID, "firebase-user-123", characterConversationId, "follow up"));
+
+        assertThat(characterBoundedChat.lastHistory()).hasSize(9);
+        assertThat(characterBoundedChat.lastHistory().getLast().content()).hasSize(4_000);
+        assertThat(characterBoundedChat.lastHistory().stream()
+                .mapToInt(turn -> turn.content().length())
+                .sum()).isEqualTo(12_000);
+    }
+
+    @Test
     void rejectsAConversationThatDoesNotBelongToTheTenant() {
         InMemoryRepository repository = new InMemoryRepository();
         UUID conversationId = repository.startConversation("another-tenant", NOW);
@@ -152,11 +215,6 @@ class ConversationServiceTests {
         }
 
         @Override
-        public boolean existsForTenant(String tenantId, UUID conversationId) {
-            return tenantId.equals(tenantByConversation.get(conversationId));
-        }
-
-        @Override
         public ChatMessage appendMessage(
                 String tenantId, UUID conversationId, MessageSender sender, String content,
                 MessageKind kind, Instant occurredAt, List<AgentActivityEvidence> agentActivities,
@@ -183,6 +241,7 @@ class ConversationServiceTests {
         private final MemoryActivity memory;
         private UUID lastConversationId;
         private String lastActorId;
+        private List<ConversationTurn> lastHistory = List.of();
 
         private FakeAgentChatClient(String reply) {
             this(reply, List.of());
@@ -199,9 +258,16 @@ class ConversationServiceTests {
         }
 
         @Override
-        public ChatCompletion complete(String tenantId, String actorId, UUID conversationId, String message) {
+        public ChatCompletion complete(
+                String tenantId,
+                String actorId,
+                UUID conversationId,
+                List<ConversationTurn> history,
+                String message
+        ) {
             this.lastConversationId = conversationId;
             this.lastActorId = actorId;
+            this.lastHistory = List.copyOf(history);
             return new ChatCompletion(reply, activities, memory);
         }
 
@@ -211,6 +277,10 @@ class ConversationServiceTests {
 
         String lastActorId() {
             return lastActorId;
+        }
+
+        List<ConversationTurn> lastHistory() {
+            return lastHistory;
         }
     }
 

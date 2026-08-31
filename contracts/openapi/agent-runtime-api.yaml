@@ -12,7 +12,9 @@ paths:
       description: >-
         Completes one Ask Vextis turn and returns bounded public execution evidence. Evidence
         contains logical agent and tool names only; prompts, arguments, tool results, and hidden
-        reasoning are never returned.
+        reasoning are never returned. A bounded, tenant-scoped conversation history may be
+        supplied as untrusted context for resolving follow-up references; it is never business
+        evidence or authorization.
       security:
         - serviceBearer: []
       parameters:
@@ -74,6 +76,27 @@ components:
           type: string
           format: uuid
         message:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        history:
+          type: array
+          maxItems: 12
+          default: []
+          description: >-
+            Previous tenant-scoped turns in chronological order. The sum of content is limited
+            to 12000 characters by both producer and consumer.
+          items:
+            $ref: "#/components/schemas/ChatHistoryTurn"
+    ChatHistoryTurn:
+      type: object
+      additionalProperties: false
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [USER, ASSISTANT]
+        content:
           type: string
           minLength: 1
           maxLength: 4000
