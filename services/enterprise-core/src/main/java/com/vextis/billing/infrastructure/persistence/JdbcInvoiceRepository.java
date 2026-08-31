@@ -13,6 +13,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
 import java.time.OffsetDateTime;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -84,7 +86,7 @@ class JdbcInvoiceRepository implements InvoiceRepository {
                         .addValue("paymentTermsDays", invoice.paymentTermsDays()).addValue("actorId", command.actorId())
                         .addValue("correlationId", invoice.correlationId())
                         .addValue("idempotencyKey", command.idempotencyKey())
-                        .addValue("issuedAt", invoice.issuedAt(), Types.TIMESTAMP_WITH_TIMEZONE));
+                        .addValue("issuedAt", sqlTimestamp(invoice.issuedAt()), Types.TIMESTAMP_WITH_TIMEZONE));
         for (int index = 0; index < invoice.lines().size(); index++) {
             Invoice.Line line = invoice.lines().get(index);
             jdbc.update(
@@ -111,7 +113,7 @@ class JdbcInvoiceRepository implements InvoiceRepository {
                 new MapSqlParameterSource().addValue("id", auditId).addValue("tenantId", command.tenantId())
                         .addValue("correlationId", invoice.correlationId()).addValue("actorId", command.actorId())
                         .addValue("resourceId", invoice.id())
-                        .addValue("occurredAt", invoice.issuedAt(), Types.TIMESTAMP_WITH_TIMEZONE));
+                        .addValue("occurredAt", sqlTimestamp(invoice.issuedAt()), Types.TIMESTAMP_WITH_TIMEZONE));
 
         UUID eventId = UUID.randomUUID();
         Map<String, Object> payload = Map.of(
@@ -136,7 +138,7 @@ class JdbcInvoiceRepository implements InvoiceRepository {
                 new MapSqlParameterSource().addValue("eventId", eventId).addValue("aggregateId", invoice.id().toString())
                         .addValue("tenantId", command.tenantId()).addValue("correlationId", invoice.correlationId())
                         .addValue("causationId", auditId).addValue("payload", envelope)
-                        .addValue("occurredAt", invoice.issuedAt(), Types.TIMESTAMP_WITH_TIMEZONE));
+                        .addValue("occurredAt", sqlTimestamp(invoice.issuedAt()), Types.TIMESTAMP_WITH_TIMEZONE));
         jdbc.update(
                 """
                 INSERT INTO idempotency_records
@@ -189,6 +191,10 @@ class JdbcInvoiceRepository implements InvoiceRepository {
                 Map.of("invoiceId", invoiceId), (rs, row) -> new Invoice.Line(
                         rs.getString("sku"), rs.getInt("quantity"), rs.getBigDecimal("unit_price"),
                         rs.getBigDecimal("line_subtotal")));
+    }
+
+    static OffsetDateTime sqlTimestamp(Instant instant) {
+        return instant.atOffset(ZoneOffset.UTC);
     }
 
     private String toJson(Object value) {

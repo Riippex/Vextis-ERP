@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: Vextis Agent Tools API
-  version: 0.5.0
+  version: 0.6.0
   description: >-
     API interna autenticada para invocar casos de uso del Enterprise Core. The service
     credential authenticates Agent Runtime, while X-Agent-Id identifies the delegated
@@ -9,6 +9,57 @@ info:
 servers:
   - url: /internal/agent-tools/v1
 paths:
+  /crm/customers:
+    get:
+      operationId: listCustomers
+      x-vextis-tool-policy: list_customers
+      description: Returns a bounded tenant-scoped customer directory without mutating state.
+      security:
+        - serviceBearer: []
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Bounded customer directory
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 50
+                items: { $ref: "#/components/schemas/CustomerContext" }
+        "401": { description: Missing or invalid service credential }
+        "403": { description: Logical agent is not authorized for this tenant or tool }
+  /crm/customers/orders:
+    get:
+      operationId: searchCustomerOrders
+      x-vextis-tool-policy: search_customer_orders
+      description: Returns an authoritative count and bounded recent orders for one exact legal name.
+      security:
+        - serviceBearer: []
+      parameters:
+        - name: legalName
+          in: query
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 200 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Customer order count and bounded recent orders
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CustomerOrders" }
+        "401": { description: Missing or invalid service credential }
+        "403": { description: Logical agent is not authorized for this tenant or tool }
   /crm/customers/lookup:
     get:
       operationId: lookupCustomerByLegalName
@@ -163,6 +214,34 @@ paths:
           description: Logical agent is inactive, belongs to another service, tenant, or tool policy
         "404":
           description: SKU was not found in the tenant
+  /inventory/stock:
+    get:
+      operationId: searchInventory
+      x-vextis-tool-policy: search_inventory
+      description: Lists or filters a bounded tenant-scoped stock directory without mutating state.
+      security:
+        - serviceBearer: []
+      parameters:
+        - name: query
+          in: query
+          schema: { type: string, maxLength: 100, default: "" }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 20 }
+        - $ref: "#/components/parameters/TenantId"
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/CorrelationId"
+      responses:
+        "200":
+          description: Bounded stock results
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 50
+                items: { $ref: "#/components/schemas/StockContext" }
+        "401": { description: Missing or invalid service credential }
+        "403": { description: Logical agent is not authorized for this tenant or tool }
   /billing/customers/{customerId}/credit:
     get:
       operationId: getCustomerCredit
@@ -579,6 +658,28 @@ components:
         availableQuantity:
           type: integer
           minimum: 0
+    CustomerOrder:
+      type: object
+      additionalProperties: false
+      required: [id, purchaseOrderNumber, customerName, state, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        purchaseOrderNumber: { type: string, maxLength: 100 }
+        customerName: { type: string, maxLength: 200 }
+        state:
+          type: string
+          enum: [RECEIVED, PLANNING, RUNNING, WAITING_APPROVAL, COMPLETED, FAILED]
+        updatedAt: { type: string, format: date-time }
+    CustomerOrders:
+      type: object
+      additionalProperties: false
+      required: [totalCount, orders]
+      properties:
+        totalCount: { type: integer, minimum: 0 }
+        orders:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/CustomerOrder" }
     CreditContext:
       type: object
       additionalProperties: false

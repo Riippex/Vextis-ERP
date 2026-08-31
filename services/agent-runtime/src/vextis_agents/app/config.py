@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     live_location: str = "us-central1"
     # Unauthenticated-connection guards for the publicly reachable Live socket.
     live_auth_timeout_seconds: float = 5.0
+    # Core may need to cold-start before it can validate the one-time session
+    # token. Keep this bounded, but longer than Cloud Run's observed startup.
+    live_validation_timeout_seconds: float = Field(default=45.0, ge=10.0, le=60.0)
     live_max_audio_frame_bytes: int = 65536
     live_max_text_frame_bytes: int = 4096
     # Ceiling applied on top of the expiresAt Enterprise Core returns, so a

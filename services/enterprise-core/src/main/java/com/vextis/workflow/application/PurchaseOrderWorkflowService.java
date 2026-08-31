@@ -144,6 +144,17 @@ public class PurchaseOrderWorkflowService implements RegisterReceivedPurchaseOrd
 
     @Override
     @Transactional(readOnly = true)
+    public ExecutionOverview.CustomerOrders findCustomerOrders(String tenantId, String legalName, int limit) {
+        String requiredTenant = requireText(tenantId, "Tenant id", 100);
+        String requiredLegalName = requireText(legalName, "Customer legal name", 200);
+        if (limit < 1 || limit > 50) {
+            throw new IllegalArgumentException("Customer order limit must be between 1 and 50");
+        }
+        return repository.findCustomerOrders(requiredTenant, requiredLegalName, limit);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<ExecutionOverview.WeeklyVolume> completedPerWeek(String tenantId, int weeks) {
         if (weeks < 1 || weeks > 52) {
             throw new IllegalArgumentException("Weekly execution history must be between 1 and 52 weeks");
@@ -512,6 +523,13 @@ public class PurchaseOrderWorkflowService implements RegisterReceivedPurchaseOrd
             PlanningDepartment department, ReadinessStatus status, String detail
     ) {
         return new WorkflowReadinessCheck(department, status, detail);
+    }
+
+    private String requireText(String value, String label, int maxLength) {
+        if (value == null || value.isBlank() || value.trim().length() > maxLength) {
+            throw new IllegalArgumentException(label + " is required and must not exceed " + maxLength + " characters");
+        }
+        return value.trim();
     }
 
     private void assertSameRequest(PurchaseOrderReceipt existing, ReceivePurchaseOrderCommand command) {

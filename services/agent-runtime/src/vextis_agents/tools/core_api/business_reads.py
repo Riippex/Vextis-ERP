@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from typing import Literal, Protocol
 from uuid import UUID, uuid4
 
@@ -37,10 +38,35 @@ class CreditContext(BaseModel):
     max_payment_terms_days: int = Field(alias="maxPaymentTermsDays", ge=0, le=365)
 
 
+class CustomerOrderContext(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    id: UUID
+    purchase_order_number: str = Field(alias="purchaseOrderNumber", max_length=100)
+    customer_name: str = Field(alias="customerName", max_length=200)
+    state: Literal["RECEIVED", "PLANNING", "RUNNING", "WAITING_APPROVAL", "COMPLETED", "FAILED"]
+    updated_at: datetime = Field(alias="updatedAt")
+
+
+class CustomerOrdersContext(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    total_count: int = Field(alias="totalCount", ge=0)
+    orders: list[CustomerOrderContext] = Field(max_length=50)
+
+
 class BusinessReadTool(Protocol):
     async def lookup_customer(self, legal_name: str) -> CustomerContext | None: ...
 
+    async def list_customers(self, limit: int = 20) -> list[CustomerContext]: ...
+
+    async def search_customer_orders(
+        self, legal_name: str, limit: int = 20
+    ) -> CustomerOrdersContext: ...
+
     async def get_stock(self, sku: str) -> StockContext | None: ...
+
+    async def search_inventory(self, query: str = "", limit: int = 20) -> list[StockContext]: ...
 
     async def get_credit(self, customer_id: UUID) -> CreditContext | None: ...
 
@@ -84,6 +110,32 @@ class EnterpriseCoreBusinessReadClient:
         )
         return None if response is None else CustomerContext.model_validate(response.json())
 
+    async def list_customers(self, limit: int = 20) -> list[CustomerContext]:
+        self._validate_limit(limit)
+        response = await self._get(
+            "/internal/agent-tools/v1/crm/customers",
+            agent_id=self._crm_agent_id,
+            params={"limit": str(limit)},
+        )
+        if response is None:
+            return []
+        return [CustomerContext.model_validate(item) for item in response.json()]
+
+    async def search_customer_orders(
+        self, legal_name: str, limit: int = 20
+    ) -> CustomerOrdersContext:
+        if not 1 <= len(legal_name.strip()) <= 200:
+            raise ValueError("legal_name must contain between 1 and 200 characters")
+        self._validate_limit(limit)
+        response = await self._get(
+            "/internal/agent-tools/v1/crm/customers/orders",
+            agent_id=self._crm_agent_id,
+            params={"legalName": legal_name.strip(), "limit": str(limit)},
+        )
+        if response is None:
+            return CustomerOrdersContext(totalCount=0, orders=[])
+        return CustomerOrdersContext.model_validate(response.json())
+
     async def get_stock(self, sku: str) -> StockContext | None:
         if not re.fullmatch(r"[A-Za-z0-9._-]{1,100}", sku):
             raise ValueError("sku must use 1-100 letters, digits, dots, underscores, or hyphens")
@@ -92,6 +144,17 @@ class EnterpriseCoreBusinessReadClient:
             agent_id=self._inventory_agent_id,
         )
         return None if response is None else StockContext.model_validate(response.json())
+
+    async def search_inventory(self, query: str = "", limit: int = 20) -> list[StockContext]:
+        if len(query.strip()) > 100:
+            raise ValueError("query must not exceed 100 characters")
+        self._validate_limit(limit)
+        response = await self._get(
+            "/internal/agent-tools/v1/inventory/stock",
+            agent_id=self._inventory_agent_id,
+            params={"query": query.strip(), "limit": str(limit)},
+        )
+        return [StockContext.model_validate(item) for item in response.json()] if response else []
 
     async def get_credit(self, customer_id: UUID) -> CreditContext | None:
         response = await self._get(
@@ -139,3 +202,7 @@ class EnterpriseCoreBusinessReadClient:
         raise CoreToolRejectedError(
             f"Enterprise Core rejected the read-only tool with {response.status_code}"
         )
+
+    def _validate_limit(self, limit: int) -> None:
+        if not 1 <= limit <= 50:
+            raise ValueError("limit must be between 1 and 50")

@@ -147,6 +147,10 @@ resource "google_cloud_run_v2_service" "agent_runtime_live" {
         value = "5"
       }
       env {
+        name  = "VEXTIS_LIVE_VALIDATION_TIMEOUT_SECONDS"
+        value = "45"
+      }
+      env {
         name  = "VEXTIS_LIVE_MAX_AUDIO_FRAME_BYTES"
         value = "65536"
       }
