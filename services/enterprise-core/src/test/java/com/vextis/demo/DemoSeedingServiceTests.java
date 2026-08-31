@@ -63,8 +63,11 @@ class DemoSeedingServiceTests {
 
     @Test
     void seedDemoData_populatesAllDepartments() {
+        UUID acmeId = UUID.randomUUID();
+        UUID globexId = UUID.randomUUID();
         when(customerAdmin.save(any())).thenReturn(
-                new CustomerDirectory.CustomerSummary(UUID.randomUUID(), "Customer", true)
+                new CustomerDirectory.CustomerSummary(acmeId, "Acme Colombia S.A.S.", true),
+                new CustomerDirectory.CustomerSummary(globexId, "Globex Logistics Corp", true)
         );
         when(creditAdmin.save(any())).thenReturn(
                 new CreditAdministration.SavedCreditProfile(UUID.randomUUID(), "Customer", CreditLookup.CreditStanding.GOOD, 30)
@@ -90,6 +93,16 @@ class DemoSeedingServiceTests {
         verify(stockAdmin, times(3)).setAvailability(any());
         verify(ragDirectory, times(2))
                 .ingestDocument(eq("demo-tenant"), any(), any(), any(), any(), any(), any());
+
+        ArgumentCaptor<CustomerAdministration.SaveCustomerCommand> customers = ArgumentCaptor.captor();
+        verify(customerAdmin, times(2)).save(customers.capture());
+        assertThat(customers.getAllValues()).allSatisfy(command -> assertThat(command.id()).isNull());
+
+        ArgumentCaptor<CreditAdministration.SaveCreditProfileCommand> credits = ArgumentCaptor.captor();
+        verify(creditAdmin, times(2)).save(credits.capture());
+        assertThat(credits.getAllValues())
+                .extracting(CreditAdministration.SaveCreditProfileCommand::customerId)
+                .containsExactly(acmeId, globexId);
     }
 
     @Test
