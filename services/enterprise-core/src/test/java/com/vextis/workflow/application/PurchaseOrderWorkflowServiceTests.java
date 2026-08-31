@@ -421,6 +421,11 @@ class PurchaseOrderWorkflowServiceTests {
         }
 
         @Override
+        public List<ExecutionOverview.WeeklyVolume> findCompletedExecutionVolumeByWeek(String tenantId, int weeks) {
+            return List.of();
+        }
+
+        @Override
         public Optional<PurchaseOrderSource> findPurchaseOrder(String tenantId, UUID purchaseOrderId) {
             return Optional.ofNullable(receipt)
                     .map(PurchaseOrderReceipt::purchaseOrder)

@@ -1,6 +1,8 @@
 import { DatePipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { RouterLink } from '@angular/router';
 
@@ -9,6 +11,7 @@ import { DonutChartComponent, type DonutChartSlice } from '../../shared/charts/d
 import { LineChartComponent, type LineChartPoint } from '../../shared/charts/line-chart.component';
 import { WorkspaceSkeletonComponent } from '../../shared/loading/workspace-skeleton.component';
 import { MissionControlStore } from '../mission-control/mission-control.store';
+import { ExecutionMonitorDialogComponent } from './execution-monitor-dialog.component';
 
 const DEPARTMENT_LABELS: Record<string, string> = {
   CRM_SALES: 'CRM & Sales',
@@ -67,6 +70,12 @@ export function toDepartmentVolumeSlices(
   }));
 }
 
+export function toWeeklyExecutionPoints(
+  volumes: readonly { weekStart: string; count: number }[],
+): LineChartPoint[] {
+  return volumes.map(({ weekStart, count }) => ({ label: WEEK_LABEL.format(new Date(weekStart)), value: count }));
+}
+
 @Component({
   selector: 'vxt-dashboard-page',
   imports: [
@@ -85,6 +94,8 @@ export function toDepartmentVolumeSlices(
 export class DashboardPage {
   protected readonly store = inject(MissionControlStore);
   private readonly workspaceSearch = inject(WorkspaceSearchStore);
+  private readonly dialog = inject(MatDialog);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly activeExecutions = computed(
     () =>
@@ -105,8 +116,9 @@ export class DashboardPage {
   );
 
   protected readonly ordersCompletedPerWeek = computed(() =>
-    ordersCompletedPerWeek(this.store.data()?.executions ?? []),
+    toWeeklyExecutionPoints(this.store.data()?.completedOrdersPerWeek ?? []),
   );
+  protected readonly hasCompletedOrderHistory = computed(() => this.ordersCompletedPerWeek().some(({ value }) => value > 0));
   protected readonly executionVolumeByDepartment = computed(() =>
     toDepartmentVolumeSlices(this.store.data()?.executionVolumeByDepartment ?? []),
   );
@@ -126,5 +138,14 @@ export class DashboardPage {
 
   protected isHealthyState(state: string): boolean {
     return state === 'RUNNING' || state === 'COMPLETED';
+  }
+
+  protected openExecution(execution: { id: string; purchaseOrderNumber: string; customerName: string }): void {
+    this.dialog.open(ExecutionMonitorDialogComponent, {
+      data: execution,
+      width: '64rem',
+      maxWidth: '96vw',
+      maxHeight: '92vh',
+    }).afterClosed().pipe(takeUntilDestroyed(this.destroyRef)).subscribe(() => this.store.refresh());
   }
 }

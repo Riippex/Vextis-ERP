@@ -159,7 +159,7 @@ export type SetStockAvailabilityMutation = { setStockAvailability: { sku: string
 export type MissionControlQueryVariables = Exact<{ [key: string]: never; }>;
 
 
-export type MissionControlQuery = { missionControl: { agents: Array<{ agentId: string, version: string, displayName: string, department: string, purpose: string, framework: string, modelId: string, promptVersion: string, serviceIdentity: string, status: AgentRegistryStatus, capabilities: Array<string>, allowedTools: Array<string> }>, recentAgentActivities: Array<{ conversationId: string, messageId: string, agentId: string, agentVersion: string, displayName: string, modelId: string, promptVersion: string, tools: Array<string>, occurredAt: string }>, executions: Array<{ id: string, purchaseOrderNumber: string, customerName: string, state: ExecutionState, correlationId: string, updatedAt: string }>, customers: Array<{ id: string, legalName: string, active: boolean }>, stockItems: Array<{ sku: string, availableQuantity: number }>, stockReservations: Array<{ id: string, orderId: string, sku: string, quantity: number, status: StockReservationStatus, createdAt: string }>, creditProfiles: Array<{ customerId: string, customerName: string, standing: CreditStanding, maxPaymentTermsDays: number }>, invoices: Array<{ id: string, orderId: string, executionId: string, customerName: string, currency: string, subtotal: string, tax: string, total: string, status: InvoiceStatus, paymentTermsDays: number, issuedAt: string, correlationId: string, lines: Array<{ sku: string, quantity: number, unitPrice: string, lineSubtotal: string }> }>, executionVolumeByDepartment: Array<{ department: PlanningDepartment, count: number }> } };
+export type MissionControlQuery = { missionControl: { agents: Array<{ agentId: string, version: string, displayName: string, department: string, purpose: string, framework: string, modelId: string, promptVersion: string, serviceIdentity: string, status: AgentRegistryStatus, capabilities: Array<string>, allowedTools: Array<string> }>, recentAgentActivities: Array<{ conversationId: string, messageId: string, agentId: string, agentVersion: string, displayName: string, modelId: string, promptVersion: string, tools: Array<string>, occurredAt: string }>, executions: Array<{ id: string, purchaseOrderNumber: string, customerName: string, state: ExecutionState, correlationId: string, updatedAt: string }>, customers: Array<{ id: string, legalName: string, active: boolean }>, stockItems: Array<{ sku: string, availableQuantity: number }>, stockReservations: Array<{ id: string, orderId: string, sku: string, quantity: number, status: StockReservationStatus, createdAt: string }>, creditProfiles: Array<{ customerId: string, customerName: string, standing: CreditStanding, maxPaymentTermsDays: number }>, invoices: Array<{ id: string, orderId: string, executionId: string, customerName: string, currency: string, subtotal: string, tax: string, total: string, status: InvoiceStatus, paymentTermsDays: number, issuedAt: string, correlationId: string, lines: Array<{ sku: string, quantity: number, unitPrice: string, lineSubtotal: string }> }>, executionVolumeByDepartment: Array<{ department: PlanningDepartment, count: number }>, completedOrdersPerWeek: Array<{ weekStart: string, count: number }> } };
 
 export type DecideApprovalMutationVariables = Exact<{
   input: DecideApprovalInput;
@@ -376,6 +376,10 @@ export const MissionControlDocument = gql`
     }
     executionVolumeByDepartment {
       department
+      count
+    }
+    completedOrdersPerWeek {
+      weekStart
       count
     }
   }
