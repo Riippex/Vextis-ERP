@@ -5,9 +5,9 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
-import java.sql.Timestamp;
 import java.sql.Types;
 import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,7 +39,8 @@ class JdbcAuditTrailTests {
         verify(jdbc).update(contains("INSERT INTO audit_records"), parameters.capture());
         assertThat(parameters.getValue().getValue("actorId")).isEqualTo("firebase-user-123");
         assertThat(parameters.getValue().getValue("resourceId")).isEqualTo(customerId);
-        assertThat(parameters.getValue().getValue("occurredAt")).isEqualTo(Timestamp.from(occurredAt));
+        assertThat(parameters.getValue().getValue("occurredAt"))
+                .isEqualTo(occurredAt.atOffset(ZoneOffset.UTC));
         assertThat(parameters.getValue().getSqlType("occurredAt")).isEqualTo(Types.TIMESTAMP_WITH_TIMEZONE);
     }
 
@@ -68,7 +69,8 @@ class JdbcAuditTrailTests {
         assertThat(parameters.getValue().getValue("actorId")).isEqualTo("rogue-agent");
         assertThat(parameters.getValue().getValue("resourceId")).isEqualTo(executionId);
         assertThat(parameters.getValue().getValue("result")).isEqualTo("DENIED");
-        assertThat(parameters.getValue().getValue("occurredAt")).isEqualTo(Timestamp.from(occurredAt));
+        assertThat(parameters.getValue().getValue("occurredAt"))
+                .isEqualTo(occurredAt.atOffset(ZoneOffset.UTC));
         assertThat(parameters.getValue().getSqlType("occurredAt")).isEqualTo(Types.TIMESTAMP_WITH_TIMEZONE);
     }
 }

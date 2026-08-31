@@ -4,8 +4,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import java.sql.Timestamp;
 import java.sql.Types;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -40,7 +40,7 @@ class JdbcAuditTrail implements AuditTrail {
                         .addValue("resourceId", action.resourceId())
                         .addValue(
                                 "occurredAt",
-                                Timestamp.from(action.occurredAt()),
+                                action.occurredAt().atOffset(ZoneOffset.UTC),
                                 Types.TIMESTAMP_WITH_TIMEZONE)
         );
     }
@@ -67,7 +67,7 @@ class JdbcAuditTrail implements AuditTrail {
                         .addValue("result", decision.result().name())
                         .addValue(
                                 "occurredAt",
-                                Timestamp.from(decision.occurredAt()),
+                                decision.occurredAt().atOffset(ZoneOffset.UTC),
                                 Types.TIMESTAMP_WITH_TIMEZONE)
         );
     }
