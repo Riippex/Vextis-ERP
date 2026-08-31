@@ -16,6 +16,7 @@ def settings() -> Settings:
         enterprise_core_url="http://enterprise-core.test",
         agent_tools_token=SecretStr("test-service-token"),
         coordinator_agent_id="coordinator-agent",
+        live_validation_timeout_seconds=45.0,
     )
 
 
@@ -47,6 +48,7 @@ async def test_validate_sends_the_service_bearer_and_session_token() -> None:
     assert captured.headers["X-Agent-Id"] == "coordinator-agent"
     assert captured.headers["X-Live-Session-Token"] == "opaque-token"
     assert captured.url.path.endswith(f"/live-sessions/{SESSION_ID}/validate")
+    assert client._validation_timeout_seconds == 45.0
 
 
 @pytest.mark.asyncio

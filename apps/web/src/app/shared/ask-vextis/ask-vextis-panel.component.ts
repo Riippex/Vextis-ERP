@@ -30,8 +30,9 @@ export class AskVextisPanelComponent {
   constructor() {
     effect(() => {
       const count = this.store.messages().length;
+      const sending = this.store.sending();
       const list = this.messageList()?.nativeElement;
-      if (count > 0 && list) {
+      if ((count > 0 || sending) && list) {
         queueMicrotask(() => {
           list.scrollTop = list.scrollHeight;
         });

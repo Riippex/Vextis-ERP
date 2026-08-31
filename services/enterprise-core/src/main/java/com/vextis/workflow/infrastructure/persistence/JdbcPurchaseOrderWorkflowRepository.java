@@ -160,6 +160,37 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
     }
 
     @Override
+    public ExecutionOverview.CustomerOrders findCustomerOrders(String tenantId, String legalName, int limit) {
+        List<CustomerOrderRow> rows = jdbc.query(
+                """
+                SELECT execution.id, purchase_order.purchase_order_number, purchase_order.customer_name,
+                       execution.state, execution.correlation_id, execution.updated_at,
+                       COUNT(*) OVER () AS total_count
+                FROM workflow_executions execution
+                JOIN workflow_purchase_orders purchase_order
+                  ON purchase_order.id = execution.source_id
+                 AND purchase_order.tenant_id = execution.tenant_id
+                WHERE execution.tenant_id = :tenantId
+                  AND LOWER(purchase_order.customer_name) = LOWER(:legalName)
+                ORDER BY execution.updated_at DESC
+                LIMIT :limit
+                """,
+                Map.of("tenantId", tenantId, "legalName", legalName, "limit", limit),
+                (rs, row) -> new CustomerOrderRow(
+                        rs.getInt("total_count"),
+                        new ExecutionOverview.ExecutionSummary(
+                                rs.getObject("id", UUID.class),
+                                rs.getString("purchase_order_number"),
+                                rs.getString("customer_name"),
+                                rs.getString("state"),
+                                rs.getString("correlation_id"),
+                                rs.getObject("updated_at", OffsetDateTime.class).toInstant())));
+        int totalCount = rows.isEmpty() ? 0 : rows.getFirst().totalCount();
+        return new ExecutionOverview.CustomerOrders(
+                totalCount, rows.stream().map(CustomerOrderRow::summary).toList());
+    }
+
+    @Override
     public List<ExecutionOverview.WeeklyVolume> findCompletedExecutionVolumeByWeek(String tenantId, int weeks) {
         return jdbc.query(
                 """
@@ -1005,5 +1036,8 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
     }
 
     private record ReceiptIds(UUID purchaseOrderId, UUID executionId) {
+    }
+
+    private record CustomerOrderRow(int totalCount, ExecutionOverview.ExecutionSummary summary) {
     }
 }

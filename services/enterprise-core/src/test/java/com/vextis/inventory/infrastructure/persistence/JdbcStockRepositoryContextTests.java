@@ -11,6 +11,8 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.UUID;
+import java.time.Instant;
+import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -55,5 +57,13 @@ class JdbcStockRepositoryContextTests {
                 .containsExactly(
                         "demo-tenant:inventory-reservation:idempotency:event-001",
                         "demo-tenant:inventory-reservation:line:" + orderId + ":VXT-CHAIR-01");
+    }
+
+    @Test
+    void convertsReservationInstantsToPostgresCompatibleUtcTimestamps() {
+        Instant createdAt = Instant.parse("2026-08-31T15:47:00Z");
+
+        assertThat(JdbcStockRepository.sqlTimestamp(createdAt))
+                .isEqualTo(OffsetDateTime.parse("2026-08-31T15:47:00Z"));
     }
 }

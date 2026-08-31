@@ -32,13 +32,16 @@ class AgentToolPermissionMigrationTests {
     @Test
     void inventoryAgentKeepsStockReadReservationAndKnowledgeTools() {
         assertThat(allowedToolsByAgent.get("vextis_inventory_agent"))
-                .containsExactlyInAnyOrder("get_stock", "reserve_stock", "search_knowledge_base");
+                .containsExactlyInAnyOrder(
+                        "get_stock", "search_inventory", "reserve_stock", "search_knowledge_base");
     }
 
     @Test
     void crmAgentKeepsCustomerLookupAndKnowledgeTools() {
         assertThat(allowedToolsByAgent.get("vextis_crm_agent"))
-                .containsExactlyInAnyOrder("lookup_customer", "register_quote_asset", "search_knowledge_base");
+                .containsExactlyInAnyOrder(
+                        "lookup_customer", "list_customers", "search_customer_orders",
+                        "register_quote_asset", "search_knowledge_base");
     }
 
     @Test

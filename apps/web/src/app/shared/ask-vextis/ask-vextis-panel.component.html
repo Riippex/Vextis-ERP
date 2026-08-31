@@ -71,7 +71,7 @@
   }
 
   <div class="ask-vextis-panel__messages" #messageList>
-    @if (store.messages().length === 0 && !liveStore.isLiveActive()) {
+    @if (store.messages().length === 0 && !liveStore.isLiveActive() && !store.sending()) {
       <div class="ask-vextis-panel__empty">
         <mat-icon>forum</mat-icon>
         <p>Ask about an order, a customer, or inventory — Vextis' agents answer with live data.</p>
@@ -109,6 +109,18 @@
           }
         </div>
       }
+      @if (store.sending()) {
+        <div
+          class="ask-vextis-message ask-vextis-message--typing"
+          role="status"
+          aria-label="Vextis is composing a response"
+        >
+          <mat-icon>smart_toy</mat-icon>
+          <span class="ask-vextis-typing-dots" aria-hidden="true">
+            <span></span><span></span><span></span>
+          </span>
+        </div>
+      }
     }
     @if (store.error() || liveStore.error(); as error) {
       <p class="ask-vextis-panel__error">{{ error }}</p>
@@ -132,7 +144,7 @@
       [value]="draft()"
       (input)="onDraftInput($event)"
     ></textarea>
-    <button mat-icon-button type="submit" aria-label="Send message" [disabled]="!draft().trim()">
+    <button mat-icon-button type="submit" aria-label="Send message" [disabled]="!draft().trim() || store.sending()">
       <mat-icon>send</mat-icon>
     </button>
   </form>

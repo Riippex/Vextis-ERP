@@ -32,6 +32,20 @@ def build_crm_agent(
 
         tools.append(lookup_customer)
 
+        async def list_customers(limit: int = 20) -> dict[str, object]:
+            """List up to 50 customers from authoritative tenant-scoped Enterprise Core data."""
+            customers = await core_reads.list_customers(limit)
+            return {"count": len(customers), "customers": [
+                customer.model_dump(by_alias=True, mode="json") for customer in customers
+            ]}
+
+        async def search_customer_orders(legal_name: str, limit: int = 20) -> dict[str, object]:
+            """Count and list recent purchase orders for one exact customer legal name."""
+            result = await core_reads.search_customer_orders(legal_name, limit)
+            return result.model_dump(by_alias=True, mode="json")
+
+        tools.extend([list_customers, search_customer_orders])
+
     if asset_generator is not None:
 
         async def generate_proposal_asset(
@@ -74,7 +88,10 @@ def build_crm_agent(
         instruction=(
             "You are Vextis's CRM and Sales specialist. Stay within customers, opportunities, "
             "quotes, and commercial context. Use only facts present in the conversation or in "
-            "authorized tool results. Use lookup_customer for current customer records and clearly "
+            "authorized tool results. Use lookup_customer for one exact customer, list_customers "
+            "when the user asks which customers exist, and search_customer_orders to count or list "
+            "a customer's orders. Do not ask for information already present in recent "
+            "conversation context. Clearly "
             "state when no matching record exists. When the user asks for a proposal visual, "
             "mockup, or concept image for a quote or order, use generate_proposal_asset with that "
             "quote or order's id; always disclose that the resulting image is AI-generated and "

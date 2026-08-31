@@ -126,6 +126,20 @@ describe('AskVextisPanelComponent', () => {
     expect(store.open()).toBe(false);
   });
 
+  it('shows an accessible typing indicator while the agent is composing', () => {
+    const fixture = TestBed.createComponent(AskVextisPanelComponent);
+    const store = TestBed.inject(AskVextisChatStore);
+    store.openPanel();
+    store.sending.set(true);
+
+    fixture.detectChanges();
+
+    const indicator = fixture.nativeElement.querySelector('.ask-vextis-message--typing');
+    expect(indicator?.getAttribute('role')).toBe('status');
+    expect(indicator?.getAttribute('aria-label')).toBe('Vextis is composing a response');
+    expect(indicator?.querySelectorAll('.ask-vextis-typing-dots span')).toHaveLength(3);
+  });
+
   it('renders Markdown while keeping model-supplied HTML and URLs inert', () => {
     const fixture = TestBed.createComponent(AskVextisPanelComponent);
     const store = TestBed.inject(AskVextisChatStore);
