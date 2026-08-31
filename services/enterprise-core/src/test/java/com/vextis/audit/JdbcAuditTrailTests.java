@@ -5,6 +5,8 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 
+import java.sql.Timestamp;
+import java.sql.Types;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -14,6 +16,32 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 class JdbcAuditTrailTests {
+
+    @Test
+    void persistsUserActionWithAnExplicitPostgresTimestampType() {
+        NamedParameterJdbcTemplate jdbc = mock(NamedParameterJdbcTemplate.class);
+        JdbcAuditTrail auditTrail = new JdbcAuditTrail(jdbc);
+        UUID customerId = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        Instant occurredAt = Instant.parse("2026-08-31T01:00:49Z");
+
+        auditTrail.recordUserAction(new AuditTrail.UserAction(
+                "demo-tenant",
+                "corr-customer-001",
+                "firebase-user-123",
+                "crm.customer.saved",
+                "Customer",
+                customerId,
+                occurredAt
+        ));
+
+        ArgumentCaptor<MapSqlParameterSource> parameters =
+                ArgumentCaptor.forClass(MapSqlParameterSource.class);
+        verify(jdbc).update(contains("INSERT INTO audit_records"), parameters.capture());
+        assertThat(parameters.getValue().getValue("actorId")).isEqualTo("firebase-user-123");
+        assertThat(parameters.getValue().getValue("resourceId")).isEqualTo(customerId);
+        assertThat(parameters.getValue().getValue("occurredAt")).isEqualTo(Timestamp.from(occurredAt));
+        assertThat(parameters.getValue().getSqlType("occurredAt")).isEqualTo(Types.TIMESTAMP_WITH_TIMEZONE);
+    }
 
     @Test
     void persistsDeniedAgentDecisionWithoutCredentialsOrPromptContent() {
@@ -40,6 +68,7 @@ class JdbcAuditTrailTests {
         assertThat(parameters.getValue().getValue("actorId")).isEqualTo("rogue-agent");
         assertThat(parameters.getValue().getValue("resourceId")).isEqualTo(executionId);
         assertThat(parameters.getValue().getValue("result")).isEqualTo("DENIED");
-        assertThat(parameters.getValue().getValue("occurredAt")).isEqualTo(occurredAt);
+        assertThat(parameters.getValue().getValue("occurredAt")).isEqualTo(Timestamp.from(occurredAt));
+        assertThat(parameters.getValue().getSqlType("occurredAt")).isEqualTo(Types.TIMESTAMP_WITH_TIMEZONE);
     }
 }
