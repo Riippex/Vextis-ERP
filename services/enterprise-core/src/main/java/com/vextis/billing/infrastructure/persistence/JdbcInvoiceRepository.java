@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import tools.jackson.databind.ObjectMapper;
 
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
@@ -29,12 +30,8 @@ class JdbcInvoiceRepository implements InvoiceRepository {
 
     @Override
     public void acquireLocks(String tenantId, UUID orderId, String idempotencyKey) {
-        jdbc.queryForObject(
-                "SELECT pg_advisory_xact_lock(hashtextextended(:lockKey, 0))",
-                Map.of("lockKey", tenantId + ":invoice:idempotency:" + idempotencyKey), Long.class);
-        jdbc.queryForObject(
-                "SELECT pg_advisory_xact_lock(hashtextextended(:lockKey, 0))",
-                Map.of("lockKey", tenantId + ":invoice:order:" + orderId), Long.class);
+        acquireTransactionLock(tenantId + ":invoice:idempotency:" + idempotencyKey);
+        acquireTransactionLock(tenantId + ":invoice:order:" + orderId);
     }
 
     @Override
@@ -153,6 +150,16 @@ class JdbcInvoiceRepository implements InvoiceRepository {
 
     private Optional<Invoice> findOne(String predicate, Map<String, ?> parameters) {
         return jdbc.query(invoiceSelect() + " WHERE " + predicate, parameters, this::mapInvoice).stream().findFirst();
+    }
+
+    private void acquireTransactionLock(String lockKey) {
+        jdbc.execute(
+                "SELECT pg_advisory_xact_lock(hashtextextended(:lockKey, 0))",
+                new MapSqlParameterSource("lockKey", lockKey),
+                (PreparedStatement statement) -> {
+                    statement.execute();
+                    return null;
+                });
     }
 
     private String invoiceSelect() {

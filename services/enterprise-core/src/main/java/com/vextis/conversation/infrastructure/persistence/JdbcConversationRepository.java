@@ -45,15 +45,6 @@ class JdbcConversationRepository implements ConversationRepository, Conversation
     }
 
     @Override
-    public boolean existsForTenant(String tenantId, UUID conversationId) {
-        Integer count = jdbc.queryForObject(
-                "SELECT COUNT(*) FROM conversations WHERE id = :id AND tenant_id = :tenantId",
-                Map.of("id", conversationId, "tenantId", tenantId),
-                Integer.class);
-        return count != null && count > 0;
-    }
-
-    @Override
     @Transactional
     public ChatMessage appendMessage(
             String tenantId,

@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import tools.jackson.databind.ObjectMapper;
 
+import java.sql.PreparedStatement;
 import java.sql.Types;
 import java.time.Instant;
 import java.util.List;
@@ -46,14 +47,8 @@ class JdbcStockRepository implements StockRepository, ReservationDirectory {
 
     @Override
     public void acquireReservationLocks(String tenantId, UUID orderId, String sku, String idempotencyKey) {
-        jdbc.queryForObject(
-                "SELECT pg_advisory_xact_lock(hashtextextended(:lockKey, 0))",
-                Map.of("lockKey", tenantId + ":inventory-reservation:idempotency:" + idempotencyKey),
-                Long.class);
-        jdbc.queryForObject(
-                "SELECT pg_advisory_xact_lock(hashtextextended(:lockKey, 0))",
-                Map.of("lockKey", tenantId + ":inventory-reservation:line:" + orderId + ':' + sku),
-                Long.class);
+        acquireTransactionLock(tenantId + ":inventory-reservation:idempotency:" + idempotencyKey);
+        acquireTransactionLock(tenantId + ":inventory-reservation:line:" + orderId + ':' + sku);
     }
 
     @Override
@@ -183,6 +178,16 @@ class JdbcStockRepository implements StockRepository, ReservationDirectory {
                         rs.getObject("id", UUID.class), rs.getObject("order_id", UUID.class),
                         rs.getString("sku"), rs.getInt("quantity"), rs.getString("status"),
                         rs.getTimestamp("created_at").toInstant())).stream().findFirst();
+    }
+
+    private void acquireTransactionLock(String lockKey) {
+        jdbc.execute(
+                "SELECT pg_advisory_xact_lock(hashtextextended(:lockKey, 0))",
+                new MapSqlParameterSource("lockKey", lockKey),
+                (PreparedStatement statement) -> {
+                    statement.execute();
+                    return null;
+                });
     }
 
     private StockReservation.Reservation reservation(

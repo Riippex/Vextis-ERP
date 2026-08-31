@@ -13,6 +13,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.Clock;
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,6 +26,9 @@ import java.util.regex.Pattern;
 public class ConversationService implements AskVextisUseCase, FindConversationUseCase {
 
     private static final Pattern TOOL_NAME = Pattern.compile("[a-z0-9_]{1,100}");
+    private static final int MAX_HISTORY_TURNS = 12;
+    private static final int MAX_HISTORY_TURN_CHARACTERS = 4_000;
+    private static final int MAX_HISTORY_CHARACTERS = 12_000;
 
     private final ConversationRepository repository;
     private final AgentChatClient agentChat;
@@ -48,10 +53,14 @@ public class ConversationService implements AskVextisUseCase, FindConversationUs
     @Override
     public AskVextisResult postMessage(AskVextisCommand command) {
         UUID conversationId = command.conversationId();
+        List<AgentChatClient.ConversationTurn> history = List.of();
         if (conversationId == null) {
             conversationId = repository.startConversation(command.tenantId(), clock.instant());
-        } else if (!repository.existsForTenant(command.tenantId(), conversationId)) {
-            throw new ConversationNotFoundException("Conversation was not found for this tenant");
+        } else {
+            Conversation conversation = repository.findById(command.tenantId(), conversationId)
+                    .orElseThrow(() -> new ConversationNotFoundException(
+                            "Conversation was not found for this tenant"));
+            history = boundedHistory(conversation.messages());
         }
 
         repository.appendMessage(
@@ -59,7 +68,7 @@ public class ConversationService implements AskVextisUseCase, FindConversationUs
                 MessageKind.TEXT, clock.instant(), List.of(), null);
 
         AgentChatClient.ChatCompletion completion = agentChat.complete(
-                command.tenantId(), command.actorId(), conversationId, command.message());
+                command.tenantId(), command.actorId(), conversationId, history, command.message());
         List<AgentActivityEvidence> evidence = validateEvidence(command.tenantId(), completion.activities());
         MemoryEvidence memoryEvidence = validateMemoryEvidence(completion.memory());
 
@@ -75,6 +84,27 @@ public class ConversationService implements AskVextisUseCase, FindConversationUs
     @Override
     public Optional<Conversation> findById(String tenantId, UUID conversationId) {
         return repository.findById(tenantId, conversationId);
+    }
+
+    private List<AgentChatClient.ConversationTurn> boundedHistory(List<ChatMessage> messages) {
+        Deque<AgentChatClient.ConversationTurn> selected = new ArrayDeque<>();
+        int remainingCharacters = MAX_HISTORY_CHARACTERS;
+        for (int index = messages.size() - 1;
+             index >= 0 && selected.size() < MAX_HISTORY_TURNS && remainingCharacters > 0;
+             index--) {
+            ChatMessage message = messages.get(index);
+            if (message.content() == null || message.content().isBlank()) {
+                continue;
+            }
+            int contentLength = Math.min(
+                    message.content().length(),
+                    Math.min(MAX_HISTORY_TURN_CHARACTERS, remainingCharacters));
+            selected.addFirst(new AgentChatClient.ConversationTurn(
+                    AgentChatClient.ConversationRole.valueOf(message.sender().name()),
+                    message.content().substring(0, contentLength)));
+            remainingCharacters -= contentLength;
+        }
+        return List.copyOf(selected);
     }
 
     private List<AgentActivityEvidence> validateEvidence(
