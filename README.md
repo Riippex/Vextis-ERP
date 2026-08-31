@@ -14,12 +14,14 @@
 ## 🌐 Live Deployed Application
 
 - **Hosted URL:** [https://vextis-erp.web.app](https://vextis-erp.web.app) (Deployed on Firebase Hosting)
-- **Default Tenant:** `demo-tenant` (Pre-seeded with customer `Acme Colombia`, credit limits, and inventory catalog)
+- **Default Tenant:** `demo-tenant` (Pre-seeded with two synthetic customers, three inventory SKUs, and their credit profiles)
 - **Judge Access:** Self-service registration is disabled for enterprise platform security. Dedicated evaluation credentials are provided privately in the *Testing Instructions / Access Instructions* field of the official Devpost submission.
+
+> **Judges and evaluators:** Follow the complete [Reproducible Testing Guide](docs/TESTING.md) for access prerequisites, deterministic sample data, expected workflow states, Gemini Live validation, pass criteria, troubleshooting, and local test commands.
 
 ### Live Access & Evaluation Walkthrough
 1. **Mission Control (`/app`):** Inspect the 4 registered specialist agents (`vextis_coordinator`, `vextis_crm_agent`, `vextis_inventory_agent`, `vextis_billing_agent`), their active models (`gemini-3.5-flash`), allowed tool scopes, and operational status.
-2. **Order-to-Cash Pipeline (`/app/purchase-orders/new`):** Ingest purchase orders, follow autonomous multi-agent planning and stock reservations, review Human-in-the-Loop manager approval gates (`WAITING_FOR_APPROVAL`), and inspect generated invoices.
+2. **Order-to-Cash Pipeline (`/app/purchase-orders/new`):** Ingest purchase orders, follow autonomous multi-agent planning and stock reservations, review Human-in-the-Loop manager approval gates (`WAITING_APPROVAL`), and inspect generated invoices.
 3. **Ask Vextis (Floating Assistant Widget):** Query grounded enterprise Q&A with similarity citations backed by PostgreSQL `pgvector`, and engage in real-time bidirectional voice interaction via Gemini Live Audio WebSockets directly to the Live gateway.
 
 ---
@@ -203,6 +205,8 @@ Copy-Item .env.example .env
 
 ## 🧪 Comprehensive Verification Suites
 
+For the complete hosted and local evaluation procedure, see [`docs/TESTING.md`](docs/TESTING.md).
+
 | Component | Test Suite | Validation Status |
 |---|---|---|
 | **Enterprise Core** | `./gradlew test` | Unit, controller, and integration tests passing cleanly |
@@ -216,6 +220,7 @@ Copy-Item .env.example .env
 ## 📚 Deliverables & Documentation
 
 - **Demo Video:** `[Demo Video Placeholder - Recording in progress]`
+- **Reproducible Testing Guide:** [`docs/TESTING.md`](docs/TESTING.md)
 - **Demo Screenplay & Script:** [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md)
 - **Pitch Deck & Architecture Story:** [`docs/PITCH_DECK.md`](docs/PITCH_DECK.md)
 - **Devpost Submission Narrative:** [`docs/SUBMISSION.md`](docs/SUBMISSION.md)
