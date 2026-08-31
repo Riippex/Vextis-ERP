@@ -68,7 +68,15 @@
             <h2>Orders completed per week</h2>
           </div>
           <div class="chart-card__body">
-            <vxt-line-chart [points]="ordersCompletedPerWeek()" />
+            @if (hasCompletedOrderHistory()) {
+              <vxt-line-chart [points]="ordersCompletedPerWeek()" />
+            } @else {
+              <div class="chart-card__empty chart-card__empty--explain">
+                <mat-icon>query_stats</mat-icon>
+                <strong>No completed workflows in this six-week window.</strong>
+                <span>The historical series is sourced from Core and will populate after an approved order reaches COMPLETED.</span>
+              </div>
+            }
           </div>
         </div>
         <div class="panel chart-card">
@@ -223,7 +231,8 @@
       @if (filteredExecutions().length) {
         <div class="data-list">
           @for (execution of filteredExecutions(); track execution.id) {
-            <div class="data-row">
+            <button class="data-row execution-row" type="button" (click)="openExecution(execution)"
+                    [attr.aria-label]="'Open workflow ' + execution.purchaseOrderNumber">
               <div>
                 <div class="data-row__primary">{{ execution.purchaseOrderNumber }}</div>
                 <div class="data-row__secondary">{{ execution.customerName }}</div>
@@ -235,7 +244,7 @@
               >{{ execution.state }}</span>
               <span class="data-row__meta">{{ execution.updatedAt | date: 'medium' }}</span>
               <span class="data-row__meta correlation">{{ execution.correlationId }}</span>
-            </div>
+            </button>
           }
         </div>
       } @else if (data.executions.length) {

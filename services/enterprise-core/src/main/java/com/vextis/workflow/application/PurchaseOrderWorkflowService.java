@@ -143,6 +143,15 @@ public class PurchaseOrderWorkflowService implements RegisterReceivedPurchaseOrd
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public List<ExecutionOverview.WeeklyVolume> completedPerWeek(String tenantId, int weeks) {
+        if (weeks < 1 || weeks > 52) {
+            throw new IllegalArgumentException("Weekly execution history must be between 1 and 52 weeks");
+        }
+        return repository.findCompletedExecutionVolumeByWeek(tenantId, weeks);
+    }
+
+    @Override
     @Transactional
     public PlanningContext startPlanning(StartPlanningCommand command) {
         if (command.actor().type() != Actor.Type.AGENT) {

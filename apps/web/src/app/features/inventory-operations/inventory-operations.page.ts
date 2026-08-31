@@ -3,6 +3,7 @@ import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signa
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
@@ -12,6 +13,7 @@ import { RouterLink } from '@angular/router';
 import { SetStockAvailabilityGQL } from '../../api/generated/graphql';
 import { WorkspaceSkeletonComponent } from '../../shared/loading/workspace-skeleton.component';
 import { MissionControlStore } from '../mission-control/mission-control.store';
+import { EditStockDialogComponent } from './edit-stock-dialog.component';
 
 @Component({
   selector: 'vxt-inventory-operations-page',
@@ -34,6 +36,7 @@ export class InventoryOperationsPage {
   private readonly formBuilder = inject(NonNullableFormBuilder);
   private readonly mutation = inject(SetStockAvailabilityGQL);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly dialog = inject(MatDialog);
 
   protected readonly store = inject(MissionControlStore);
   protected readonly saving = signal(false);
@@ -49,8 +52,11 @@ export class InventoryOperationsPage {
   );
 
   protected editStock(item: { sku: string; availableQuantity: number }): void {
-    this.stockForm.setValue({ sku: item.sku, availableQuantity: item.availableQuantity });
     this.clearFeedback();
+    this.dialog.open(EditStockDialogComponent, { data: item, width: '34rem', maxWidth: '94vw' })
+      .afterClosed().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((saved) => {
+        if (saved) { this.saveMessage.set(`${item.sku} availability was updated.`); this.store.refresh(); }
+      });
   }
 
   protected saveStock(): void {

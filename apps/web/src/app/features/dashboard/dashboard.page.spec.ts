@@ -1,12 +1,15 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
 import { provideRouter } from '@angular/router';
+import { of } from 'rxjs';
 
 import { WorkspaceSearchStore } from '../../core/search/workspace-search.store';
 import { MissionControlStore } from '../mission-control/mission-control.store';
-import { DashboardPage, ordersCompletedPerWeek, toDepartmentVolumeSlices } from './dashboard.page';
+import { DashboardPage, ordersCompletedPerWeek, toDepartmentVolumeSlices, toWeeklyExecutionPoints } from './dashboard.page';
 
 describe('DashboardPage', () => {
+  const openDialog = vi.fn().mockReturnValue({ afterClosed: () => of(false) });
   const store = {
     data: signal({
       agents: [
@@ -68,6 +71,9 @@ describe('DashboardPage', () => {
         { department: 'CRM_SALES' as const, count: 2 },
         { department: 'INVENTORY_OPERATIONS' as const, count: 1 },
       ],
+      completedOrdersPerWeek: [
+        { weekStart: '2026-08-24T00:00:00Z', count: 1 },
+      ],
     }),
     loading: signal(false),
     error: signal<string | null>(null),
@@ -75,9 +81,14 @@ describe('DashboardPage', () => {
   };
 
   beforeEach(async () => {
+    openDialog.mockClear();
     await TestBed.configureTestingModule({
       imports: [DashboardPage],
-      providers: [provideRouter([]), { provide: MissionControlStore, useValue: store }],
+      providers: [
+        provideRouter([]),
+        { provide: MissionControlStore, useValue: store },
+        { provide: MatDialog, useValue: { open: openDialog } },
+      ],
     }).compileComponents();
   });
 
@@ -112,6 +123,17 @@ describe('DashboardPage', () => {
     expect(fixture.nativeElement.textContent).not.toContain('PO-2026-001');
     expect(fixture.nativeElement.textContent).toContain('No workflows match your search.');
   });
+
+  it('opens the live monitor from a workflow row', () => {
+    const fixture = TestBed.createComponent(DashboardPage);
+    fixture.detectChanges();
+
+    fixture.nativeElement.querySelector('.execution-row').click();
+
+    expect(openDialog).toHaveBeenCalledWith(expect.any(Function), expect.objectContaining({
+      data: expect.objectContaining({ id: '8d3f290d-1322-44a2-8bd7-3b325f170e07' }),
+    }));
+  });
 });
 
 describe('ordersCompletedPerWeek', () => {
@@ -142,5 +164,13 @@ describe('toDepartmentVolumeSlices', () => {
       { label: 'CRM & Sales', value: 3 },
       { label: 'UNKNOWN_DEPARTMENT', value: 1 },
     ]);
+  });
+});
+
+describe('toWeeklyExecutionPoints', () => {
+  it('maps authoritative weekly aggregates to chart points', () => {
+    const points = toWeeklyExecutionPoints([{ weekStart: '2026-08-24T00:00:00Z', count: 4 }]);
+    expect(points).toHaveLength(1);
+    expect(points[0].value).toBe(4);
   });
 });

@@ -10,6 +10,8 @@ public interface ExecutionOverview {
 
     List<DepartmentVolume> volumeByDepartment(String tenantId);
 
+    List<WeeklyVolume> completedPerWeek(String tenantId, int weeks);
+
     record ExecutionSummary(
             UUID id,
             String purchaseOrderNumber,
@@ -25,5 +27,8 @@ public interface ExecutionOverview {
      * departments can exceed the execution count for multi-department orders.
      */
     record DepartmentVolume(String department, int count) {
+    }
+
+    record WeeklyVolume(Instant weekStart, int count) {
     }
 }

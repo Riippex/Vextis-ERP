@@ -160,6 +160,30 @@ class JdbcPurchaseOrderWorkflowRepository implements PurchaseOrderWorkflowReposi
     }
 
     @Override
+    public List<ExecutionOverview.WeeklyVolume> findCompletedExecutionVolumeByWeek(String tenantId, int weeks) {
+        return jdbc.query(
+                """
+                SELECT bucket.week_start, COUNT(execution.id) AS execution_count
+                FROM generate_series(
+                    date_trunc('week', CURRENT_TIMESTAMP) - (:weeks - 1) * INTERVAL '1 week',
+                    date_trunc('week', CURRENT_TIMESTAMP),
+                    INTERVAL '1 week'
+                ) AS bucket(week_start)
+                LEFT JOIN workflow_executions execution
+                  ON execution.tenant_id = :tenantId
+                 AND execution.state = 'COMPLETED'
+                 AND execution.updated_at >= bucket.week_start
+                 AND execution.updated_at < bucket.week_start + INTERVAL '1 week'
+                GROUP BY bucket.week_start
+                ORDER BY bucket.week_start
+                """,
+                Map.of("tenantId", tenantId, "weeks", weeks),
+                (rs, row) -> new ExecutionOverview.WeeklyVolume(
+                        readInstant(rs, "week_start"), rs.getInt("execution_count"))
+        );
+    }
+
+    @Override
     public Optional<WorkflowExecution> findExecutionResult(
             String tenantId,
             String operation,

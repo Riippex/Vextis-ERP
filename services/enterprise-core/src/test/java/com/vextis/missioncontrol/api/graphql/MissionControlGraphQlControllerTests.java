@@ -91,6 +91,27 @@ class MissionControlGraphQlControllerTests {
 
     @Test
     @WithMockUser(username = "firebase-user-123")
+    void returnsCompletedOrderHistoryFromTheAuthoritativeExecutionOverview() {
+        when(executions.completedPerWeek(eq("demo-tenant"), eq(6))).thenReturn(List.of(
+                new ExecutionOverview.WeeklyVolume(Instant.parse("2026-08-24T00:00:00Z"), 2)
+        ));
+
+        graphQlTester.document("""
+                        query MissionControlHistory {
+                          missionControl { completedOrdersPerWeek { weekStart count } }
+                        }
+                        """)
+                .execute()
+                .path("missionControl.completedOrdersPerWeek[0].weekStart")
+                .entity(String.class)
+                .isEqualTo("2026-08-24T00:00:00Z")
+                .path("missionControl.completedOrdersPerWeek[0].count")
+                .entity(Integer.class)
+                .isEqualTo(2);
+    }
+
+    @Test
+    @WithMockUser(username = "firebase-user-123")
     void returnsTheTenantScopedApprovedAgentRegistry() {
         when(conversationActivities.findRecentAgentActivities(eq("demo-tenant"), eq(12))).thenReturn(List.of());
         when(agents.findAll(eq("demo-tenant"))).thenReturn(List.of(

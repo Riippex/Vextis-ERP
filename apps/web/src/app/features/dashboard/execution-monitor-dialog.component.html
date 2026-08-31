@@ -1,0 +1,81 @@
+<header class="monitor-header">
+  <div>
+    <p>Governed workflow</p>
+    <h2 mat-dialog-title>{{ data.purchaseOrderNumber }}</h2>
+    <span>{{ data.customerName }}</span>
+  </div>
+  <button mat-icon-button type="button" (click)="refresh()" [disabled]="refreshing()" aria-label="Refresh execution">
+    <mat-icon [class.spin]="refreshing()">refresh</mat-icon>
+  </button>
+</header>
+
+<mat-dialog-content>
+  @if (loading()) {
+    <div class="monitor-state"><mat-spinner diameter="32" /><span>Loading authoritative execution data…</span></div>
+  } @else if (execution(); as current) {
+    <section class="summary">
+      <div><span>Status</span><strong class="status" [class.status--attention]="current.state === 'WAITING_APPROVAL'">{{ current.state }}</strong></div>
+      <div><span>Last update</span><strong>{{ current.updatedAt | date: 'medium' }}</strong></div>
+      <div><span>Correlation</span><strong class="mono">{{ current.correlationId }}</strong></div>
+      <div><span>Live monitor</span><strong>{{ isTerminal(current.state) ? 'Final state' : 'Refreshing every 3s' }}</strong></div>
+    </section>
+
+    @if (current.plan; as plan) {
+      <section class="monitor-section">
+        <div class="section-title"><div><p>Gemini structured output</p><h3>Execution plan</h3></div><span>{{ plan.modelId }}</span></div>
+        <p>{{ plan.summary }}</p>
+        <ol class="steps">@for (step of plan.steps; track step.sequence) {
+          <li><b>{{ step.sequence }}</b><div><strong>{{ step.department }}</strong><span>{{ step.objective }}</span></div></li>
+        }</ol>
+      </section>
+    }
+
+    @if (current.readiness; as readiness) {
+      <section class="monitor-section">
+        <div class="section-title"><div><p>Enterprise evidence</p><h3>Readiness checks</h3></div><time>{{ readiness.evaluatedAt | date: 'mediumTime' }}</time></div>
+        <div class="checks">@for (check of readiness.checks; track check.department) {
+          <article [class.check--review]="check.status !== 'READY'"><mat-icon>{{ check.status === 'READY' ? 'check_circle' : 'error_outline' }}</mat-icon><div><strong>{{ check.department }} · {{ check.status }}</strong><p>{{ check.detail }}</p></div></article>
+        }</div>
+      </section>
+    }
+
+    @if (current.approval; as approval) {
+      <section class="monitor-section approval-section">
+        <div class="section-title"><div><p>Human control point</p><h3>Approval</h3></div><span class="status status--attention">{{ approval.status }}</span></div>
+        <p>{{ approval.recommendation }}</p>
+        @if (approval.status === 'PENDING') {
+          <form [formGroup]="decisionForm" class="decision-form">
+            <mat-form-field appearance="outline"><mat-label>Decision note (optional)</mat-label><textarea matInput rows="3" formControlName="reason"></textarea></mat-form-field>
+            <div><button mat-stroked-button type="button" (click)="decide('REJECT')" [disabled]="deciding()"><mat-icon>close</mat-icon>Reject</button>
+              <button mat-flat-button type="button" (click)="decide('APPROVE')" [disabled]="deciding()"><mat-icon>verified_user</mat-icon>Approve</button></div>
+          </form>
+        } @else {
+          <p class="decision-result">{{ approval.status }} @if (approval.decidedBy) { by {{ approval.decidedBy }} } @if (approval.reason) { · {{ approval.reason }} }</p>
+        }
+      </section>
+    }
+
+    @if (current.invoice; as invoice) {
+      <section class="monitor-section"><div class="section-title"><div><p>Finance closure</p><h3>Invoice issued</h3></div><span class="status">{{ invoice.status }}</span></div>
+        <strong class="invoice-total">{{ invoice.total }} {{ invoice.currency }}</strong><p>Subtotal {{ invoice.subtotal }} + tax {{ invoice.tax }} · {{ invoice.paymentTermsDays }}-day terms</p>
+      </section>
+    }
+
+    <section class="monitor-section">
+      <div class="section-title"><div><p>Process monitor</p><h3>Execution timeline</h3></div><span>{{ current.timeline.length }} events</span></div>
+      <ol class="timeline">@for (entry of current.timeline; track entry.sequence) {
+        <li><span></span><div><strong>{{ entry.title }}</strong><p>{{ entry.detail }}</p><time>{{ entry.occurredAt | date: 'medium' }}</time></div></li>
+      }</ol>
+    </section>
+
+    <section class="monitor-section">
+      <div class="section-title"><div><p>Governance evidence</p><h3>Audit trail</h3></div><span>{{ current.auditTrail.length }} records</span></div>
+      <div class="audit-list">@for (entry of current.auditTrail; track entry.id) {
+        <article><mat-icon>{{ entry.actorType === 'AGENT' ? 'smart_toy' : 'person' }}</mat-icon><div><strong>{{ entry.action }}</strong><p>{{ entry.actorId }} · {{ entry.result }}</p></div><time>{{ entry.occurredAt | date: 'short' }}</time></article>
+      } @empty { <p>No audit records have been emitted yet.</p> }</div>
+    </section>
+  }
+  @if (error()) { <p class="monitor-error" role="alert"><mat-icon>error_outline</mat-icon>{{ error() }}</p> }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end"><button mat-flat-button type="button" mat-dialog-close>Close monitor</button></mat-dialog-actions>
