@@ -21,16 +21,12 @@ import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @Service
 @Transactional
 public class DemoSeedingService {
 
     private static final Logger log = LoggerFactory.getLogger(DemoSeedingService.class);
-
-    public static final UUID DEMO_CUSTOMER_1_ID = UUID.fromString("77cc63cc-3c91-4d80-a918-605b7f231cf8");
-    public static final UUID DEMO_CUSTOMER_2_ID = UUID.fromString("88dd74dd-4d02-5e91-b029-716c80342da9");
 
     /**
      * Identifies the vectors {@link #generateDeterministicMockVector} produces.
@@ -79,19 +75,19 @@ public class DemoSeedingService {
 
         // 1. Customers
         CustomerDirectory.CustomerSummary c1 = customerAdmin.save(new CustomerAdministration.SaveCustomerCommand(
-                effectiveTenant, effectiveActor, DEMO_CUSTOMER_1_ID, "Acme Colombia S.A.S.", true
+                effectiveTenant, effectiveActor, null, "Acme Colombia S.A.S.", true
         ));
         CustomerDirectory.CustomerSummary c2 = customerAdmin.save(new CustomerAdministration.SaveCustomerCommand(
-                effectiveTenant, effectiveActor, DEMO_CUSTOMER_2_ID, "Globex Logistics Corp", true
+                effectiveTenant, effectiveActor, null, "Globex Logistics Corp", true
         ));
         List<CustomerDirectory.CustomerSummary> customers = List.of(c1, c2);
 
         // 2. Credit Profiles
         CreditAdministration.SavedCreditProfile cr1 = creditAdmin.save(new CreditAdministration.SaveCreditProfileCommand(
-                effectiveTenant, effectiveActor, DEMO_CUSTOMER_1_ID, CreditLookup.CreditStanding.GOOD, 30
+                effectiveTenant, effectiveActor, c1.id(), CreditLookup.CreditStanding.GOOD, 30
         ));
         CreditAdministration.SavedCreditProfile cr2 = creditAdmin.save(new CreditAdministration.SaveCreditProfileCommand(
-                effectiveTenant, effectiveActor, DEMO_CUSTOMER_2_ID, CreditLookup.CreditStanding.REVIEW, 15
+                effectiveTenant, effectiveActor, c2.id(), CreditLookup.CreditStanding.REVIEW, 15
         ));
         List<CreditAdministration.SavedCreditProfile> creditProfiles = List.of(cr1, cr2);
 
