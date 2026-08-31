@@ -36,6 +36,7 @@ class EnterpriseCoreLiveSessionClient:
         self._base_url = settings.enterprise_core_url.rstrip("/")
         self._service_token = settings.agent_tools_token.get_secret_value()
         self._agent_id = settings.coordinator_agent_id
+        self._validation_timeout_seconds = settings.live_validation_timeout_seconds
         self._transport = transport
         self._identity_token_provider = identity_token_provider
         if settings.enterprise_core_audience and identity_token_provider is None:
@@ -64,7 +65,10 @@ class EnterpriseCoreLiveSessionClient:
         try:
             async with httpx.AsyncClient(
                 base_url=self._base_url,
-                timeout=httpx.Timeout(10.0, connect=3.0),
+                timeout=httpx.Timeout(
+                    self._validation_timeout_seconds,
+                    connect=min(5.0, self._validation_timeout_seconds),
+                ),
                 transport=self._transport,
             ) as client:
                 response = await client.post(

@@ -22,6 +22,8 @@ public interface PurchaseOrderWorkflowRepository {
 
     List<ExecutionOverview.ExecutionSummary> findRecentExecutions(String tenantId, int limit);
 
+    ExecutionOverview.CustomerOrders findCustomerOrders(String tenantId, String legalName, int limit);
+
     List<ExecutionOverview.DepartmentVolume> findExecutionVolumeByDepartment(String tenantId);
 
     List<ExecutionOverview.WeeklyVolume> findCompletedExecutionVolumeByWeek(String tenantId, int weeks);

@@ -2,7 +2,10 @@ package com.vextis.workflow.api.internal;
 
 enum AgentTool {
     LOOKUP_CUSTOMER("lookup_customer"),
+    LIST_CUSTOMERS("list_customers"),
+    SEARCH_CUSTOMER_ORDERS("search_customer_orders"),
     GET_STOCK("get_stock"),
+    SEARCH_INVENTORY("search_inventory"),
     GET_CREDIT("get_credit"),
     START_EXECUTION_PLANNING("start_execution_planning"),
     RECORD_EXECUTION_PLAN("record_execution_plan"),

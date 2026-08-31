@@ -12,6 +12,8 @@ import tools.jackson.databind.ObjectMapper;
 import java.sql.PreparedStatement;
 import java.sql.Types;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -97,7 +99,7 @@ class JdbcStockRepository implements StockRepository, ReservationDirectory {
                         .addValue("status", reservation.status().name()).addValue("actorId", command.actorId())
                         .addValue("correlationId", command.correlationId())
                         .addValue("idempotencyKey", command.idempotencyKey())
-                        .addValue("createdAt", reservation.createdAt(), Types.TIMESTAMP_WITH_TIMEZONE));
+                        .addValue("createdAt", sqlTimestamp(reservation.createdAt()), Types.TIMESTAMP_WITH_TIMEZONE));
         UUID auditId = UUID.randomUUID();
         jdbc.update(
                 """
@@ -111,7 +113,7 @@ class JdbcStockRepository implements StockRepository, ReservationDirectory {
                 new MapSqlParameterSource().addValue("id", auditId).addValue("tenantId", command.tenantId())
                         .addValue("correlationId", command.correlationId()).addValue("actorId", command.actorId())
                         .addValue("resourceId", reservation.id())
-                        .addValue("occurredAt", reservation.createdAt(), Types.TIMESTAMP_WITH_TIMEZONE));
+                        .addValue("occurredAt", sqlTimestamp(reservation.createdAt()), Types.TIMESTAMP_WITH_TIMEZONE));
         Map<String, Object> payload = Map.of(
                 "reservation_id", reservation.id().toString(), "order_id", reservation.orderId().toString(),
                 "sku", reservation.sku(), "quantity", reservation.quantity(), "status", reservation.status().name());
@@ -134,7 +136,7 @@ class JdbcStockRepository implements StockRepository, ReservationDirectory {
                         .addValue("aggregateId", reservation.id().toString()).addValue("tenantId", command.tenantId())
                         .addValue("correlationId", command.correlationId()).addValue("causationId", auditId)
                         .addValue("payload", envelope)
-                        .addValue("occurredAt", reservation.createdAt(), Types.TIMESTAMP_WITH_TIMEZONE));
+                        .addValue("occurredAt", sqlTimestamp(reservation.createdAt()), Types.TIMESTAMP_WITH_TIMEZONE));
     }
 
     @Override
@@ -195,6 +197,10 @@ class JdbcStockRepository implements StockRepository, ReservationDirectory {
     ) {
         return new StockReservation.Reservation(
                 id, orderId, sku, quantity, StockReservation.Status.valueOf(status), createdAt);
+    }
+
+    static OffsetDateTime sqlTimestamp(Instant instant) {
+        return instant.atOffset(ZoneOffset.UTC);
     }
 
     private String toJson(Object value) {

@@ -421,6 +421,14 @@ class PurchaseOrderWorkflowServiceTests {
         }
 
         @Override
+        public ExecutionOverview.CustomerOrders findCustomerOrders(String tenantId, String legalName, int limit) {
+            List<ExecutionOverview.ExecutionSummary> matches = findRecentExecutions(tenantId, limit).stream()
+                    .filter(order -> order.customerName().equalsIgnoreCase(legalName))
+                    .toList();
+            return new ExecutionOverview.CustomerOrders(matches.size(), matches);
+        }
+
+        @Override
         public List<ExecutionOverview.WeeklyVolume> findCompletedExecutionVolumeByWeek(String tenantId, int weeks) {
             return List.of();
         }

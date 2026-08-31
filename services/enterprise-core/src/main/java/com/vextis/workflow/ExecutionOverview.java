@@ -8,6 +8,8 @@ public interface ExecutionOverview {
 
     List<ExecutionSummary> findRecent(String tenantId, int limit);
 
+    CustomerOrders findCustomerOrders(String tenantId, String legalName, int limit);
+
     List<DepartmentVolume> volumeByDepartment(String tenantId);
 
     List<WeeklyVolume> completedPerWeek(String tenantId, int weeks);
@@ -20,6 +22,12 @@ public interface ExecutionOverview {
             String correlationId,
             Instant updatedAt
     ) {
+    }
+
+    record CustomerOrders(int totalCount, List<ExecutionSummary> orders) {
+        public CustomerOrders {
+            orders = List.copyOf(orders);
+        }
     }
 
     /**

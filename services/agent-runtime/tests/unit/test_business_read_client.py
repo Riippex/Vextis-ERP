@@ -60,6 +60,42 @@ async def test_stock_lookup_returns_none_for_tenant_scoped_not_found() -> None:
 
 
 @pytest.mark.asyncio
+async def test_bounded_discovery_reads_parse_customer_orders_and_inventory() -> None:
+    def respond(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/crm/customers"):
+            return httpx.Response(200, json=[{
+                "id": "09ec135d-9688-47de-ac71-5b8420b97488",
+                "legalName": "Acme Colombia",
+                "active": True,
+            }])
+        if request.url.path.endswith("/crm/customers/orders"):
+            return httpx.Response(200, json={
+                "totalCount": 7,
+                "orders": [{
+                    "id": "6e9aa9f4-113b-4a81-8f1f-55cd792fc711",
+                    "purchaseOrderNumber": "PO-2026-007",
+                    "customerName": "Acme Colombia",
+                    "state": "RUNNING",
+                    "updatedAt": "2026-08-31T15:47:00Z",
+                }],
+            })
+        return httpx.Response(200, json=[{"sku": "VXT-DESK-01", "availableQuantity": 12}])
+
+    client = EnterpriseCoreBusinessReadClient(
+        settings(), "demo-tenant", transport=httpx.MockTransport(respond)
+    )
+
+    customers = await client.list_customers()
+    orders = await client.search_customer_orders("Acme Colombia")
+    inventory = await client.search_inventory("desk")
+
+    assert customers[0].legal_name == "Acme Colombia"
+    assert orders.total_count == 7
+    assert orders.orders[0].purchase_order_number == "PO-2026-007"
+    assert inventory[0].sku == "VXT-DESK-01"
+
+
+@pytest.mark.asyncio
 async def test_credit_lookup_parses_strict_response() -> None:
     customer_id = UUID("09ec135d-9688-47de-ac71-5b8420b97488")
     client = EnterpriseCoreBusinessReadClient(
@@ -156,3 +192,7 @@ async def test_client_rejects_unbounded_lookup_inputs_before_http() -> None:
         await client.lookup_customer(" ")
     with pytest.raises(ValueError, match="sku"):
         await client.get_stock("../../other-tenant")
+    with pytest.raises(ValueError, match="limit"):
+        await client.list_customers(51)
+    with pytest.raises(ValueError, match="query"):
+        await client.search_inventory("x" * 101)

@@ -11,6 +11,7 @@ from vextis_agents.coordinator.agent import build_coordinator, build_planning_ag
 from vextis_agents.tools.core_api.business_reads import (
     CreditContext,
     CustomerContext,
+    CustomerOrdersContext,
     StockContext,
 )
 from vextis_agents.workflows.order_to_cash.planning import GeneratedPlan
@@ -86,14 +87,25 @@ class FakeBusinessReads:
     async def lookup_customer(self, legal_name: str) -> CustomerContext | None:
         return None
 
+    async def list_customers(self, limit: int = 20) -> list[CustomerContext]:
+        return []
+
+    async def search_customer_orders(
+        self, legal_name: str, limit: int = 20
+    ) -> CustomerOrdersContext:
+        return CustomerOrdersContext(totalCount=0, orders=[])
+
     async def get_stock(self, sku: str) -> StockContext | None:
         return None
+
+    async def search_inventory(self, query: str = "", limit: int = 20) -> list[StockContext]:
+        return []
 
     async def get_credit(self, customer_id: UUID) -> CreditContext | None:
         return None
 
 
-def test_tenant_bound_coordinator_gives_each_specialist_one_read_tool() -> None:
+def test_tenant_bound_coordinator_gives_each_specialist_bounded_read_tools() -> None:
     coordinator = build_coordinator(
         Settings(gemini_model="gemini-test-model"),
         "demo-tenant",
@@ -102,8 +114,8 @@ def test_tenant_bound_coordinator_gives_each_specialist_one_read_tool() -> None:
     specialists = [cast(LlmAgent, agent) for agent in coordinator.sub_agents]
 
     assert [[getattr(tool, "__name__", None) for tool in agent.tools] for agent in specialists] == [
-        ["lookup_customer"],
-        ["get_stock"],
+        ["lookup_customer", "list_customers", "search_customer_orders"],
+        ["get_stock", "search_inventory"],
         ["get_credit"],
     ]
 

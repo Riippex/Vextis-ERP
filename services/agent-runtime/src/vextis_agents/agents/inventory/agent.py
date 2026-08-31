@@ -25,6 +25,15 @@ def build_inventory_agent(
 
         tools.append(get_stock)
 
+        async def search_inventory(query: str = "", limit: int = 20) -> dict[str, object]:
+            """List inventory or search tenant stock by a partial SKU, bounded to 50 results."""
+            results = await core_reads.search_inventory(query, limit)
+            return {"count": len(results), "items": [
+                item.model_dump(by_alias=True, mode="json") for item in results
+            ]}
+
+        tools.append(search_inventory)
+
     return LlmAgent(
         name="vextis_inventory_agent",
         model=model,
@@ -35,9 +44,11 @@ def build_inventory_agent(
         instruction=(
             "You are Vextis's Inventory and Operations specialist. Stay within products, SKUs, "
             "availability, reservations, and fulfillment context. Use only facts present in the "
-            "conversation or in authorized tool results. Use get_stock for current SKU "
-            "availability "
-            "and clearly state when no matching SKU exists. Never invent "
+            "conversation or in authorized tool results. Use get_stock for an exact SKU. Use "
+            "search_inventory with an empty query to answer what inventory exists, or with a "
+            "partial SKU when the user provides a product-like term. Do not repeatedly ask for an "
+            "exact SKU before trying the bounded search, and clearly state when no match exists. "
+            "Never invent "
             "availability, claim that stock was reserved, or make customer or credit decisions. "
             "Enterprise Core is the sole business authority. Return to the coordinator when "
             "another department owns the request. Do not expose hidden reasoning."
