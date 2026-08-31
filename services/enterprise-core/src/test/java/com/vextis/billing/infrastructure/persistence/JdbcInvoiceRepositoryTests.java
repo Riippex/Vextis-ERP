@@ -1,10 +1,7 @@
-package com.vextis.inventory.infrastructure.persistence;
+package com.vextis.billing.infrastructure.persistence;
 
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.springframework.boot.autoconfigure.AutoConfigurations;
-import org.springframework.boot.jackson.autoconfigure.JacksonAutoConfiguration;
-import org.springframework.boot.test.context.runner.ApplicationContextRunner;
 import org.springframework.jdbc.core.PreparedStatementCallback;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -19,32 +16,18 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-class JdbcStockRepositoryContextTests {
+class JdbcInvoiceRepositoryTests {
 
     private static final String ADVISORY_LOCK_SQL =
             "SELECT pg_advisory_xact_lock(hashtextextended(:lockKey, 0))";
 
-    private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-            .withConfiguration(AutoConfigurations.of(JacksonAutoConfiguration.class))
-            .withBean(NamedParameterJdbcTemplate.class, () -> mock(NamedParameterJdbcTemplate.class))
-            .withBean(JdbcStockRepository.class);
-
-    @Test
-    void startsWithSpringBootManagedJacksonMapper() {
-        contextRunner.run(context -> {
-            assertThat(context).hasNotFailed();
-            assertThat(context).hasSingleBean(ObjectMapper.class);
-            assertThat(context).hasSingleBean(JdbcStockRepository.class);
-        });
-    }
-
     @Test
     void executesAdvisoryLocksWithoutReadingPostgresVoidResults() {
         NamedParameterJdbcTemplate jdbc = mock(NamedParameterJdbcTemplate.class);
-        JdbcStockRepository repository = new JdbcStockRepository(jdbc, mock(ObjectMapper.class));
+        JdbcInvoiceRepository repository = new JdbcInvoiceRepository(jdbc, mock(ObjectMapper.class));
         UUID orderId = UUID.fromString("c127f8ac-6eec-4387-a552-1a41213f5ea8");
 
-        repository.acquireReservationLocks("demo-tenant", orderId, "VXT-CHAIR-01", "event-001");
+        repository.acquireLocks("demo-tenant", orderId, "event-001");
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<MapSqlParameterSource> parameters = ArgumentCaptor.forClass(MapSqlParameterSource.class);
@@ -53,7 +36,7 @@ class JdbcStockRepositoryContextTests {
         assertThat(parameters.getAllValues())
                 .extracting(source -> source.getValue("lockKey"))
                 .containsExactly(
-                        "demo-tenant:inventory-reservation:idempotency:event-001",
-                        "demo-tenant:inventory-reservation:line:" + orderId + ":VXT-CHAIR-01");
+                        "demo-tenant:invoice:idempotency:event-001",
+                        "demo-tenant:invoice:order:" + orderId);
     }
 }
