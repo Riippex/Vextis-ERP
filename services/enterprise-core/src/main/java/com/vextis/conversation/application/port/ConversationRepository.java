@@ -16,8 +16,6 @@ public interface ConversationRepository {
 
     UUID startConversation(String tenantId, Instant startedAt);
 
-    boolean existsForTenant(String tenantId, UUID conversationId);
-
     ChatMessage appendMessage(
             String tenantId,
             UUID conversationId,

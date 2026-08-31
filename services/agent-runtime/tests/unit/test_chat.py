@@ -107,6 +107,63 @@ def test_complete_chat_returns_the_agent_reply_when_authorized(
     assert runner.closed is True
 
 
+def test_complete_chat_injects_bounded_history_as_untrusted_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runner = FakeRunner("Estas son las cotizaciones de Acme Colombia.")
+    monkeypatch.setattr(chat_module, "InMemoryRunner", lambda **_: runner)
+    app = create_app(_settings())
+
+    response = TestClient(app).post(
+        "/v1/chat/complete",
+        json={
+            "tenantId": "demo-tenant",
+            "actorId": "firebase-user-123",
+            "conversationId": "9c6a6a2e-2f39-4b6a-9a8a-3b0e6a2c1d10",
+            "message": "¿Qué cotizaciones hay?",
+            "history": [
+                {"role": "USER", "content": "de Acme Colombia"},
+                {
+                    "role": "ASSISTANT",
+                    "content": "Encontré el registro activo de Acme Colombia.",
+                },
+            ],
+        },
+        headers={"Authorization": "Bearer s3cret-core-callback-token"},
+    )
+
+    assert response.status_code == 200
+    assert runner.message is not None
+    contextualized = str(runner.message)
+    assert "UNTRUSTED_CONVERSATION_HISTORY_JSON" in contextualized
+    assert '"content":"de Acme Colombia"' in contextualized
+    assert "Current request" in contextualized
+    assert "¿Qué cotizaciones hay?" in contextualized
+
+
+def test_complete_chat_rejects_history_above_the_total_character_budget() -> None:
+    app = create_app(_settings())
+
+    response = TestClient(app).post(
+        "/v1/chat/complete",
+        json={
+            "tenantId": "demo-tenant",
+            "actorId": "firebase-user-123",
+            "conversationId": "9c6a6a2e-2f39-4b6a-9a8a-3b0e6a2c1d10",
+            "message": "Follow up",
+            "history": [
+                {"role": "USER", "content": "x" * 4000},
+                {"role": "ASSISTANT", "content": "x" * 4000},
+                {"role": "USER", "content": "x" * 4000},
+                {"role": "ASSISTANT", "content": "x" * 4000},
+            ],
+        },
+        headers={"Authorization": "Bearer s3cret-core-callback-token"},
+    )
+
+    assert response.status_code == 422
+
+
 def test_complete_chat_rejects_a_missing_or_wrong_credential(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
