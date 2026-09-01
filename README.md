@@ -220,7 +220,7 @@ For the complete hosted and local evaluation procedure, see [`docs/TESTING.md`](
 
 ## 📚 Deliverables & Documentation
 
-- **Demo Video:** `[Demo Video Placeholder - Recording in progress]`
+- **Official Demo Video:** [Watch Vextis ERP on YouTube](https://youtu.be/ZDlBD1Vbta0)
 - **Reproducible Testing Guide:** [`docs/TESTING.md`](docs/TESTING.md)
 - **Demo Screenplay & Script:** [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md)
 - **Pitch Deck & Architecture Story:** [`docs/PITCH_DECK.md`](docs/PITCH_DECK.md)

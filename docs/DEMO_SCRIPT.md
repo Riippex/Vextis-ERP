@@ -5,7 +5,7 @@
 > **Demo Operator:** Rafael Patiño Díaz
 > **Deployed Web Application:** [https://vextis-erp.web.app](https://vextis-erp.web.app) (Firebase Hosting)
 > **Local Environment:** `http://localhost:4200` (Angular) · `http://localhost:8080` (Enterprise Core) · `http://localhost:8081` (Agent Runtime)
-> **Demo Video Status:** `[Demo Video Placeholder - Recording in progress]`
+> **Official Demo Video:** [Watch Vextis ERP on YouTube](https://youtu.be/ZDlBD1Vbta0)
 
 ---
 
