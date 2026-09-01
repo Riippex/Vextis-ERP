@@ -14,12 +14,15 @@
 ## 🌐 Live Deployed Application
 
 - **Hosted URL:** [https://vextis-erp.web.app](https://vextis-erp.web.app) (Deployed on Firebase Hosting)
-- **Default Tenant:** `demo-tenant` (Pre-seeded with customer `Acme Colombia`, credit limits, and inventory catalog)
+- **Default Tenant:** `demo-tenant` (Pre-seeded with two synthetic customers, three inventory SKUs, and their credit profiles)
 - **Judge Access:** Self-service registration is disabled for enterprise platform security. Dedicated evaluation credentials are provided privately in the *Testing Instructions / Access Instructions* field of the official Devpost submission.
+
+> **Judges and evaluators:** Follow the complete [Reproducible Testing Guide](docs/TESTING.md) for access prerequisites, deterministic sample data, expected workflow states, Gemini Live validation, pass criteria, troubleshooting, and local test commands.
+> The ready-to-upload [synthetic demo purchase order](docs/fixtures/vextis-demo-purchase-order.pdf) is included in the repository.
 
 ### Live Access & Evaluation Walkthrough
 1. **Mission Control (`/app`):** Inspect the 4 registered specialist agents (`vextis_coordinator`, `vextis_crm_agent`, `vextis_inventory_agent`, `vextis_billing_agent`), their active models (`gemini-3.5-flash`), allowed tool scopes, and operational status.
-2. **Order-to-Cash Pipeline (`/app/purchase-orders/new`):** Ingest purchase orders, follow autonomous multi-agent planning and stock reservations, review Human-in-the-Loop manager approval gates (`WAITING_FOR_APPROVAL`), and inspect generated invoices.
+2. **Order-to-Cash Pipeline (`/app/purchase-orders/new`):** Ingest purchase orders, follow autonomous multi-agent planning and stock reservations, review Human-in-the-Loop manager approval gates (`WAITING_APPROVAL`), and inspect generated invoices.
 3. **Ask Vextis (Floating Assistant Widget):** Query grounded enterprise Q&A with similarity citations backed by PostgreSQL `pgvector`, and engage in real-time bidirectional voice interaction via Gemini Live Audio WebSockets directly to the Live gateway.
 
 ---
@@ -46,39 +49,108 @@ Vextis participates officially under **The Fortified Enterprise Fleet** track, i
 
 ## 🏛 Architecture Diagram
 
-```text
-+-------------------------------------------------------------------------+
-|                   FIREBASE HOSTING: ANGULAR WEB APP                     |
-|                        https://vextis-erp.web.app                       |
-|           Mission Control (/app) · New Order · Ask Vextis Widget        |
-+-------------------+---------------------------------+-------------------+
-                    | GraphQL (HTTP/HTTPS)            | WebSockets (/ws/live)
-                    v                                 v
-+-------------------+--------------------+  +---------+-------------------+
-|      CLOUD RUN: ENTERPRISE CORE        |  |    CLOUD RUN: LIVE GATEWAY  |
-|      (Java 21 / Spring Boot 4.1.0)     |  |       (Python 3.13 / ADK)   |
-|  - Sole authority for mutations        |  |  - Bidirectional Web Audio  |
-|  - Multi-tenant data isolation         |  |  - WebSocket Session Client |
-|  - Role-based tool allowlists          |  +---------+-------------------+
-|  - Structured PostgreSQL audit log     |            |
-+-------------------+--------------------+            |
-                    | Outbox Events                   |
-                    v (Pub/Sub 'order-events')        |
-+-------------------+--------------------+            |
-|       CLOUD RUN: AGENT RUNTIME         |            |
-|          (Python 3.13 / ADK)           |            |
-|  - Specialist Fleet Coordination       |            |
-|  - Gemini 3.5 Flash Reasoning          |            |
-|  - Grounded pgvector RAG               |            |
-+-------------------+--------------------+            |
-                    | Tool Calls (REST)               |
-                    v                                 v
-+-------------------+--------------------+  +---------+-------------------+
-|      MANAGED GOOGLE CLOUD DATA         |  |       VERTEX AI & STORAGE   |
-|   - Cloud SQL (PostgreSQL 16)          |  |   - Gemini 3.5 Flash / Live |
-|   - pgvector (Embeddings & RAG)        |  |   - Imagen 3 (Concepts)     |
-|   - Cloud Pub/Sub ('order-events')     |  |   - Cloud Storage (GCS)     |
-+----------------------------------------+  +-----------------------------+
+```mermaid
+flowchart TB
+    User([Enterprise operator])
+
+    subgraph Edge["User experience and identity"]
+        Web["Angular web app<br/>Firebase Hosting"]
+        Auth["Firebase Authentication"]
+    end
+
+    subgraph GCP["Google Cloud — us-central1"]
+        subgraph Authority["Transactional authority — Cloud Run"]
+            PublicCore["Enterprise Core — public<br/>Java · Spring Boot · GraphQL"]
+            PrivateCore["Enterprise Core — private<br/>Authenticated agent tools"]
+        end
+
+        subgraph AgentPlane["Agent execution plane — Cloud Run"]
+            Runtime["Agent Runtime<br/>Python · Google ADK"]
+            Coordinator["Vextis Coordinator"]
+            CRM["CRM & Sales Agent"]
+            Inventory["Inventory Agent"]
+            Finance["Finance & Billing Agent"]
+            Live["Isolated Live Gateway<br/>WebSocket · read-only tools"]
+        end
+
+        subgraph AI["Vertex AI"]
+            Gemini["Gemini 3.5 Flash<br/>planning · extraction · reasoning"]
+            GeminiLive["Gemini Live<br/>bidirectional audio"]
+            Embeddings["Vertex embeddings"]
+            Imagen["Imagen 3<br/>optional proposal visuals"]
+            Memory["Memory Bank<br/>optional · feature-flagged"]
+        end
+
+        subgraph Data["Managed data and messaging"]
+            SQL[("Cloud SQL<br/>PostgreSQL 16 + pgvector")]
+            PubSub["Pub/Sub<br/>order-events"]
+            Storage[("Cloud Storage<br/>documents · invoices · assets")]
+        end
+
+        subgraph Controls["Security, delivery, and observability"]
+            Secrets["Secret Manager"]
+            IAM["IAM · service identities<br/>Workload Identity Federation"]
+            Logs["Cloud Logging<br/>audit · correlation IDs"]
+            Build["Cloud Build<br/>Artifact Registry"]
+        end
+    end
+
+    User --> Web
+    Web -->|"sign in"| Auth
+    Web -->|"Firebase JWT · GraphQL"| PublicCore
+    Web -->|"ephemeral session token · WSS"| Live
+
+    PublicCore -->|"transactional outbox"| PubSub
+    PubSub -->|"OIDC push · asynchronous work"| Runtime
+    Runtime --> Coordinator
+    Coordinator --> CRM
+    Coordinator --> Inventory
+    Coordinator --> Finance
+    Runtime -->|"structured Gemini calls"| Gemini
+    Runtime -->|"RAG queries"| Embeddings
+    Runtime -.->|"safe preferences"| Memory
+    CRM -.->|"on-demand visual"| Imagen
+
+    Runtime -->|"authenticated, tenant-scoped tools"| PrivateCore
+    Live -->|"validate session · read-only tools"| PrivateCore
+    Live --> GeminiLive
+
+    PublicCore --> SQL
+    PrivateCore --> SQL
+    PublicCore --> Storage
+    PrivateCore --> Storage
+    Runtime --> Storage
+
+    Secrets -.-> PublicCore
+    Secrets -.-> PrivateCore
+    Secrets -.-> Runtime
+    Secrets -.-> Live
+    IAM -.-> PublicCore
+    IAM -.-> PrivateCore
+    IAM -.-> Runtime
+    IAM -.-> Live
+    PublicCore -.-> Logs
+    PrivateCore -.-> Logs
+    Runtime -.-> Logs
+    Live -.-> Logs
+    Build -.-> PublicCore
+    Build -.-> PrivateCore
+    Build -.-> Runtime
+    Build -.-> Live
+
+    classDef user fill:#17151f,color:#ffffff,stroke:#8b5cf6,stroke-width:2px;
+    classDef core fill:#e8f0fe,color:#174ea6,stroke:#4285f4,stroke-width:2px;
+    classDef agent fill:#f3e8ff,color:#5b21b6,stroke:#8b5cf6,stroke-width:2px;
+    classDef ai fill:#fce8e6,color:#a50e0e,stroke:#ea4335,stroke-width:2px;
+    classDef data fill:#e6f4ea,color:#137333,stroke:#34a853,stroke-width:2px;
+    classDef control fill:#fef7e0,color:#7a4f01,stroke:#fbbc04,stroke-width:2px;
+
+    class User,Web,Auth user;
+    class PublicCore,PrivateCore core;
+    class Runtime,Coordinator,CRM,Inventory,Finance,Live agent;
+    class Gemini,GeminiLive,Embeddings,Imagen,Memory ai;
+    class SQL,PubSub,Storage data;
+    class Secrets,IAM,Logs,Build control;
 ```
 
 - **Java** is the sole authority for CRM, inventory, and billing mutations.
@@ -134,6 +206,8 @@ Copy-Item .env.example .env
 
 ## 🧪 Comprehensive Verification Suites
 
+For the complete hosted and local evaluation procedure, see [`docs/TESTING.md`](docs/TESTING.md).
+
 | Component | Test Suite | Validation Status |
 |---|---|---|
 | **Enterprise Core** | `./gradlew test` | Unit, controller, and integration tests passing cleanly |
@@ -146,7 +220,8 @@ Copy-Item .env.example .env
 
 ## 📚 Deliverables & Documentation
 
-- **Demo Video:** `[Demo Video Placeholder - Recording in progress]`
+- **Official Demo Video:** [Watch Vextis ERP on YouTube](https://youtu.be/ZDlBD1Vbta0)
+- **Reproducible Testing Guide:** [`docs/TESTING.md`](docs/TESTING.md)
 - **Demo Screenplay & Script:** [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md)
 - **Pitch Deck & Architecture Story:** [`docs/PITCH_DECK.md`](docs/PITCH_DECK.md)
 - **Devpost Submission Narrative:** [`docs/SUBMISSION.md`](docs/SUBMISSION.md)

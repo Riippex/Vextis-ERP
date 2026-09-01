@@ -4,7 +4,7 @@
 > **Competition:** Google Cloud All Things Agentic Hackathon
 > **Author & Architect:** Rafael Patiño Díaz
 > **Deployed Application:** [https://vextis-erp.web.app](https://vextis-erp.web.app) (Firebase Hosting)
-> **Demo Video Status:** `[Demo Video Placeholder - Recording in progress]`
+> **Official Demo Video:** [Watch Vextis ERP on YouTube](https://youtu.be/ZDlBD1Vbta0)
 
 ---
 
