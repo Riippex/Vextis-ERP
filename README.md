@@ -18,6 +18,7 @@
 - **Judge Access:** Self-service registration is disabled for enterprise platform security. Dedicated evaluation credentials are provided privately in the *Testing Instructions / Access Instructions* field of the official Devpost submission.
 
 > **Judges and evaluators:** Follow the complete [Reproducible Testing Guide](docs/TESTING.md) for access prerequisites, deterministic sample data, expected workflow states, Gemini Live validation, pass criteria, troubleshooting, and local test commands.
+> The ready-to-upload [synthetic demo purchase order](docs/fixtures/vextis-demo-purchase-order.pdf) is included in the repository.
 
 ### Live Access & Evaluation Walkthrough
 1. **Mission Control (`/app`):** Inspect the 4 registered specialist agents (`vextis_coordinator`, `vextis_crm_agent`, `vextis_inventory_agent`, `vextis_billing_agent`), their active models (`gemini-3.5-flash`), allowed tool scopes, and operational status.

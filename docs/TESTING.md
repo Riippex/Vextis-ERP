@@ -39,13 +39,19 @@ Because the workspace is shared, quantities and recent activity can change when 
 
 ### Prepare the sample document
 
+Download the exact synthetic PDF used for the Vextis demo:
+
+**[Download `vextis-demo-purchase-order.pdf`](fixtures/vextis-demo-purchase-order.pdf)**
+
+The file is intentionally committed to the repository so an evaluator can run the workflow without generating any assets locally.
+
 From the repository root, generate the deterministic sample PDF:
 
 ```powershell
 uv run --with reportlab infra/seed/generate_demo_purchase_order.py
 ```
 
-The generated file is:
+The script regenerates the same fixture at:
 
 ```text
 output/pdf/vextis-demo-purchase-order.pdf
