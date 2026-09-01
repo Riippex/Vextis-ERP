@@ -4,7 +4,7 @@
 > **Official Track:** The Fortified Enterprise Fleet
 > **Repository:** [https://github.com/Riippex/Vextis-ERP](https://github.com/Riippex/Vextis-ERP)
 > **Live Deployed Application:** [https://vextis-erp.web.app](https://vextis-erp.web.app) (Firebase Hosting)
-> **Demo Video Status:** `[Demo Video Placeholder - Recording in progress]`
+> **Official Demo Video:** [Watch Vextis ERP on YouTube](https://youtu.be/ZDlBD1Vbta0)
 > **Author:** Rafael Patiño Díaz
 
 ---
@@ -148,7 +148,7 @@ Judges can evaluate the deployed system live at **[https://vextis-erp.web.app](h
 
 - **GitHub Repository:** [https://github.com/Riippex/Vextis-ERP](https://github.com/Riippex/Vextis-ERP)
 - **Live Deployed Web App:** [https://vextis-erp.web.app](https://vextis-erp.web.app)
-- **Demo Video:** `[Demo Video Placeholder - Recording in progress]`
+- **Official Demo Video:** [Watch Vextis ERP on YouTube](https://youtu.be/ZDlBD1Vbta0)
 - **Demo Screenplay & Script:** [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md)
 - **Pitch Deck & Architecture Story:** [`docs/PITCH_DECK.md`](docs/PITCH_DECK.md)
 - **Contracts Specification:** [`docs/CONTRACTS.md`](docs/CONTRACTS.md)
